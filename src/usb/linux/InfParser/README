@@ -1,0 +1,8 @@
+Test code to verify:
+
+Run "make" to create the module
+> make
+
+insmod qtiDevInf.ko
+
+

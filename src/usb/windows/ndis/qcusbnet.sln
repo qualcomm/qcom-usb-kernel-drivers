@@ -1,0 +1,67 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.539
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "qcusbnet", "qcusbnet.vcxproj", "{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM64 = Debug|ARM64
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|ARM64 = Release|ARM64
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+		WindowsVistaDebug|ARM64 = WindowsVistaDebug|ARM64
+		WindowsVistaDebug|x64 = WindowsVistaDebug|x64
+		WindowsVistaDebug|x86 = WindowsVistaDebug|x86
+		WindowsVistaRelease|ARM64 = WindowsVistaRelease|ARM64
+		WindowsVistaRelease|x64 = WindowsVistaRelease|x64
+		WindowsVistaRelease|x86 = WindowsVistaRelease|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Debug|ARM64.Build.0 = Debug|ARM64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Debug|ARM64.Deploy.0 = Debug|ARM64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Debug|x64.ActiveCfg = Debug|x64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Debug|x64.Build.0 = Debug|x64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Debug|x64.Deploy.0 = Debug|x64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Debug|x86.ActiveCfg = Debug|Win32
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Debug|x86.Build.0 = Debug|Win32
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Debug|x86.Deploy.0 = Debug|Win32
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Release|ARM64.ActiveCfg = Release|ARM64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Release|ARM64.Build.0 = Release|ARM64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Release|ARM64.Deploy.0 = Release|ARM64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Release|x64.ActiveCfg = Release|x64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Release|x64.Build.0 = Release|x64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Release|x64.Deploy.0 = Release|x64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Release|x86.ActiveCfg = Release|Win32
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Release|x86.Build.0 = Release|Win32
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.Release|x86.Deploy.0 = Release|Win32
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaDebug|ARM64.ActiveCfg = WindowsVistaDebug|ARM64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaDebug|ARM64.Build.0 = WindowsVistaDebug|ARM64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaDebug|ARM64.Deploy.0 = WindowsVistaDebug|ARM64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaDebug|x64.ActiveCfg = WindowsVistaDebug|x64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaDebug|x64.Build.0 = WindowsVistaDebug|x64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaDebug|x64.Deploy.0 = WindowsVistaDebug|x64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaDebug|x86.ActiveCfg = WindowsVistaDebug|Win32
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaDebug|x86.Build.0 = WindowsVistaDebug|Win32
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaDebug|x86.Deploy.0 = WindowsVistaDebug|Win32
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaRelease|ARM64.ActiveCfg = WindowsVistaRelease|ARM64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaRelease|ARM64.Build.0 = WindowsVistaRelease|ARM64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaRelease|ARM64.Deploy.0 = WindowsVistaRelease|ARM64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaRelease|x64.ActiveCfg = WindowsVistaRelease|x64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaRelease|x64.Build.0 = WindowsVistaRelease|x64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaRelease|x64.Deploy.0 = WindowsVistaRelease|x64
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaRelease|x86.ActiveCfg = WindowsVistaRelease|Win32
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaRelease|x86.Build.0 = WindowsVistaRelease|Win32
+		{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}.WindowsVistaRelease|x86.Deploy.0 = WindowsVistaRelease|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E4DF5FFB-20C8-4FBE-B07B-59ABC6627AA2}
+	EndGlobalSection
+EndGlobal
