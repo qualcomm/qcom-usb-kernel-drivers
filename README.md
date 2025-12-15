@@ -43,11 +43,8 @@ Clone the repository
 ```bash
 git clone https://github.com/microsoft/vcpkg.git
 ```
-Navigate to directory where the code was cloned
+Navigate to directory where the code was cloned `src\windows`
 
-```bash
-cd src\windows
-```
 From the project root, open the .sln file with Visual Studio
 
 In Visual Studio, select `Build` > `Build Solution` from the top menu.
@@ -72,7 +69,7 @@ make
 - Uninstallation
 
 #### Linux command:
-  Navigate to folder src/linux
+  Navigate to folder `src/linux`
     
 - Installation
 ```bash
