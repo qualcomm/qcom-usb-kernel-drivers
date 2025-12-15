@@ -1,3 +1,6 @@
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+# SPDX-License-Identifier: BSD-3-Clause
+
 #define STRINGIFY(s) #s
 #define QCSTR(str) STRINGIFY(str) 
 #define QIK_INSTALLER_VERSION 1.0.159.4 //Latest version of QIK tool

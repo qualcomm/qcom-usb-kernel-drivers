@@ -3,14 +3,14 @@
                              M P U S B . C
 
 GENERAL DESCRIPTION
-  This module contains miniport functions that interact with the QC USB layer
-  Everything above this module is "generic" to the miniport driver and all
-  data passed to this module is in "native formats" (packets, Queries, Sets).
-  This module then is responsible for creating IRPs, reformating data, making
-  calls to QCIOCall driver and will also contain the callback routines.
+    This module contains miniport functions that interact with the QC USB layer
+    Everything above this module is "generic" to the miniport driver and all
+    data passed to this module is in "native formats" (packets, Queries, Sets).
+    This module then is responsible for creating IRPs, reformating data, making
+    calls to QCIOCall driver and will also contain the callback routines.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #include "MPMain.h"

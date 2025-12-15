@@ -3,10 +3,10 @@
                             M P I P. H
 
 GENERAL DESCRIPTION
-  This module contains references to the IP(V6) module.
+    This module contains references to the IP(V6) module.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #ifndef MPIP_H

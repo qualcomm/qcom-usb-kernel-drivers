@@ -3,10 +3,10 @@
                           M P T R A N S M I T . C
 
 GENERAL DESCRIPTION
-  This module contains Miniport function for handling send packets.
+    This module contains Miniport function for handling send packets.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #include "MPMain.h"

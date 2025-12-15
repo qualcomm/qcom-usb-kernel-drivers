@@ -3,11 +3,11 @@
                              U S B I N T . C
 
 GENERAL DESCRIPTION
-  This file contains implementations for reading data from USB device's
-  interrupt endpoint.
+    This file contains implementations for reading data from USB device's
+    interrupt endpoint.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #include "USBINT.h"

@@ -3,10 +3,10 @@
                           M P R X . H
 
 GENERAL DESCRIPTION
-  This module contains definitions for miniport data RX
+    This module contains definitions for miniport data RX
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #ifndef MPRX_H

@@ -3,10 +3,10 @@
                              M P Q O S . H
 
 GENERAL DESCRIPTION
-  This module contains forward references to the QOS module.
+    This module contains forward references to the QOS module.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #ifndef MPQOS_H

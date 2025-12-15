@@ -3,10 +3,10 @@
                           Q D B M A I N . H
 
 GENERAL DESCRIPTION
-  This is the file which contains definitions for QDSS function driver. 
+    This is the file which contains definitions for QDSS function driver. 
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 

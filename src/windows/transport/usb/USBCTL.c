@@ -3,10 +3,10 @@
                              U S B C T L. C
 
 GENERAL DESCRIPTION
-  This file contains USB-related implementations.
+    This file contains USB-related implementations.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 

@@ -1,4 +1,9 @@
-﻿#ifndef QCPNP_H
+﻿/*
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
+*/
+
+#ifndef QCPNP_H
 #define QCPNP_H
 
 #include "QCMAIN.h"

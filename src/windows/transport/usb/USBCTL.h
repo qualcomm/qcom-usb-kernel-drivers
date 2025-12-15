@@ -3,10 +3,10 @@
                              U S B C T L. H
 
 GENERAL DESCRIPTION
-  This file contains definitions for USB communication.
+    This file contains definitions for USB communication.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #ifndef QCUSB_H

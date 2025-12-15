@@ -3,10 +3,10 @@
                             M P W W A N. H
 
 GENERAL DESCRIPTION
-  This module contains forward references to the WWAN OID module.
+    This module contains forward references to the WWAN OID module.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #ifndef MPWWAN_H

@@ -3,10 +3,10 @@
                              U S B D B G . H
 
 GENERAL DESCRIPTION
-  This file contains definitions various debugging purposes.
+    This file contains definitions various debugging purposes.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #ifndef USBDBG_H

@@ -7,8 +7,8 @@ GENERAL DESCRIPTION
     deviceobject for ioctl purposes and dispatch routine for handling
     ioctl requests from usermode.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 

@@ -3,12 +3,12 @@
                              M P W O R K . C
 
 GENERAL DESCRIPTION
-  This module contains the NDIS_WORK_ITEMS used to process items off of
-  and onto the work queues used to effect asyncronization between NDIS and
-  the USB devices
+    This module contains the NDIS_WORK_ITEMS used to process items off of
+    and onto the work queues used to effect asyncronization between NDIS and
+    the USB devices
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #include "MPMain.h"

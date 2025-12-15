@@ -1,3 +1,8 @@
+/*
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
+*/
+
 #include "QCRD.h"
 #include "QCUTILS.h"
 #include "QCSER.h"

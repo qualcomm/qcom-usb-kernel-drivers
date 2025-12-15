@@ -1,4 +1,4 @@
-/*===========================================================================
+/*
 FILE:
    GobiSerial.c
 
@@ -8,9 +8,7 @@ DESCRIPTION:
    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
    SPDX-License-Identifier: BSD-3-Clause
 */
-//---------------------------------------------------------------------------
-// Include Files
-//---------------------------------------------------------------------------
+
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/usb.h>

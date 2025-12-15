@@ -3,10 +3,10 @@
                           Q D B D E V . H
 
 GENERAL DESCRIPTION
-  This is the file which contains definitions for QDSS device I/O.
+    This is the file which contains definitions for QDSS device I/O.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #ifndef QDBDEV_H

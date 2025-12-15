@@ -3,12 +3,12 @@
                           M P R X . C
 
 GENERAL DESCRIPTION
-  This module contains the code specific to receiving packets
-  Most of the work of receiving packets is contained in the
-  MPWork and MPUsb modules.
+    This module contains the code specific to receiving packets
+    Most of the work of receiving packets is contained in the
+    MPWork and MPUsb modules.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #include "MPMain.h"

@@ -3,10 +3,10 @@
                              U S B M A I N . C
 
 GENERAL DESCRIPTION
-  This file contains entry functions for the USB driver.
+    This file contains entry functions for the USB driver.
 
-  Copyright (c) 2025 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 

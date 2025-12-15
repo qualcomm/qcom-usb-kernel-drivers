@@ -1,13 +1,14 @@
 /*
-   Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
-   SPDX-License-Identifier: BSD-3-Clause
-
 FILE:
    GobiSerial.h
 
 DESCRIPTION:
    Linux Serial USB driver Implementation for QTI hardwar
+
+   Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+   SPDX-License-Identifier: BSD-3-Clause
 */
+
 #ifndef GOBISER_H
 #define GOBISER_H
 

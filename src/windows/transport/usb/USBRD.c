@@ -3,10 +3,10 @@
                             U S B R D . C
 
 GENERAL DESCRIPTION
-  This file contains implementation for reading data over USB.
+    This file contains implementation for reading data over USB.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 

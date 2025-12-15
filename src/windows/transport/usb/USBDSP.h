@@ -3,10 +3,10 @@
                              U S B D S P . H
 
 GENERAL DESCRIPTION
-  This file contains definitions for dispatch routines.
+    This file contains definitions for dispatch routines.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #ifndef USBDSP_H

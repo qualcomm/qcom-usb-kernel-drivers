@@ -3,11 +3,11 @@
                              M P Q O S C . C
 
 GENERAL DESCRIPTION
-  This module contains QMI QOS Client functions.
-  requests.
+    This module contains QMI QOS Client functions.
+    requests.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #include <stdio.h>

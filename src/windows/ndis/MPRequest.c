@@ -3,10 +3,10 @@
                              M P R E Q U E S T . C
 
 GENERAL DESCRIPTION
-  This is a debug module that converts an OID to a string for debug printing.
+    This is a debug module that converts an OID to a string for debug printing.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #include "MPMain.h"

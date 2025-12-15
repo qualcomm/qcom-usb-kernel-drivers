@@ -3,10 +3,10 @@
                              U S B I N T . H
 
 GENERAL DESCRIPTION
-  This file contains definitions for USB interrupt operations.
+    This file contains definitions for USB interrupt operations.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #ifndef USBINT_H

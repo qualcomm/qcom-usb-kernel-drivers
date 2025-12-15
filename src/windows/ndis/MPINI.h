@@ -3,10 +3,10 @@
                           M P I N I . H
 
 GENERAL DESCRIPTION
-  This module contains definitions for miniport initialization
+    This module contains definitions for miniport initialization
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #ifndef MPINI_H

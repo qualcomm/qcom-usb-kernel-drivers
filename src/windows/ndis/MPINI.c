@@ -3,11 +3,11 @@
                           M P I N I . C
 
 GENERAL DESCRIPTION
-   This module contains initialization helper routines called during
-   MiniportInitialize.
+    This module contains initialization helper routines called during
+    MiniportInitialize.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #include <stdio.h>

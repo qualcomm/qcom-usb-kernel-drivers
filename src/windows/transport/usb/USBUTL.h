@@ -3,10 +3,10 @@
                              U S B U T L . H
 
 GENERAL DESCRIPTION
-  This file contains definitions for utility functions.
+    This file contains definitions for utility functions.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #ifndef USBUTL_H

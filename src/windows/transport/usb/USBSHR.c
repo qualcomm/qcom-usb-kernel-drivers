@@ -3,10 +3,10 @@
                              U S B S H R . C
 
 GENERAL DESCRIPTION
-  This file contains implementations for USB resource sharing
+    This file contains implementations for USB resource sharing
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #include "USBMAIN.h"

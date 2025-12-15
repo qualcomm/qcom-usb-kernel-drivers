@@ -1,12 +1,12 @@
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
 
-                          Q D B R D . C
+                          Q D B R D . H
 
 GENERAL DESCRIPTION
-  This is the file which contains RX function definitions for QDSS driver.
+    This is the file which contains RX function definitions for QDSS driver.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #ifndef QDBRD_H

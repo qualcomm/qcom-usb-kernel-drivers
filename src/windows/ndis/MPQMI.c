@@ -3,10 +3,10 @@
                           M P Q M I . C
 
 GENERAL DESCRIPTION
-  This file provides support for QMI.
+    This file provides support for QMI.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #include "MPQMI.h"

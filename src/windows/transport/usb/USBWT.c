@@ -3,10 +3,10 @@
                              U S B W T . C
 
 GENERAL DESCRIPTION
-  This file contains implementations for writing data to USB device.
+    This file contains implementations for writing data to USB device.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #include <stdio.h>

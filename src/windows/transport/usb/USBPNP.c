@@ -3,10 +3,10 @@
                              U S B P N P . C
 
 GENERAL DESCRIPTION
-  This file conatins plug-and-play related functions.
+    This file conatins plug-and-play related functions.
 
-  Copyright (c) 2025 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 

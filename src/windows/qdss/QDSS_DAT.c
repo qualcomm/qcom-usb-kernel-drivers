@@ -1,12 +1,12 @@
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
 
-                          Q D B _ D A T . C
+                          Q D S S _ D A T . C
 
 GENERAL DESCRIPTION
-  This is the file which contains emulation data for QDSS device.
+    This is the file which contains emulation data for QDSS device.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #include "QDBMAIN.h"

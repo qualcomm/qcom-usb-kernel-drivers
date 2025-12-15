@@ -3,10 +3,10 @@
                              U S B W T . H
 
 GENERAL DESCRIPTION
-  This file contains definitions for USB write operations.
+    This file contains definitions for USB write operations.
 
-  Copyright (c) 2014 Qualcomm Technologies, Inc.
-  All rights reserved.
+    Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+    SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #ifndef USBWT_H
