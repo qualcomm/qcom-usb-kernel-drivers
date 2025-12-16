@@ -1,6 +1,6 @@
-#obj-m := QdssDiag.o ../InfParser/qtiDevInf.o
-obj-m := QdssDiag.o
-QdssDiag-objs := qtiDiag.o qtiEvt.o
+#obj-m := qdss.o ../InfParser/qtiDevInf.o
+obj-m := qdss.o
+qdss-objs := qtiDiag.o qtiEvt.o
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
 EXTRA_CFLAGS:= -D QCUSB_TEST_ONLY
