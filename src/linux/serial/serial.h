@@ -1,6 +1,6 @@
 /*
 FILE:
-   GobiSerial.h
+   serial.h
 
 DESCRIPTION:
    Linux Serial USB driver Implementation for QTI hardwar

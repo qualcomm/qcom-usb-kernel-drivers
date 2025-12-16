@@ -1,6 +1,6 @@
 /*
 FILE:
-   GobiSerial.c
+   serial.c
 
 DESCRIPTION:
    Linux Serial USB driver Implementation for QTI hardware
@@ -18,7 +18,7 @@ DESCRIPTION:
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION( 3,2,0 ))
 #include <linux/module.h>
 #endif
-#include "GobiSerial.h"
+#include "serial.h"
 #include "qtiDevInf.h"
 #include "../version.h"
 // Debug flag

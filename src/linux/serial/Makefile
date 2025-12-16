@@ -1,5 +1,5 @@
-#obj-m := GobiSerial.o ../InfParser/qtiDevInf.o
-obj-m := GobiSerial.o
+#obj-m := serial.o ../InfParser/qtiDevInf.o
+obj-m := serial.o
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
 OUTPUTDIR=/lib/modules/`uname -r`/kernel/drivers/usb/serial/
@@ -9,7 +9,7 @@ all: clean
 
 install: all
 	mkdir -p $(OUTPUTDIR)
-	cp -f GobiSerial.ko $(OUTPUTDIR)
+	cp -f serial.ko $(OUTPUTDIR)
 	depmod
 
 clean:
