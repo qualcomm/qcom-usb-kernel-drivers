@@ -3,12 +3,12 @@
 ;
 ; Qualcomm USB Serial Device
 ;
-; Copyright (c) 2025 Qualcomm Technologies, Inc.
-; All rights reserved.
+; Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+; SPDX-License-Identifier: BSD-3-Clause
 ;--------------------------------------------------------------------------------
 
 [Version]
-signature   = "$WINDOWS NT$"
+Signature   = "$WINDOWS NT$"
 Class       = Ports
 Provider    = %QUALCOMM%
 ClassGuid   = {4D36E978-E325-11CE-BFC1-08002BE10318}

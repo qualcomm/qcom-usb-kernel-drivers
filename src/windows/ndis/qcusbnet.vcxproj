@@ -25,22 +25,6 @@
       <Configuration>Release</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="WindowsVistaDebug|Win32">
-      <Configuration>WindowsVistaDebug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="WindowsVistaRelease|Win32">
-      <Configuration>WindowsVistaRelease</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="WindowsVistaDebug|x64">
-      <Configuration>WindowsVistaDebug</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="WindowsVistaRelease|x64">
-      <Configuration>WindowsVistaRelease</Configuration>
-      <Platform>x64</Platform>
-    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{A12CE693-9BBA-45C6-A40E-7CDCB41E0946}</ProjectGuid>
@@ -59,18 +43,6 @@
     <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
     <ConfigurationType>Driver</ConfigurationType>
     <DriverType>WDM</DriverType>
-    <DriverTargetPlatform>
-    </DriverTargetPlatform>
-    <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='WindowsVistaDebug|Win32'" Label="Configuration">
-    <TargetVersion>Windows7</TargetVersion>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
-    <ConfigurationType>Driver</ConfigurationType>
-    <DriverType>WDM</DriverType>
-    <DriverTargetPlatform>
-    </DriverTargetPlatform>
     <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
@@ -79,28 +51,6 @@
     <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
     <ConfigurationType>Driver</ConfigurationType>
     <DriverType>WDM</DriverType>
-    <DriverTargetPlatform>
-    </DriverTargetPlatform>
-    <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='WindowsVistaRelease|Win32'" Label="Configuration">
-    <TargetVersion>Windows7</TargetVersion>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
-    <ConfigurationType>Driver</ConfigurationType>
-    <DriverType>WDM</DriverType>
-    <DriverTargetPlatform>
-    </DriverTargetPlatform>
-    <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='WindowsVistaDebug|x64'" Label="Configuration">
-    <TargetVersion>Windows7</TargetVersion>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
-    <ConfigurationType>Driver</ConfigurationType>
-    <DriverType>WDM</DriverType>
-    <DriverTargetPlatform>
-    </DriverTargetPlatform>
     <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
@@ -109,13 +59,11 @@
     <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
     <ConfigurationType>Driver</ConfigurationType>
     <DriverType>WDM</DriverType>
+    <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
     <DriverTargetPlatform>
     </DriverTargetPlatform>
-    <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'" Label="Configuration">
-    <TargetVersion>
-    </TargetVersion>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
     <ConfigurationType>Driver</ConfigurationType>
@@ -129,28 +77,16 @@
     <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
     <ConfigurationType>Driver</ConfigurationType>
     <DriverType>WDM</DriverType>
+    <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
     <DriverTargetPlatform>
     </DriverTargetPlatform>
-    <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'" Label="Configuration">
-    <TargetVersion>
-    </TargetVersion>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
     <ConfigurationType>Driver</ConfigurationType>
     <DriverType>WDM</DriverType>
     <DriverTargetPlatform>Universal</DriverTargetPlatform>
-    <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='WindowsVistaRelease|x64'" Label="Configuration">
-    <TargetVersion>Windows7</TargetVersion>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
-    <ConfigurationType>Driver</ConfigurationType>
-    <DriverType>WDM</DriverType>
-    <DriverTargetPlatform>
-    </DriverTargetPlatform>
     <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -160,62 +96,33 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <TargetName>qcusbwwan</TargetName>
-    <EnableInf2cat>false</EnableInf2cat>
-    <SignMode>Off</SignMode>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='WindowsVistaDebug|Win32'">
-    <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
-    <EnableInf2cat>false</EnableInf2cat>
-    <SignMode>Off</SignMode>
+    <OutDir>$(SolutionDir)$(Platform)\$(ConfigurationName)\</OutDir>
+    <IntDir>$(Platform)\$(ConfigurationName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <TargetName>qcusbwwan</TargetName>
-    <EnableInf2cat>false</EnableInf2cat>
-    <SignMode>Off</SignMode>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='WindowsVistaRelease|Win32'">
-    <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
-    <EnableInf2cat>false</EnableInf2cat>
-    <SignMode>Off</SignMode>
+    <OutDir>$(SolutionDir)$(Platform)\$(ConfigurationName)\</OutDir>
+    <IntDir>$(Platform)\$(ConfigurationName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <TargetName>qcusbwwan</TargetName>
-    <EnableInf2cat>false</EnableInf2cat>
-    <SignMode>Off</SignMode>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <TargetName>qcusbwwan</TargetName>
-    <EnableInf2cat>false</EnableInf2cat>
-    <SignMode>Off</SignMode>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='WindowsVistaDebug|x64'">
-    <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
-    <EnableInf2cat>false</EnableInf2cat>
-    <SignMode>Off</SignMode>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <TargetName>qcusbwwan</TargetName>
-    <EnableInf2cat>false</EnableInf2cat>
-    <SignMode>Off</SignMode>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <TargetName>qcusbwwan</TargetName>
-    <EnableInf2cat>false</EnableInf2cat>
-    <SignMode>Off</SignMode>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='WindowsVistaRelease|x64'">
-    <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
-    <EnableInf2cat>false</EnableInf2cat>
-    <SignMode>Off</SignMode>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -319,70 +226,6 @@
       <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories);..\</AdditionalIncludeDirectories>
     </ResourceCompile>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='WindowsVistaDebug|x64'">
-    <ClCompile>
-      <PreprocessorDefinitions>_WIN64;_AMD64_;AMD64;%(PreprocessorDefinitions);NDIS_MINIPORT_DRIVER=1;NDIS_WDM=1;IOCTL_INTERFACE;BINARY_COMPATIBLE=0;QCUSB_MUX_PROTOCOL;NDIS51_MINIPORT=1;QCMP_DISABLE_QMI=1;CHECKED_SHIPPABLE;QCQMI_SUPPORT;QCUSB_SHARE_INTERRUPT;QCUSB_PWR;QCSER_SELECTIVE_SUSPEND;MP_QCQOS_ENABLED;QC_IP_MODE;QCQOS_IPV6;QCMP_SUPPORT_CTRL_QMIC;QCMP_MBIM_DL_SUPPORT;QCMP_MBIM_UL_SUPPORT;QCMP_UL_TLP;QCMP_DL_TLP;QCMP_QMAP_V1_SUPPORT;QCMP_QMAP_V2_SUPPORT;QC_DUAL_IP_FC;QCUSB_DBGPRINT;ENABLE_LOGGING;QCUSB_DBGPRINT_BYTES;POOL_NX_OPTIN=1;EVENT_TRACING</PreprocessorDefinitions>
-      <TreatWarningAsError>false</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories);..\transport\usb;.</AdditionalIncludeDirectories>
-      <WppEnabled>true</WppEnabled>
-      <WarningLevel>Level2</WarningLevel>
-      <WppScanConfigurationData>mpwpp.h</WppScanConfigurationData>
-    </ClCompile>
-    <Link>
-      <AdditionalDependencies>%(AdditionalDependencies);$(KernelBufferOverflowLib);$(DDK_LIB_PATH)ntoskrnl.lib;$(DDK_LIB_PATH)hal.lib;$(DDK_LIB_PATH)wmilib.lib;$(DDK_LIB_PATH)\ndis.lib;$(DDK_LIB_PATH)\usbd.lib;$(DDK_LIB_PATH)\ntoskrnl.lib;$(DDK_LIB_PATH)\hal.lib;$(DDK_LIB_PATH)\wmilib.lib;$(DDK_LIB_PATH)\Rtlver.lib;$(DDK_LIB_PATH)\netio.lib</AdditionalDependencies>
-    </Link>
-    <ResourceCompile>
-      <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories);..\</AdditionalIncludeDirectories>
-    </ResourceCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='WindowsVistaDebug|Win32'">
-    <ClCompile>
-      <PreprocessorDefinitions>_X86_=1;i386=1;STD_CALL;%(PreprocessorDefinitions);NDIS_MINIPORT_DRIVER=1;NDIS_WDM=1;IOCTL_INTERFACE;BINARY_COMPATIBLE=0;QCUSB_MUX_PROTOCOL;NDIS51_MINIPORT=1;QCMP_DISABLE_QMI=1;CHECKED_SHIPPABLE;QCQMI_SUPPORT;QCUSB_SHARE_INTERRUPT;QCUSB_PWR;QCSER_SELECTIVE_SUSPEND;MP_QCQOS_ENABLED;QC_IP_MODE;QCQOS_IPV6;QCMP_SUPPORT_CTRL_QMIC;QCMP_MBIM_DL_SUPPORT;QCMP_MBIM_UL_SUPPORT;QCMP_UL_TLP;QCMP_DL_TLP;QCMP_QMAP_V1_SUPPORT;QCMP_QMAP_V2_SUPPORT;QC_DUAL_IP_FC;QCUSB_DBGPRINT;ENABLE_LOGGING;QCUSB_DBGPRINT_BYTES;POOL_NX_OPTIN=1;EVENT_TRACING</PreprocessorDefinitions>
-      <TreatWarningAsError>false</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories);..\transport\usb;.</AdditionalIncludeDirectories>
-      <WppEnabled>true</WppEnabled>
-      <WarningLevel>Level2</WarningLevel>
-      <WppScanConfigurationData>mpwpp.h</WppScanConfigurationData>
-    </ClCompile>
-    <Link>
-      <AdditionalDependencies>%(AdditionalDependencies);$(KernelBufferOverflowLib);$(DDK_LIB_PATH)ntoskrnl.lib;$(DDK_LIB_PATH)hal.lib;$(DDK_LIB_PATH)wmilib.lib;$(DDK_LIB_PATH)\ndis.lib;$(DDK_LIB_PATH)\usbd.lib;$(DDK_LIB_PATH)\ntoskrnl.lib;$(DDK_LIB_PATH)\hal.lib;$(DDK_LIB_PATH)\wmilib.lib;$(DDK_LIB_PATH)\Rtlver.lib;$(DDK_LIB_PATH)\netio.lib</AdditionalDependencies>
-    </Link>
-    <ResourceCompile>
-      <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories);..\</AdditionalIncludeDirectories>
-    </ResourceCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='WindowsVistaRelease|x64'">
-    <ClCompile>
-      <PreprocessorDefinitions>_WIN64;_AMD64_;AMD64;%(PreprocessorDefinitions);NDIS_MINIPORT_DRIVER=1;NDIS_WDM=1;IOCTL_INTERFACE;BINARY_COMPATIBLE=0;QCUSB_MUX_PROTOCOL;NDIS51_MINIPORT=1;QCMP_DISABLE_QMI=1;CHECKED_SHIPPABLE;QCQMI_SUPPORT;QCUSB_SHARE_INTERRUPT;QCUSB_PWR;QCSER_SELECTIVE_SUSPEND;MP_QCQOS_ENABLED;QC_IP_MODE;QCQOS_IPV6;QCMP_SUPPORT_CTRL_QMIC;QCMP_MBIM_DL_SUPPORT;QCMP_MBIM_UL_SUPPORT;QCMP_UL_TLP;QCMP_DL_TLP;QCMP_QMAP_V1_SUPPORT;QCMP_QMAP_V2_SUPPORT;QC_DUAL_IP_FC;QCUSB_DBGPRINT;ENABLE_LOGGING;QCUSB_DBGPRINT_BYTES;POOL_NX_OPTIN=1;EVENT_TRACING</PreprocessorDefinitions>
-      <TreatWarningAsError>false</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories);..\transport\usb;.</AdditionalIncludeDirectories>
-      <WppEnabled>true</WppEnabled>
-      <WarningLevel>Level2</WarningLevel>
-      <WppScanConfigurationData>mpwpp.h</WppScanConfigurationData>
-    </ClCompile>
-    <Link>
-      <AdditionalDependencies>%(AdditionalDependencies);$(KernelBufferOverflowLib);$(DDK_LIB_PATH)ntoskrnl.lib;$(DDK_LIB_PATH)hal.lib;$(DDK_LIB_PATH)wmilib.lib;$(DDK_LIB_PATH)\ndis.lib;$(DDK_LIB_PATH)\usbd.lib;$(DDK_LIB_PATH)\ntoskrnl.lib;$(DDK_LIB_PATH)\hal.lib;$(DDK_LIB_PATH)\wmilib.lib;$(DDK_LIB_PATH)\Rtlver.lib;$(DDK_LIB_PATH)\netio.lib</AdditionalDependencies>
-    </Link>
-    <ResourceCompile>
-      <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories);..\</AdditionalIncludeDirectories>
-    </ResourceCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='WindowsVistaRelease|Win32'">
-    <ClCompile>
-      <PreprocessorDefinitions>_X86_=1;i386=1;STD_CALL;%(PreprocessorDefinitions);NDIS_MINIPORT_DRIVER=1;NDIS_WDM=1;IOCTL_INTERFACE;BINARY_COMPATIBLE=0;QCUSB_MUX_PROTOCOL;NDIS51_MINIPORT=1;QCMP_DISABLE_QMI=1;CHECKED_SHIPPABLE;QCQMI_SUPPORT;QCUSB_SHARE_INTERRUPT;QCUSB_PWR;QCSER_SELECTIVE_SUSPEND;MP_QCQOS_ENABLED;QC_IP_MODE;QCQOS_IPV6;QCMP_SUPPORT_CTRL_QMIC;QCMP_MBIM_DL_SUPPORT;QCMP_MBIM_UL_SUPPORT;QCMP_UL_TLP;QCMP_DL_TLP;QCMP_QMAP_V1_SUPPORT;QCMP_QMAP_V2_SUPPORT;QC_DUAL_IP_FC;QCUSB_DBGPRINT;ENABLE_LOGGING;QCUSB_DBGPRINT_BYTES;POOL_NX_OPTIN=1;EVENT_TRACING</PreprocessorDefinitions>
-      <TreatWarningAsError>false</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories);..\transport\usb;.</AdditionalIncludeDirectories>
-      <WppEnabled>true</WppEnabled>
-      <WarningLevel>Level2</WarningLevel>
-      <WppScanConfigurationData>mpwpp.h</WppScanConfigurationData>
-    </ClCompile>
-    <Link>
-      <AdditionalDependencies>%(AdditionalDependencies);$(KernelBufferOverflowLib);$(DDK_LIB_PATH)ntoskrnl.lib;$(DDK_LIB_PATH)hal.lib;$(DDK_LIB_PATH)wmilib.lib;$(DDK_LIB_PATH)\ndis.lib;$(DDK_LIB_PATH)\usbd.lib;$(DDK_LIB_PATH)\ntoskrnl.lib;$(DDK_LIB_PATH)\hal.lib;$(DDK_LIB_PATH)\wmilib.lib;$(DDK_LIB_PATH)\Rtlver.lib;$(DDK_LIB_PATH)\netio.lib</AdditionalDependencies>
-    </Link>
-    <ResourceCompile>
-      <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories);..\</AdditionalIncludeDirectories>
-    </ResourceCompile>
-  </ItemDefinitionGroup>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
@@ -457,6 +300,9 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="qcusbnet.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Inf Include="qcwwan.inf" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

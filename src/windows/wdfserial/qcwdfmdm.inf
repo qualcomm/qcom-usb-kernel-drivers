@@ -3,19 +3,18 @@
 ;
 ; Qualcomm USB Modem Device
 ;
-; Copyright (c) 2025 Qualcomm Technologies, Inc.
-; All rights reserved.
+; Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+; SPDX-License-Identifier: BSD-3-Clause
 ;--------------------------------------------------------------------------------
 
 [Version]
 Signature   = "$WINDOWS NT$"
 Class       = Modem
-ClassGUID   = {4D36E96D-E325-11CE-BFC1-08002BE10318}
 Provider    = %QUALCOMM%
+ClassGUID   = {4D36E96D-E325-11CE-BFC1-08002BE10318}
 DriverVer   = 11/11/2025,1.0.4.0
 CatalogFile = qcwdfserial.cat
 PnpLockDown = 1
-
 
 [Manufacturer]
 %QUALCOMM%=Models, NTx86, NTamd64, NTarm, NTarm64

@@ -127,16 +127,19 @@
   <PropertyGroup />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
+    <OutDir>$(SolutionDir)$(Platform)\$(ConfigurationName)\</OutDir>
+    <IntDir>$(Platform)\$(ConfigurationName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
+    <OutDir>$(SolutionDir)$(Platform)\$(ConfigurationName)\</OutDir>
+    <IntDir>$(Platform)\$(ConfigurationName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
-    <EnableInf2cat>false</EnableInf2cat>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
@@ -170,9 +173,6 @@
       <WppScanConfigurationData>QCWPP.h</WppScanConfigurationData>
       <PreprocessorDefinitions>_WIN64;_AMD64_;AMD64;EVENT_TRACING;QCUSB_MUX_PROTOCOL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
-    <DriverSign>
-      <FileDigestAlgorithm>sha1</FileDigestAlgorithm>
-    </DriverSign>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories);..\</AdditionalIncludeDirectories>
     </ResourceCompile>
@@ -195,16 +195,6 @@
       <WppEnabled>true</WppEnabled>
       <WarningLevel>Level2</WarningLevel>
     </ClCompile>
-    <Inf>
-      <SpecifyArchitecture>false</SpecifyArchitecture>
-    </Inf>
-    <Inf>
-      <SpecifyDriverVerDirectiveVersion>false</SpecifyDriverVerDirectiveVersion>
-    </Inf>
-    <Inf>
-      <SpecifyDriverVerDirectiveDate>false</SpecifyDriverVerDirectiveDate>
-      <Architecture />
-    </Inf>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories);..\</AdditionalIncludeDirectories>
     </ResourceCompile>
@@ -282,6 +272,10 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="qcwdfserial.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Inf Include="qcwdfmdm.inf" />
+    <Inf Include="qcwdfser.inf" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
