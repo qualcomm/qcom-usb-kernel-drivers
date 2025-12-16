@@ -109,7 +109,7 @@ Please follow the existing coding style and run the appropriate static analysis 
 
 ## Bug & Vulnerability reporting
 
-Please review the [security](./.github/SECURITY.md) before reporting vulnerabilities with the project
+Please review the [security](./SECURITY.md) before reporting vulnerabilities with the project
 
 ## Contributor's License Agreement
 
