@@ -1,4 +1,4 @@
-## Contributing to Qualcomm Test Automation Controller (QTAC)
+## Contributing to Qualcomm USB Kernel Drivers
 
 Hi there!
 
@@ -9,11 +9,11 @@ Your help is essential for keeping this project great and for making it better.
 In general, contributors should develop on branches based off of `develop` and pull requests should be made against `develop`.
 
 ## Submitting a pull request
-1. Please read our [code of conduct](CODE-OF-CONDUCT.md) and [license](LICENSE).
+1. Please read our [code of conduct](CODE-OF-CONDUCT.md) and [license](LICENSE.txt).
 
-2. [Fork](https://github.com/qualcomm/qcom-test-automation-controller/fork) and clone the repository.
+2. [Fork](https://github.com/qualcomm/qcom-usb-kernel-drivers/fork) and clone the repository.
     ```bash
-    git clone https://github.com/<username>/qcom-test-automation-controller.git
+    git clone https://github.com/<username>/qcom-usb-kernel-drivers.git
     ```
 3. Create a new branch based on `develop`:
     ```bash
@@ -21,7 +21,7 @@ In general, contributors should develop on branches based off of `develop` and p
     ```
 4. Create an upstream `remote` to make it easier to keep your branches up-to-date:
     ```bash
-    git remote add upstream https://github.com/qualcomm/qcom-test-automation-controller.git
+    git remote add upstream https://github.com/qualcomm/qcom-usb-kernel-drivers.git
     ```
 
 5. Make your changes, add tests, and make sure tests passes.
@@ -43,7 +43,7 @@ In general, contributors should develop on branches based off of `develop` and p
 
     The `-u` is shorthand for `--set-upstream`. This will set up the tracking reference so subsequent runs of `git push` or `git pull` can omit the remote and branch.
 
-9. [Submit a pull request](https://github.com/qualcomm/qcom-test-automation-controller/pulls) from your branch to `develop`.
+9. [Submit a pull request](https://github.com/qualcomm/qcom-usb-kernel-drivers/pulls) from your branch to `develop`.
 
 10. Pat yourself on the back and wait for your pull request to be reviewed.
 

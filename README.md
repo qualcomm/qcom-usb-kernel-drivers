@@ -1,12 +1,13 @@
-# qcom-kernel-drivers
+# Qualcomm USB Kernel Drivers
 Qualcomm kernel drivers provide logical representations of Qualcomm chipset-enabled mobile devices over USB connections. This repository includes source code, build scripts, and documentation for a set of device drivers designed for Qualcomm hardware platforms. The drivers support both Windows and Linux environments.
 The project is organized to facilitate easy compilation, testing, and integration into custom hardware solutions.
 
 ## Key Features
-  - Supports Both Windows and Linux platforms.
-  - Supports Windows on Snapdragon hosts and both X64/X86/ARM64 devices.
-  - WHQL-certified and optimized for the latest Windows 11 operating systems.
-  - Compatible with existing tools like QUTS, QDL, Qualcomm Device Launcher, and more.
+  - Supports Windows and Linux platforms.
+  - Supports X64/X86/ARM64 architectures.
+  - WHQL-certified on the latest Windows operating systems.
+  - Compatible with Qualcomm tools like QUTS, QXDM, PCAT, and more.
+  - Compatible with terminal emulators like PuTTY and Tera Term.
     
 ## Repository Structure
 
@@ -19,41 +20,39 @@ The project is organized to facilitate easy compilation, testing, and integratio
 └─ ...                    # Other files and directories
 ```
 
-## Software install guide
+## Build Instructions
 
 ### Prerequisites
 
 #### Windows
 
 - Visual Studio 2019 (or later) with **Desktop development with C++** workload.
-- Windows Driver Kit for Windows 10, version 1809 or later
-- Administrator rights for driver installation.
-- Perl v5.26.3 or later
+- Windows Driver Kit for Windows 10, version 1903 (18362.1) or later.
 
 #### Linux
 
 - GNU Make, GCC/Clang.
 - Kernel headers for the target kernel version (`linux-headers-$(uname -r)`).
   
-### Building the Drivers
+### Build Steps
 
 #### Windows
-Clone the repository
-    
-```bash
-git clone https://github.com/microsoft/vcpkg.git
-```
-Navigate to directory where the code was cloned `src\windows`
+1. Clone the repository
+   ```bash
+   git clone https://github.com/qualcomm/qcom-usb-kernel-drivers.git
+   ```
+2. Navigate to directory where the code was cloned
+   ```bash
+   cd /src/windows/<project-name>
+   ```
+3. From the project root, open the .vcxproj file in Visual Studio.
 
-From the project root, open the .sln file with Visual Studio
+4. In Visual Studio, select `Build` > `Build Solution` from the top menu.
 
-In Visual Studio, select `Build` > `Build Solution` from the top menu.
+The output binaries are generated in a path depends on the chosen build configuration. For example:
 
-Compiled binaries will be located in a path based on build configuration, for example:
-```bash    
-<ProjectRootDir>\x64\Debug\
-<ProjectRootDir>\x64\Release\
-```
+    <ProjectRootDir>\x64\Debug\
+    <ProjectRootDir>\x64\Release\
       
 #### Linux
 ```bash
@@ -61,13 +60,32 @@ cd src/linux
 make
 ```
 
-#### Windows command:
-- Installation
-```bash
-<ProjectRoot>\install\install.bat
-```
-- Uninstallation
+## Install / Uninstall
 
+#### Windows
+- Installation
+
+  Right click the `.inf` file in output folder and select **Install**.
+  Or install via `pnputil`:
+```bash
+pnputil /add-driver <build_path/driver_name.inf> /install
+```
+- Uninstallation (Device Manager)
+1. Open **Device Manager**.
+2. Right click the target device and select **Uninstall device**.
+3. Check **Attempt to remove the driver for this device**.
+4. Click **Uninstall**.
+
+- Uninstallation (Command Line)
+
+1. Locate the **Published Name** of the installed driver package:
+  ```bash
+  pnputil /enum-drivers
+  ```
+2. Delete the driver from system
+  ```bash
+  pnputil /delete-driver oemxx.inf /uninstall /force
+  ```
 #### Linux command:
   Navigate to folder `src/linux`
     
@@ -91,11 +109,11 @@ Please follow the existing coding style and run the appropriate static analysis 
 
 ## Bug & Vulnerability reporting
 
-Please review the [SECURITY.md](./.github/SECURITY.md) before reporting vulnerabilities with the project
+Please review the [security](./.github/SECURITY.md) before reporting vulnerabilities with the project
 
 ## Contributor's License Agreement
 
-Please review the Qualcomm product [license](./LICENSE), [code of conduct](./CODE-OF-CONDUCT.md) & terms
+Please review the Qualcomm product [license](./LICENSE.txt), [code of conduct](./CODE-OF-CONDUCT.md) & terms
 and conditions before contributing.
 
 ## Contact
