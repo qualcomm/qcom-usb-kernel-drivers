@@ -96,7 +96,7 @@ void QCWT_EvtIoWrite
                     QCSER_DBG_MASK_WRITE,
                     QCSER_DBG_LEVEL_DETAIL,
                     ("<%ws> WIRP: QCWT_EvtIoWrite pending list len: %llu, data size: %llu\n", pDevContext->PortName,
-                        pDevContext->WriteRequestPendingListLength, pDevContext->WriteRequestPendingListDataSize)
+                    pDevContext->WriteRequestPendingListLength, pDevContext->WriteRequestPendingListDataSize)
                 );
                 WdfSpinLockRelease(pDevContext->WriteRequestPendingListLock);
 
@@ -193,7 +193,7 @@ VOID QCWT_EvtIoWriteCompletion
             QCSER_DBG_MASK_WRITE,
             QCSER_DBG_LEVEL_DETAIL,
             ("<%ws> WIRP: QCWT_EvtIoWriteCompletion pending list len: %llu, data size: %llu\n", pDevContext->PortName,
-                pDevContext->WriteRequestPendingListLength, pDevContext->WriteRequestPendingListDataSize)
+            pDevContext->WriteRequestPendingListLength, pDevContext->WriteRequestPendingListDataSize)
         );
         WdfSpinLockRelease(pDevContext->WriteRequestPendingListLock);
     }
@@ -215,7 +215,7 @@ VOID QCWT_EvtIoWriteCompletion
             QCSER_DBG_MASK_WRITE,
             QCSER_DBG_LEVEL_ERROR,
             ("<%ws> WIRP: QCWT_EvtIoWriteCompletion request FAILED request: 0x%p, len: %llu/%llu, status: 0x%x, usbd status: 0x%x\n",
-                pDevContext->PortName, Request, writeLength, bufferLength, status, Params->Parameters.Usb.Completion->UsbdStatus)
+            pDevContext->PortName, Request, writeLength, bufferLength, status, Params->Parameters.Usb.Completion->UsbdStatus)
         );
     }
 
@@ -347,9 +347,9 @@ void QCWT_WriteRequestHandlerThread
                         QCWT_EvtIoWrite(pDevContext->WriteQueue, request, writeParam.Parameters.Write.Length);
                         if (gVendorConfig.EnableZeroLengthPacket && (writeParam.Parameters.Write.Length % pDevContext->wMaxPktSize == 0))
                         {
-    #ifdef QCUSB_MUX_PROTOCOL
+#ifdef QCUSB_MUX_PROTOCOL
                             if (pDevContext->DeviceFunction != QCUSB_DEV_FUNC_LPC)
-    #endif
+#endif
                             {
                                 // 0-length packet needed
                                 QCSER_DbgPrint
@@ -357,7 +357,7 @@ void QCWT_WriteRequestHandlerThread
                                     QCSER_DBG_MASK_WRITE,
                                     QCSER_DBG_LEVEL_TRACE,
                                     ("<%ws> WIRP: QCWT_WriteRequestHandlerThread 0-length packet NEEDED transfer size: %llu, max packet size: %lu\n",
-                                        pDevContext->PortName, writeParam.Parameters.Write.Length, pDevContext->wMaxPktSize)
+                                    pDevContext->PortName, writeParam.Parameters.Write.Length, pDevContext->wMaxPktSize)
                                 );
                                 status = WdfDeviceStopIdle(pDevContext->Device, TRUE);
                                 if (status == STATUS_SUCCESS || status == STATUS_PENDING)
@@ -507,7 +507,7 @@ NTSTATUS QCWT_SendUsbShortPacket
                 QCSER_DBG_MASK_WRITE,
                 QCSER_DBG_LEVEL_ERROR,
                 ("<%ws> WIRP: QCWT_SendUsbShortPacket short packet WdfUsbTargetPipeFormatRequestForWrite FAILED status: 0x%x\n",
-                    pDevContext->PortName, status)
+                pDevContext->PortName, status)
             );
             WdfObjectDelete(shortRequest);
         }

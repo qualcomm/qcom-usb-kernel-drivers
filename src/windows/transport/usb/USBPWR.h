@@ -33,47 +33,47 @@ GENERAL DESCRIPTION
 
 typedef enum _WDM_VERSION
 {
-   WinMeOrOlder = 0,
-   Win2kOrHigher,
-   WinXpOrHigher,
-   WinVistaOrHigher
+    WinMeOrOlder = 0,
+    Win2kOrHigher,
+    WinXpOrHigher,
+    WinVistaOrHigher
 }WDM_VERSION;
 
 typedef enum _QCUSB_POWER_REQ_TYPE
 {
-   QCUSB_SYS_POWER_CURRENT  = 0,
-   QCUSB_PREPARE_TO_STANDBY = 1
+    QCUSB_SYS_POWER_CURRENT = 0,
+    QCUSB_PREPARE_TO_STANDBY = 1
 } QCUSB_POWER_REQ_TYPE;
 
 #pragma pack(push, 1)
 typedef struct _QCUSB_POWER_REQ
 {
-   UCHAR Type;
-   UCHAR State;
+    UCHAR Type;
+    UCHAR State;
 } QCUSB_POWER_REQ, *PQCUSB_POWER_REQ;
 #pragma pack(pop)
 
 typedef struct _WORKER_ITEM_CONTEXT
 {
-   PDEVICE_EXTENSION DeviceExtension;
-   PIRP              Irp;
-   PIO_WORKITEM      WorkItem;
+    PDEVICE_EXTENSION DeviceExtension;
+    PIRP              Irp;
+    PIO_WORKITEM      WorkItem;
 } WORKER_ITEM_CONTEXT, *PWORKER_ITEM_CONTEXT;
 
 typedef struct _IRP_COMPLETION_CONTEXT
 {
-   PDEVICE_EXTENSION DeviceExtension;
-   PKEVENT           Event;
+    PDEVICE_EXTENSION DeviceExtension;
+    PKEVENT           Event;
 } IRP_COMPLETION_CONTEXT, *PIRP_COMPLETION_CONTEXT;
 
 #ifndef QCSER_SELECTIVE_SUSPEND
 
-typedef VOID (*USB_IDLE_CALLBACK)(PVOID Context);
+typedef VOID(*USB_IDLE_CALLBACK)(PVOID Context);
 
 typedef struct _USB_IDLE_CALLBACK_INFO
 {
-   USB_IDLE_CALLBACK IdleCallback;
-   PVOID IdleContext;
+    USB_IDLE_CALLBACK IdleCallback;
+    PVOID IdleContext;
 } USB_IDLE_CALLBACK_INFO, *PUSB_IDLE_CALLBACK_INFO;
 
 #define USB_IDLE_NOTIFICATION 9
@@ -91,10 +91,10 @@ typedef struct _USB_IDLE_CALLBACK_INFO
 
 typedef struct _QCUSB_IDLE_IRP_COMPLETION_PARAM
 {
-   LIST_ENTRY              List;
-   PDEVICE_OBJECT          DeviceObject;
-   PIRP                    Irp;
-   PUSB_IDLE_CALLBACK_INFO IdleCallbackInfo;
+    LIST_ENTRY              List;
+    PDEVICE_OBJECT          DeviceObject;
+    PIRP                    Irp;
+    PUSB_IDLE_CALLBACK_INFO IdleCallbackInfo;
 } QCUSB_IDLE_IRP_COMPLETION_PARAM, *PQCUSB_IDLE_IRP_COMPLETION_PARAM;
 
 // ========================================================
@@ -102,103 +102,103 @@ typedef struct _QCUSB_IDLE_IRP_COMPLETION_PARAM
 // ========================================================
 VOID QCPWR_PowrerManagement
 (
-   PDEVICE_EXTENSION  pDevExt,
-   PIRP               Irp,
-   PIO_STACK_LOCATION IrpStack
+    PDEVICE_EXTENSION  pDevExt,
+    PIRP               Irp,
+    PIO_STACK_LOCATION IrpStack
 );
 
 BOOLEAN QCPWR_Prelude
 (
-   PIRP               Irp,
-   PDEVICE_EXTENSION  pDevExt,
-   PNTSTATUS          pNtStatus
+    PIRP               Irp,
+    PDEVICE_EXTENSION  pDevExt,
+    PNTSTATUS          pNtStatus
 );
 
 NTSTATUS QCPWR_QuerySystemPowerState
 (
-   PDEVICE_EXTENSION  pDevExt,
-   SYSTEM_POWER_STATE PowerState
+    PDEVICE_EXTENSION  pDevExt,
+    SYSTEM_POWER_STATE PowerState
 );
 NTSTATUS QCPWR_QueryDevicePowerState
 (
-   PDEVICE_EXTENSION  pDevExt,
-   DEVICE_POWER_STATE PowerState
+    PDEVICE_EXTENSION  pDevExt,
+    DEVICE_POWER_STATE PowerState
 );
 
 NTSTATUS QCPWR_SetSystemPowerState
 (
-   PDEVICE_EXTENSION  pDevExt,
-   SYSTEM_POWER_STATE PowerState
+    PDEVICE_EXTENSION  pDevExt,
+    SYSTEM_POWER_STATE PowerState
 );
 
 VOID QCPWR_CancelPendingIrps
 (
-   PDEVICE_EXTENSION  pDevExt,
-   SYSTEM_POWER_STATE PowerState
+    PDEVICE_EXTENSION  pDevExt,
+    SYSTEM_POWER_STATE PowerState
 );
 
 NTSTATUS QCPWR_SetDevicePowerState
 (
-   PDEVICE_EXTENSION  pDevExt,
-   PIRP               Irp,
-   DEVICE_POWER_STATE PowerState
+    PDEVICE_EXTENSION  pDevExt,
+    PIRP               Irp,
+    DEVICE_POWER_STATE PowerState
 );
 
 NTSTATUS QCPWR_SystemPowerRequestCompletion
 (
-   PDEVICE_OBJECT    DeviceObject,
-   PIRP              Irp,
-   PDEVICE_EXTENSION pDevExt
+    PDEVICE_OBJECT    DeviceObject,
+    PIRP              Irp,
+    PDEVICE_EXTENSION pDevExt
 );
 
 VOID QCPWR_RequestDevicePowerIrp
 (
-   PDEVICE_EXTENSION pDevExt,
-   PIRP              Irp
+    PDEVICE_EXTENSION pDevExt,
+    PIRP              Irp
 );
 
 // This routine is set one stack locaton higher than the
 // following two power-up/down routines
 VOID QCPWR_TopDevicePowerIrpCompletionRoutine
 (
-   PDEVICE_OBJECT DeviceObject,
-   UCHAR MinorFunction,
-   POWER_STATE PowerState,
-   PVOID Context,
-   PIO_STATUS_BLOCK IoStatus
+    PDEVICE_OBJECT DeviceObject,
+    UCHAR MinorFunction,
+    POWER_STATE PowerState,
+    PVOID Context,
+    PIO_STATUS_BLOCK IoStatus
 );
 
 NTSTATUS QCPWR_DevicePowerUpIrpCompletion
 (
-   PDEVICE_OBJECT    DeviceObject,
-   PIRP              Irp,
-   PDEVICE_EXTENSION pDevExt
+    PDEVICE_OBJECT    DeviceObject,
+    PIRP              Irp,
+    PDEVICE_EXTENSION pDevExt
 );
 
 NTSTATUS QCPWR_DevicePowerDownIrpCompletion
 (
-  PDEVICE_OBJECT    DeviceObject,
-  PIRP              Irp,
-  PDEVICE_EXTENSION pDevExt
+    PDEVICE_OBJECT    DeviceObject,
+    PIRP              Irp,
+    PDEVICE_EXTENSION pDevExt
 );
 
 NTSTATUS QCPWR_DecreaseDevicePower
 (
-   PDEVICE_EXTENSION  pDevExt,
-   PIRP               Irp,
-   DEVICE_POWER_STATE NewDevicePower
+    PDEVICE_EXTENSION  pDevExt,
+    PIRP               Irp,
+    DEVICE_POWER_STATE NewDevicePower
 );
 
 NTSTATUS QCPWR_ScheduleDevicePowerUp
 (
-   PDEVICE_EXTENSION pDevExt,
-   PIRP              Irp
+    PDEVICE_EXTENSION pDevExt,
+    PIRP              Irp
 );
 
 VOID QCPWR_PowerUpDevice
 (
-   PDEVICE_OBJECT DeviceObject,
-   PVOID          Context
+    PDEVICE_OBJECT DeviceObject,
+    PVOID          Context
 );
 
 // ========================================================
@@ -206,26 +206,26 @@ VOID QCPWR_PowerUpDevice
 // ========================================================
 VOID QCPWR_CancelIdleTimer
 (
-   PDEVICE_EXTENSION pDevExt,
-   UCHAR             BusyMask,
-   BOOLEAN           CancelIdleNotificationIrp,
-   UCHAR             Cookie
+    PDEVICE_EXTENSION pDevExt,
+    UCHAR             BusyMask,
+    BOOLEAN           CancelIdleNotificationIrp,
+    UCHAR             Cookie
 );
 
 VOID QCPWR_SetIdleTimer
 (
-   PDEVICE_EXTENSION pDevExt,
-   UCHAR             BusyMask,
-   BOOLEAN           NoReset,
-   UCHAR             Cookie
+    PDEVICE_EXTENSION pDevExt,
+    UCHAR             BusyMask,
+    BOOLEAN           NoReset,
+    UCHAR             Cookie
 );
 
 VOID QCPWR_IdleDpcRoutine
 (
-   PKDPC Dpc,
-   PVOID DeferredContext,
-   PVOID SystemArgument1,
-   PVOID SystemArgument2
+    PKDPC Dpc,
+    PVOID DeferredContext,
+    PVOID SystemArgument1,
+    PVOID SystemArgument2
 );
 
 NTSTATUS QCPWR_RegisterIdleNotification(PDEVICE_EXTENSION pDevExt);
@@ -236,36 +236,36 @@ VOID QCPWR_IdleNotificationCallbackEpisode(PDEVICE_EXTENSION DeviceExtension);
 
 VOID QCPWR_TopDeviceSetPowerIrpCompletionRoutine
 (
-   PDEVICE_OBJECT DeviceObject,
-   UCHAR MinorFunction,
-   POWER_STATE PowerState,
-   PVOID Context,
-   PIO_STATUS_BLOCK IoStatus
+    PDEVICE_OBJECT DeviceObject,
+    UCHAR MinorFunction,
+    POWER_STATE PowerState,
+    PVOID Context,
+    PIO_STATUS_BLOCK IoStatus
 );
 
 NTSTATUS QCPWR_IdleNotificationIrpCompletion
 (
-   PDEVICE_OBJECT          DeviceObject,
-   PIRP                    Irp,
-   PUSB_IDLE_CALLBACK_INFO IdleCallbackInfo
+    PDEVICE_OBJECT          DeviceObject,
+    PIRP                    Irp,
+    PUSB_IDLE_CALLBACK_INFO IdleCallbackInfo
 );
 
 VOID QCPWR_GetOutOfIdleState(PDEVICE_EXTENSION pDevExt);
 
 NTSTATUS QCPWR_IdleNotificationIrpCompletionEpisode
 (
-   PDEVICE_OBJECT          DeviceObject,
-   PIRP                    Irp,
-   PUSB_IDLE_CALLBACK_INFO IdleCallbackInfo
+    PDEVICE_OBJECT          DeviceObject,
+    PIRP                    Irp,
+    PUSB_IDLE_CALLBACK_INFO IdleCallbackInfo
 );
 
 VOID QCPWR_TopIdlePowerUpCompletionRoutine
 (
-   PDEVICE_OBJECT   DeviceObject,
-   UCHAR            MinorFunction,
-   POWER_STATE      PowerState,
-   PVOID            Context,
-   PIO_STATUS_BLOCK IoStatus
+    PDEVICE_OBJECT   DeviceObject,
+    UCHAR            MinorFunction,
+    POWER_STATE      PowerState,
+    PVOID            Context,
+    PIO_STATUS_BLOCK IoStatus
 );
 
 VOID QCPWR_CancelIdleNotificationIrp(PDEVICE_EXTENSION pDevExt, UCHAR Cookie);
@@ -277,29 +277,29 @@ VOID QCPWR_ProcessWaitWake(PDEVICE_EXTENSION pDevExt, PIRP Irp);
 
 NTSTATUS QCPWR_WaitWakeCompletion
 (
-   PDEVICE_OBJECT    DeviceObject,
-   PIRP              Irp,
-   PDEVICE_EXTENSION pDevExt
+    PDEVICE_OBJECT    DeviceObject,
+    PIRP              Irp,
+    PDEVICE_EXTENSION pDevExt
 );
 
 VOID QCPWR_RegisterWaitWakeIrp(PDEVICE_EXTENSION  pDevExt, UCHAR Cookie);
 
 VOID QCPWR_TopWaitWakeCompletionRoutine
 (
-   PDEVICE_OBJECT   DeviceObject,
-   UCHAR            MinorFunction,
-   POWER_STATE      PowerState,
-   PVOID            Context,
-   PIO_STATUS_BLOCK IoStatus
+    PDEVICE_OBJECT   DeviceObject,
+    UCHAR            MinorFunction,
+    POWER_STATE      PowerState,
+    PVOID            Context,
+    PIO_STATUS_BLOCK IoStatus
 );
 
 VOID QCPWR_TopDeviceWakeUpCompletionRoutine
 (
-   PDEVICE_OBJECT   DeviceObject,
-   UCHAR            MinorFunction,
-   POWER_STATE      PowerState,
-   PVOID            Context,
-   PIO_STATUS_BLOCK IoStatus
+    PDEVICE_OBJECT   DeviceObject,
+    UCHAR            MinorFunction,
+    POWER_STATE      PowerState,
+    PVOID            Context,
+    PIO_STATUS_BLOCK IoStatus
 );
 
 VOID QCPWR_CancelWaitWakeIrp(PDEVICE_EXTENSION pDevExt, UCHAR Cookie);
@@ -314,10 +314,10 @@ VOID QCPWR_GetWdmVersion(PDEVICE_EXTENSION pDevExt);
 // ========================================================
 BOOLEAN QCPWR_CheckToWakeup
 (
-   PDEVICE_EXTENSION pDevExt,
-   PIRP              Irp,
-   UCHAR             BusyMask,
-   UCHAR             Cookie
+    PDEVICE_EXTENSION pDevExt,
+    PIRP              Irp,
+    UCHAR             BusyMask,
+    UCHAR             Cookie
 );
 VOID QCPWR_ResumeDataThreads(PDEVICE_EXTENSION pDevExt, BOOLEAN Blocking);
 
@@ -336,63 +336,63 @@ VOID QCPWR_DeregisterWmiPowerGuids(PDEVICE_EXTENSION pDevExt);
 
 NTSTATUS QCPWR_ProcessSystemControlIrps
 (
-   IN  PDEVICE_EXTENSION pDevExt,
-   IN  PIRP              Irp
+    IN  PDEVICE_EXTENSION pDevExt,
+    IN  PIRP              Irp
 );
 
 NTSTATUS QCPWR_PMQueryWmiRegInfo
 (
-   IN  PDEVICE_OBJECT  DeviceObject,
-   OUT PULONG          RegFlags,
-   OUT PUNICODE_STRING InstanceName,
-   OUT PUNICODE_STRING *RegistryPath,
-   OUT PUNICODE_STRING MofResourceName,
-   OUT PDEVICE_OBJECT  *Pdo
+    IN  PDEVICE_OBJECT   DeviceObject,
+    OUT PULONG           RegFlags,
+    OUT PUNICODE_STRING  InstanceName,
+    OUT PUNICODE_STRING *RegistryPath,
+    OUT PUNICODE_STRING  MofResourceName,
+    OUT PDEVICE_OBJECT  *Pdo
 );
 
 NTSTATUS QCPWR_PMQueryWmiDataBlock
 (
-   IN PDEVICE_OBJECT DeviceObject,
-   IN PIRP           Irp,
-   IN ULONG          GuidIndex,
-   IN ULONG          InstanceIndex,
-   IN ULONG          InstanceCount,
-   IN OUT PULONG     InstanceLengthArray,
-   IN ULONG          BufferAvail,
-   OUT PUCHAR        Buffer
+    IN PDEVICE_OBJECT DeviceObject,
+    IN PIRP           Irp,
+    IN ULONG          GuidIndex,
+    IN ULONG          InstanceIndex,
+    IN ULONG          InstanceCount,
+    IN OUT PULONG     InstanceLengthArray,
+    IN ULONG          BufferAvail,
+    OUT PUCHAR        Buffer
 );
 
 NTSTATUS QCPWR_PMSetWmiDataBlock
 (
-   IN PDEVICE_OBJECT DeviceObject,
-   IN PIRP           Irp,
-   IN ULONG          GuidIndex,
-   IN ULONG          InstanceIndex,
-   IN ULONG          BufferSize,
-   IN PUCHAR         Buffer
+    IN PDEVICE_OBJECT DeviceObject,
+    IN PIRP           Irp,
+    IN ULONG          GuidIndex,
+    IN ULONG          InstanceIndex,
+    IN ULONG          BufferSize,
+    IN PUCHAR         Buffer
 );
 
 NTSTATUS QCPWR_PMSetWmiDataItem
 (
-   IN PDEVICE_OBJECT DeviceObject,
-   IN PIRP           Irp,
-   IN ULONG          GuidIndex,
-   IN ULONG          InstanceIndex,
-   IN ULONG          DataItemId,
-   IN ULONG          BufferSize,
-   IN PUCHAR         Buffer
+    IN PDEVICE_OBJECT DeviceObject,
+    IN PIRP           Irp,
+    IN ULONG          GuidIndex,
+    IN ULONG          InstanceIndex,
+    IN ULONG          DataItemId,
+    IN ULONG          BufferSize,
+    IN PUCHAR         Buffer
 );
 
 NTSTATUS QCPWR_SetPMState
 (
-   PDEVICE_EXTENSION pDevExt,
-   BOOLEAN           IsEnabled
+    PDEVICE_EXTENSION pDevExt,
+    BOOLEAN           IsEnabled
 );
 
 NTSTATUS QCPWR_SetWaitWakeState
 (
-   PDEVICE_EXTENSION pDevExt,
-   BOOLEAN           IsEnabled
+    PDEVICE_EXTENSION pDevExt,
+    BOOLEAN           IsEnabled
 );
 
 // ========================================================
@@ -414,8 +414,8 @@ VOID USBPWR_StopExWdmDeviceMonitor(PDEVICE_EXTENSION pDevExt);
 
 NTSTATUS USBPWR_DeviceInterfaceChange
 (
-   PVOID NotificationStructure,
-   PVOID Context
+    PVOID NotificationStructure,
+    PVOID Context
 );
 
 NTSTATUS USBPWR_DeviceChange
@@ -432,8 +432,8 @@ VOID USBPWR_QuerySystemPowerState(PDEVICE_EXTENSION pDevExt);
 
 SYSTEM_POWER_STATE USBPWR_GetSystemPowerState
 (
-   PDEVICE_EXTENSION    pDevExt,
-   QCUSB_POWER_REQ_TYPE Type
+    PDEVICE_EXTENSION    pDevExt,
+    QCUSB_POWER_REQ_TYPE Type
 );
 
 NTSTATUS USBPWR_RegisterXwdmNotification(PDEVICE_EXTENSION pDevExt);

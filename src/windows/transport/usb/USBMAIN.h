@@ -84,22 +84,22 @@ GENERAL DESCRIPTION
 #define USB_INTERNAL_256K_READ_BUFFER_SIZE 64*4096 
 
 // thread priority
-#define QCUSB_INT_PRIORITY HIGH_PRIORITY  // 27
-#define QCUSB_L2_PRIORITY  26
-#define QCUSB_L1_PRIORITY  25
-#define QCUSB_WT_PRIORITY  HIGH_PRIORITY
-#define QCUSB_DSP_PRIORITY 24
+#define QCUSB_INT_PRIORITY  HIGH_PRIORITY  // 27
+#define QCUSB_L2_PRIORITY   26
+#define QCUSB_L1_PRIORITY   25
+#define QCUSB_WT_PRIORITY   HIGH_PRIORITY
+#define QCUSB_DSP_PRIORITY  24
 
-#define REMOTE_WAKEUP_MASK 0x20  // bit 5
-#define SELF_POWERED_MASK  0x40  // bit 6
+#define REMOTE_WAKEUP_MASK  0x20  // bit 5
+#define SELF_POWERED_MASK   0x40  // bit 6
 
 // define number of best effort retries on error
-#define BEST_RETRIES     500
-#define BEST_RETRIES_MIN 6
-#define BEST_RETRIES_MAX 1000
+#define BEST_RETRIES        500
+#define BEST_RETRIES_MIN    6
+#define BEST_RETRIES_MAX    1000
 
-#define QCUSB_CREATE_TX_LOG   0
-#define QCUSB_CREATE_RX_LOG   1
+#define QCUSB_CREATE_TX_LOG 0
+#define QCUSB_CREATE_RX_LOG 1
 
 #define QCUSB_LOG_TYPE_READ               0x0
 #define QCUSB_LOG_TYPE_WRITE              0x1
@@ -136,48 +136,48 @@ GENERAL DESCRIPTION
 
 typedef struct QCUSB_VENDOR_CONFIG
 {
-   BOOLEAN ContinueOnOverflow;
-   BOOLEAN ContinueOnDataError;
-   BOOLEAN Use1600ByteInPkt;
-   BOOLEAN Use2048ByteInPkt;
-   BOOLEAN Use4096ByteInPkt;
-   BOOLEAN NoTimeoutOnCtlReq;
-   BOOLEAN EnableLogging;
-   BOOLEAN UseMultiReads;
-   BOOLEAN UseMultiWrites;
+    BOOLEAN ContinueOnOverflow;
+    BOOLEAN ContinueOnDataError;
+    BOOLEAN Use1600ByteInPkt;
+    BOOLEAN Use2048ByteInPkt;
+    BOOLEAN Use4096ByteInPkt;
+    BOOLEAN NoTimeoutOnCtlReq;
+    BOOLEAN EnableLogging;
+    BOOLEAN UseMultiReads;
+    BOOLEAN UseMultiWrites;
 
-   USHORT  MinInPktSize;
-   ULONG   NumOfRetriesOnError;
-   ULONG   MaxPipeXferSize;
-   ULONG   NumberOfL2Buffers;
-   ULONG   DebugMask;
-   UCHAR   DebugLevel;
-   ULONG   DriverResident;
-   char    PortName[255];
-   char    DriverVersion[32];
-   ULONG   ThreadPriority;
+    USHORT  MinInPktSize;
+    ULONG   NumOfRetriesOnError;
+    ULONG   MaxPipeXferSize;
+    ULONG   NumberOfL2Buffers;
+    ULONG   DebugMask;
+    UCHAR   DebugLevel;
+    ULONG   DriverResident;
+    char    PortName[255];
+    char    DriverVersion[32];
+    ULONG   ThreadPriority;
 } QCUSB_VENDOR_CONFIG;
 extern QCUSB_VENDOR_CONFIG gVendorConfig;
 
 typedef struct _QC_STATS
 {
-   LONG lOversizedReads;
-   LONG lAllocatedReads;
-   LONG lAllocatedWrites;
-   LONG lRmlCount[8];
+    LONG lOversizedReads;
+    LONG lAllocatedReads;
+    LONG lAllocatedWrites;
+    LONG lRmlCount[8];
 } QC_STATS;
 
 #define QcRecordOversizedPkt(_x_) InterlockedIncrement(&(_x_->Sts.lOversizedReads))
 
 #ifdef DBG
-   #ifdef CHECKED_SHIPPABLE
+#ifdef CHECKED_SHIPPABLE
 
-      #undef DBG
-      // #undef DEBUG_MSGS
-      #undef ASSERT
-      #define ASSERT
+#undef DBG
+// #undef DEBUG_MSGS
+#undef ASSERT
+#define ASSERT
 
-   #endif // CHECKED_SHIPPABLE
+#endif // CHECKED_SHIPPABLE
 #endif // DBG
 
 #define QC_MEM_TAG ((ULONG)'MDCQ')
@@ -206,27 +206,27 @@ typedef struct _QC_STATS
 #endif // !USE_FAST_MUTEX
 
 #ifdef QCUSB_TARGET_XP
-   #define QcAcquireSpinLock(_lock,_levelOrHandle) KeAcquireInStackQueuedSpinLock(_lock,_levelOrHandle)
-   #define QcAcquireSpinLockAtDpcLevel(_lock,_levelOrHandle) KeAcquireInStackQueuedSpinLockAtDpcLevel(_lock,_levelOrHandle)
-   #define QcReleaseSpinLock(_lock,_levelOrHandle) KeReleaseInStackQueuedSpinLock(&(_levelOrHandle))
-   #define QcReleaseSpinLockFromDpcLevel(_lock,_levelOrHandle) KeReleaseInStackQueuedSpinLockFromDpcLevel(&(_levelOrHandle))
+#define QcAcquireSpinLock(_lock,_levelOrHandle) KeAcquireInStackQueuedSpinLock(_lock,_levelOrHandle)
+#define QcAcquireSpinLockAtDpcLevel(_lock,_levelOrHandle) KeAcquireInStackQueuedSpinLockAtDpcLevel(_lock,_levelOrHandle)
+#define QcReleaseSpinLock(_lock,_levelOrHandle) KeReleaseInStackQueuedSpinLock(&(_levelOrHandle))
+#define QcReleaseSpinLockFromDpcLevel(_lock,_levelOrHandle) KeReleaseInStackQueuedSpinLockFromDpcLevel(&(_levelOrHandle))
 #else
-   #define QcAcquireSpinLock(_lock,_levelOrHandle) KeAcquireSpinLock(_lock,_levelOrHandle)
-   #define QcAcquireSpinLockAtDpcLevel(_lock,_levelOrHandle) KeAcquireSpinLockAtDpcLevel(_lock)
-   #define QcReleaseSpinLock(_lock,_levelOrHandle) KeReleaseSpinLock(_lock,_levelOrHandle)
-   #define QcReleaseSpinLockFromDpcLevel(_lock,_levelOrHandle) KeReleaseSpinLockFromDpcLevel(_lock)
+#define QcAcquireSpinLock(_lock,_levelOrHandle) KeAcquireSpinLock(_lock,_levelOrHandle)
+#define QcAcquireSpinLockAtDpcLevel(_lock,_levelOrHandle) KeAcquireSpinLockAtDpcLevel(_lock)
+#define QcReleaseSpinLock(_lock,_levelOrHandle) KeReleaseSpinLock(_lock,_levelOrHandle)
+#define QcReleaseSpinLockFromDpcLevel(_lock,_levelOrHandle) KeReleaseSpinLockFromDpcLevel(_lock)
 
-   #define QcAcquireSpinLockDbg(_lock,_levelOrHandle, info) \
+#define QcAcquireSpinLockDbg(_lock,_levelOrHandle, info) \
            { \
               DbgPrint("AC%d: %s (0x%p)\n", KeGetCurrentIrql(), info, *_lock); \
               KeAcquireSpinLock(_lock,_levelOrHandle); \
            }
-   #define QcAcquireSpinLockAtDpcLevelDbg(_lock,_levelOrHandle, info) \
+#define QcAcquireSpinLockAtDpcLevelDbg(_lock,_levelOrHandle, info) \
            { \
               DbgPrint("AC2: %s (0x%p)\n", info, *_lock); \
               KeAcquireSpinLockAtDpcLevel(_lock); \
            }
-   #define QcAcquireSpinLockWithLevelDbg(_lock,_levelOrHandle, _level, info) \
+#define QcAcquireSpinLockWithLevelDbg(_lock,_levelOrHandle, _level, info) \
            { \
               if (_level < DISPATCH_LEVEL) \
               { \
@@ -340,13 +340,14 @@ typedef struct _QC_STATS
            InterlockedIncrement(&(pDevExt->Sts.lRmlCount[p0])); }
 #endif
 
-__inline VOID QC_MP_Paged_Code( VOID ) 
+__inline VOID QC_MP_Paged_Code(VOID)
 {
 #if defined(_PREFAST_)
     __PREfastPagedCode();
 
 #elif DBG
-    if (KeGetCurrentIrql() > APC_LEVEL) {
+    if (KeGetCurrentIrql() > APC_LEVEL)
+    {
         KdPrint(("EX: Pageable code called at IRQL %d\n", KeGetCurrentIrql()));
         PAGED_ASSERT(FALSE);
     }
@@ -354,7 +355,7 @@ __inline VOID QC_MP_Paged_Code( VOID )
 
 #endif
 
-} 
+}
 
 // define modem configuration types
 #define MODELTYPE_NONE     0x00
@@ -453,7 +454,7 @@ __inline VOID QC_MP_Paged_Code( VOID )
 #define QC_HS_USB_OK3 (QC_HSUSB_VERSION_OK |     \
                        QC_HSUSB_ALT_SETTING_OK | \
                        QC_HSUSB_BULK_MAX_PKT_OK)
-    
+
     // SS-USB
 #define QC_SSUSB_VERSION         0x0300
 #define QC_SS_CTL_PKT_SZ         512                       
@@ -461,37 +462,37 @@ __inline VOID QC_MP_Paged_Code( VOID )
 
 typedef enum _L2BUF_STATE
 {
-   L2BUF_STATE_READY     = 0,
-   L2BUF_STATE_PENDING   = 1,
-   L2BUF_STATE_COMPLETED = 2
+    L2BUF_STATE_READY     = 0,
+    L2BUF_STATE_PENDING   = 1,
+    L2BUF_STATE_COMPLETED = 2
 } L2BUF_STATE;
 
 typedef enum _L2_STATE
 {
-   L2_STATE_WORKING    = 0,
-   L2_STATE_STOPPING   = 1,
-   L2_STATE_PURGING    = 2,
-   L2_STATE_CANCELLING = 3
+    L2_STATE_WORKING    = 0,
+    L2_STATE_STOPPING   = 1,
+    L2_STATE_PURGING    = 2,
+    L2_STATE_CANCELLING = 3
 } L2_STATE;
 
 typedef struct _USBMRD_L2BUFFER
 {
-   LIST_ENTRY List;
-   LIST_ENTRY PendingList;
-   NTSTATUS Status;
-   PCHAR    nextIndex;
-   PCHAR    Buffer;
-   ULONG    Length;
-   BOOLEAN  bFilled;
-   PCHAR    DataPtr;
+    LIST_ENTRY List;
+    LIST_ENTRY PendingList;
+    NTSTATUS   Status;
+    PCHAR      nextIndex;
+    PCHAR      Buffer;
+    ULONG      Length;
+    BOOLEAN    bFilled;
+    PCHAR      DataPtr;
 
-   // for multi-reads
-   PVOID       DeviceExtension;
-   int         Index;  // for debugging purpose
-   PIRP        Irp;
-   URB         Urb;
-   L2BUF_STATE State;
-   //KEVENT      CompletionEvt;
+    // for multi-reads
+    PVOID       DeviceExtension;
+    int         Index;  // for debugging purpose
+    PIRP        Irp;
+    URB         Urb;
+    L2BUF_STATE State;
+    //KEVENT      CompletionEvt;
 
 } USBMRD_L2BUFFER, *PUSBMRD_L2BUFFER;
 
@@ -501,37 +502,37 @@ typedef struct _USBMRD_L2BUFFER
 
 typedef enum _MWT_STATE
 {
-   MWT_STATE_WORKING    = 0,
-   MWT_STATE_STOPPING   = 1,
-   MWT_STATE_PURGING    = 2,
-   MWT_STATE_CANCELLING = 3,
-   MWT_STATE_FLOW_OFF   = 4
+    MWT_STATE_WORKING    = 0,
+    MWT_STATE_STOPPING   = 1,
+    MWT_STATE_PURGING    = 2,
+    MWT_STATE_CANCELLING = 3,
+    MWT_STATE_FLOW_OFF   = 4
 } MWT_STATE;
 
 typedef enum _MWT_BUF_STATE
 {
-   MWT_BUF_IDLE      = 0,
-   MWT_BUF_PENDING   = 1,
-   MWT_BUF_COMPLETED = 2
+    MWT_BUF_IDLE      = 0,
+    MWT_BUF_PENDING   = 1,
+    MWT_BUF_COMPLETED = 2
 } MWT_BUF_STATE;
 
 typedef struct _QCMWT_BUFFER
 {
-   LIST_ENTRY    List;
-   PVOID         DeviceExtension;
-   PIRP          Irp;
-   URB           Urb;
-   PIRP          CallingIrp;
-   KEVENT        WtCompletionEvt;
-   ULONG         Length;
-   int           Index;
-   MWT_BUF_STATE State;
+    LIST_ENTRY    List;
+    PVOID         DeviceExtension;
+    PIRP          Irp;
+    URB           Urb;
+    PIRP          CallingIrp;
+    KEVENT        WtCompletionEvt;
+    ULONG         Length;
+    int           Index;
+    MWT_BUF_STATE State;
 } QCMWT_BUFFER, *PQCMWT_BUFFER;
 
 typedef struct _QCMWT_CXLREQ
 {
-   LIST_ENTRY    List;
-   int           Index;
+    LIST_ENTRY    List;
+    int           Index;
 } QCMWT_CXLREQ, *PQCMWT_CXLREQ;
 
 #endif // QCUSB_MULTI_WRITES
@@ -543,55 +544,55 @@ typedef struct _QCMWT_CXLREQ
 #pragma pack(push, 1)
 typedef struct _QCTLP_PKT
 {
-   USHORT Length;
-   CHAR   Payload;
+    USHORT Length;
+    CHAR   Payload;
 } QCTLP_PKT, *PQCTLP_PKT;
 #define QCTLP_HDR_LENGTH sizeof(USHORT)
 #pragma pack(pop)
 typedef enum _QCTLP_BUF_STATE
 {
-   QCTLP_BUF_STATE_IDLE = 0,
-   QCTLP_BUF_STATE_PARTIAL_FILL,
-   QCTLP_BUF_STATE_PARTIAL_HDR,
-   QCTLP_BUF_STATE_HDR_ONLY,
-   QCTLP_BUF_STATE_ERROR
+    QCTLP_BUF_STATE_IDLE = 0,
+    QCTLP_BUF_STATE_PARTIAL_FILL,
+    QCTLP_BUF_STATE_PARTIAL_HDR,
+    QCTLP_BUF_STATE_HDR_ONLY,
+    QCTLP_BUF_STATE_ERROR
 } QCTLP_BUF_STATE;
 typedef struct _QCTLP_TMP_BUF
 {
-   PVOID  Buffer;
-   USHORT PktLength;
-   USHORT BytesNeeded;
+    PVOID  Buffer;
+    USHORT PktLength;
+    USHORT BytesNeeded;
 } QCTLP_TMP_BUF, *PQCTLP_TMP_BUF;
 
 typedef struct _QCUSB_IRP_RECORDS
 {
-   PIRP Irp;
-   PVOID Param1;
-   PVOID Param2;
-   struct _QCUSB_IRP_RECORDS *Next;
+    PIRP Irp;
+    PVOID Param1;
+    PVOID Param2;
+    struct _QCUSB_IRP_RECORDS *Next;
 } QCUSB_IRP_RECORDS, *PQCUSB_IRP_RECORDS;
 
 #ifdef QCUSB_PWR
 #define QCUSB_SYS_PWR_IRP_MAX 4
 typedef struct _POWER_COMPLETION_CONTEXT
 {
-   PVOID DeviceExtension;
-   PIRP  Irp;
+    PVOID DeviceExtension;
+    PIRP  Irp;
 } POWER_COMPLETION_CONTEXT, *PPOWER_COMPLETION_CONTEXT;
 
 #define SELF_ORIGINATED_PWR_REQ_MAX 4
 typedef struct _SELF_ORIGINATED_POWER_REQ
 {
-   LIST_ENTRY  List;
-   POWER_STATE PwrState;
-   int         Reserved;
+    LIST_ENTRY  List;
+    POWER_STATE PwrState;
+    int         Reserved;
 } SELF_ORIGINATED_POWER_REQ, *PSELF_ORIGINATED_POWER_REQ;
 
 typedef struct _QC_NDIS_USB_FDO_MAP
 {
-   LIST_ENTRY     List;
-   PDEVICE_OBJECT NdisFDO;
-   PVOID          MiniportContext;
+    LIST_ENTRY     List;
+    PDEVICE_OBJECT NdisFDO;
+    PVOID          MiniportContext;
 } QC_NDIS_USB_FDO_MAP, *PQC_NDIS_USB_FDO_MAP;
 
 #endif // QCUSB_PWR
@@ -624,50 +625,52 @@ typedef struct _QCUSB_ETH_HDR
 
 typedef struct _QCDATAGRAM_STRUCT
 {
-   union {
-      ULONG Datagram;
-      struct {
-         USHORT DatagramPtr;
-         USHORT DatagramLen;
-      };
-   };
+    union
+    {
+        ULONG Datagram;
+        struct
+        {
+            USHORT DatagramPtr;
+            USHORT DatagramLen;
+        };
+    };
 } QCDATAGRAM_STRUCT, *PQCDATAGRAM_STRUCT;
 
 typedef struct _QCNTB_16BIT_HEADER
 {
-   ULONG  dwSignature;
-   USHORT wHeaderLength;
-   USHORT wSequence;
-   USHORT wBlockLength;
-   USHORT wNdpIndex;
+    ULONG  dwSignature;
+    USHORT wHeaderLength;
+    USHORT wSequence;
+    USHORT wBlockLength;
+    USHORT wNdpIndex;
 } QCNTB_16BIT_HEADER, *PQCNTB_16BIT_HEADER;
 
 typedef struct _QCNTB_32BIT_HEADER
 {
-   ULONG  dwSignature;
-   USHORT wHeaderLength;
-   USHORT wSequence;
-   ULONG  wBlockLength;
-   ULONG  wNdpIndex;
+    ULONG  dwSignature;
+    USHORT wHeaderLength;
+    USHORT wSequence;
+    ULONG  wBlockLength;
+    ULONG  wNdpIndex;
 } QCNTB_32BIT_HEADER, *PQCNTB_32BIT_HEADER;
 
 typedef struct _QCNDP_16BIT_HEADER
 {
-   ULONG  dwSignature;
-   USHORT wLength;
-   //USHORT wReserved;
-   USHORT wNextNdpIndex;
+    ULONG  dwSignature;
+    USHORT wLength;
+    //USHORT wReserved;
+    USHORT wNextNdpIndex;
 } QCNDP_16BIT_HEADER, *PQCNDP_16BIT_HEADER;
 
 typedef struct _QCNDP_32BIT_HEADER
 {
-   ULONG  dwSignature;
-   USHORT wLength;
-   USHORT wReserved6;
-   ULONG  wNextNdpIndex;
-   ULONG  wReserved12;
-   ULONG  wDatagramIndex;
-   ULONG  wDatagramLength;
+    ULONG  dwSignature;
+    USHORT wLength;
+    USHORT wReserved6;
+    ULONG  wNextNdpIndex;
+    ULONG  wReserved12;
+    ULONG  wDatagramIndex;
+    ULONG  wDatagramLength;
 } QCNDP_32BIT_HEADER, *PQCNDP_32BIT_HEADER;
 
 #pragma pack(pop)
@@ -684,66 +687,76 @@ typedef struct _QCNDP_32BIT_HEADER
 
 typedef struct _QCQMAP_STRUCT
 {
-   union {
-      UCHAR PadCD;
-      struct {
-         UCHAR  PadLen:6;
-         UCHAR  ReservedBit:1;
-         UCHAR  CDBit:1;
-      };
-   };
-   UCHAR MuxId;
-   USHORT PacketLen;
+    union
+    {
+        UCHAR PadCD;
+        struct
+        {
+            UCHAR  PadLen : 6;
+            UCHAR  ReservedBit : 1;
+            UCHAR  CDBit : 1;
+        };
+    };
+    UCHAR MuxId;
+    USHORT PacketLen;
 } QCQMAP_STRUCT, *PQCQMAP_STRUCT;
 
 typedef struct _QCQMAP_UL_CHECKSUM
 {
-   USHORT CksumStartOffset;
-   union {
-         USHORT CksumInsertOffsetCU;
-      struct {
-         USHORT  CksumInsertOffset:14;
-         USHORT  UDPIP4Ind:1;
-         USHORT  CkEnable:1;
-      };
-   };
+    USHORT CksumStartOffset;
+    union
+    {
+        USHORT CksumInsertOffsetCU;
+        struct
+        {
+            USHORT  CksumInsertOffset : 14;
+            USHORT  UDPIP4Ind : 1;
+            USHORT  CkEnable : 1;
+        };
+    };
 } QCQMAP_UL_CHECKSUM, *PQCQMAP_UL_CHECKSUM;
 
 typedef struct _QCQMAP_DL_CHECKSUM
 {
-   union {
-      USHORT RsvdV;
-      struct {
-         USHORT  Reserved:15;
-         USHORT  Valid:1;
-      };
-   };
-   USHORT CksumStartOffset;
-   USHORT CksumLength;
-   USHORT CksumValue;
+    union
+    {
+        USHORT RsvdV;
+        struct
+        {
+            USHORT  Reserved : 15;
+            USHORT  Valid : 1;
+        };
+    };
+    USHORT CksumStartOffset;
+    USHORT CksumLength;
+    USHORT CksumValue;
 } QCQMAP_DL_CHECKSUM, *PQCQMAP_DL_CHECKSUM;
 
 typedef struct _QCQMAP_FLOWCONTROL_STRUCT
 {
-   UCHAR CommandName;
-   union {
-      UCHAR RsvdCmdType;
-      struct {
-         UCHAR CmdType:2;
-         UCHAR Reserved:6;
-      };
-   };
-   USHORT Rsvd;
-   ULONG  TransactionId;
-   union {
-      ULONG FlowCtrlSeqNumIp;
-      struct {
-         ULONG FlowControlSeqNum:16;
-         ULONG IpFamily:2;
-         ULONG RsvdSeqNo:14;
-      };
-   };
-   ULONG  QOSId;
+    UCHAR CommandName;
+    union
+    {
+        UCHAR RsvdCmdType;
+        struct
+        {
+            UCHAR CmdType : 2;
+            UCHAR Reserved : 6;
+        };
+    };
+    USHORT Rsvd;
+    ULONG  TransactionId;
+    union
+    {
+        ULONG FlowCtrlSeqNumIp;
+        struct
+        {
+            ULONG FlowControlSeqNum : 16;
+            ULONG IpFamily : 2;
+            ULONG RsvdSeqNo : 14;
+        };
+    };
+    ULONG  QOSId;
 } QCQMAP_FLOWCONTROL_STRUCT, *PQCQMAP_FLOWCONTROL_STRUCT;
 
 #pragma pack(pop)
@@ -757,17 +770,17 @@ typedef struct _QCQMAP_FLOWCONTROL_STRUCT
 
 typedef struct _QCQMAP_PSEUDO_CHECKSUM
 {
-   ULONG SrcAddr;
-   ULONG DestAddr;
-   UCHAR Zeros;
-   UCHAR Protocol;
-   USHORT Length;
+    ULONG SrcAddr;
+    ULONG DestAddr;
+    UCHAR Zeros;
+    UCHAR Protocol;
+    USHORT Length;
 } QCQMAP_PSEUDO_CHECKSUM, *PQCQMAP_PSEUDO_CHECKSUM;
 
 typedef struct _QCQMAP_PSEUDO_CHECKSUMV6
 {
     UCHAR SrcAddr[16];
-    UCHAR DestAddr[16];   
+    UCHAR DestAddr[16];
     ULONG payloadLen;
     UCHAR Zeros[3];
     UCHAR NextHdr;
@@ -775,67 +788,71 @@ typedef struct _QCQMAP_PSEUDO_CHECKSUMV6
 
 typedef struct _QCIPV4_FRAG_PKT
 {
-   union {
-   USHORT Rsvd2;
-   struct {
-   USHORT Offset:13;
-   USHORT Flags:3;
-   };
-   };
+    union
+    {
+        USHORT Rsvd2;
+        struct
+        {
+            USHORT Offset : 13;
+            USHORT Flags : 3;
+        };
+    };
 }QCIPV4_FRAG_PKT, *QCPIPV4_FRAG_PKT;
 
 typedef struct _QCQMAP_IPV4
 {
-   USHORT version;
-   USHORT TotaLlen;
-   USHORT Rsvd1;
-   union {
-   USHORT Rsvd2;
-   struct {
-      USHORT Offset:13;
-      USHORT Flags:3;
-   };
-   };
-   UCHAR TTL;
-   UCHAR Protocol;
-   USHORT HeaderChk;
-   ULONG SrcAddr;
-   ULONG DestAddr;   
+    USHORT version;
+    USHORT TotaLlen;
+    USHORT Rsvd1;
+    union
+    {
+        USHORT Rsvd2;
+        struct
+        {
+            USHORT Offset : 13;
+            USHORT Flags : 3;
+        };
+    };
+    UCHAR  TTL;
+    UCHAR  Protocol;
+    USHORT HeaderChk;
+    ULONG  SrcAddr;
+    ULONG  DestAddr;
 } QCQMAP_IPV4, *PQCQMAP_IPV4;
 
 typedef struct _QCQMAP_IPV6
 {
-   ULONG Rsvd;
-   USHORT payloadLen;
-   UCHAR nextHdr;
-   UCHAR HopLimit;
-   UCHAR SrcAddr[16];
-   UCHAR DestAddr[16];   
+    ULONG  Rsvd;
+    USHORT payloadLen;
+    UCHAR  nextHdr;
+    UCHAR  HopLimit;
+    UCHAR  SrcAddr[16];
+    UCHAR  DestAddr[16];
 } QCQMAP_IPV6, *PQCQMAP_IPV6;
 
 typedef struct _QCQMAP_TCP
 {
-   USHORT SrcPort;
-   USHORT DestPort;
-   ULONG Sequence;
-   ULONG Ack;
-   ULONG Rsvd;
-   USHORT ChkSum;
+    USHORT SrcPort;
+    USHORT DestPort;
+    ULONG  Sequence;
+    ULONG  Ack;
+    ULONG  Rsvd;
+    USHORT ChkSum;
 } QCQMAP_TCP, *PQCQMAP_TCP;
 
 typedef struct _QCQMAP_UDP
 {
-   USHORT SrcPort;
-   USHORT DestPort;
-   USHORT Len;
-   USHORT ChkSum;
+    USHORT SrcPort;
+    USHORT DestPort;
+    USHORT Len;
+    USHORT ChkSum;
 } QCQMAP_UDP, *PQCQMAP_UDP;
 
 typedef struct _QCQMAP_ICMP
 {
-   UCHAR Type;
-   UCHAR Code;
-   USHORT ChkSum;
+    UCHAR  Type;
+    UCHAR  Code;
+    USHORT ChkSum;
 } QCQMAP_ICMP, *PQCQMAP_ICMP;
 
 #pragma pack(pop)
@@ -850,419 +867,419 @@ typedef struct _MUX_INTERFACE_INFO
     UCHAR PhysicalInterfaceNumber;
     ULONG MuxEnabled;
     PVOID FilterDeviceObj;
-}MUX_INTERFACE_INFO,* PMUX_INTERFACE_INFO;
+}MUX_INTERFACE_INFO, *PMUX_INTERFACE_INFO;
 
 typedef struct _DEVICE_EXTENSION
 {
-   PDRIVER_OBJECT MyDriverObject;
-   PDEVICE_OBJECT PhysicalDeviceObject;   // physical device object
-   PDEVICE_OBJECT StackDeviceObject;      // stack device object
-   PDEVICE_OBJECT MyDeviceObject;
-   PDEVICE_OBJECT MiniportFDO;
-   PVOID          MiniportContext;
+    PDRIVER_OBJECT  MyDriverObject;
+    PDEVICE_OBJECT  PhysicalDeviceObject;   // physical device object
+    PDEVICE_OBJECT  StackDeviceObject;      // stack device object
+    PDEVICE_OBJECT  MyDeviceObject;
+    PDEVICE_OBJECT  MiniportFDO;
+    PVOID           MiniportContext;
 
-   IO_REMOVE_LOCK RemoveLock;           // removal control
-   PIO_REMOVE_LOCK pRemoveLock;         // removal control
+    IO_REMOVE_LOCK  RemoveLock;           // removal control
+    PIO_REMOVE_LOCK pRemoveLock;          // removal control
 
-   // descriptors for device instance
-   PUSB_DEVICE_DESCRIPTOR pUsbDevDesc;   // ptr since there is only 1 dev desc
-   PUSB_CONFIGURATION_DESCRIPTOR pUsbConfigDesc;
-   PUSBD_INTERFACE_INFORMATION Interface[MAX_INTERFACE];
-   PURB UsbConfigUrb;
-   BOOLEAN IsEcmModel;
-   USHORT usCommClassInterface;
-   USBD_CONFIGURATION_HANDLE ConfigurationHandle;
-   CHAR DevSerialNumber[256];  // to hold USB_STRING_DESCRIPTOR of the serial number
-   ULONG IfProtocol;
-   _MUTEX muPnPMutex;
-   BOOLEAN bInService;                  //set in create, cleared in close
+    // descriptors for device instance
+    PUSB_DEVICE_DESCRIPTOR        pUsbDevDesc;   // ptr since there is only 1 dev desc
+    PUSB_CONFIGURATION_DESCRIPTOR pUsbConfigDesc;
+    PUSBD_INTERFACE_INFORMATION   Interface[MAX_INTERFACE];
+    USBD_CONFIGURATION_HANDLE     ConfigurationHandle;
+    PURB    UsbConfigUrb;
+    BOOLEAN IsEcmModel;
+    USHORT  usCommClassInterface;
+    CHAR    DevSerialNumber[256];  // to hold USB_STRING_DESCRIPTOR of the serial number
+    ULONG   IfProtocol;
+    _MUTEX  muPnPMutex;
+    BOOLEAN bInService;                  //set in create, cleared in close
 
-   USHORT PurgeMask;
+    USHORT  PurgeMask;
 
-   LIST_ENTRY RdCompletionQueue;
-   LIST_ENTRY WtCompletionQueue;
-   LIST_ENTRY CtlCompletionQueue;
-   LIST_ENTRY SglCompletionQueue;
+    LIST_ENTRY RdCompletionQueue;
+    LIST_ENTRY WtCompletionQueue;
+    LIST_ENTRY CtlCompletionQueue;
+    LIST_ENTRY SglCompletionQueue;
 
-   LIST_ENTRY ReadDataQueue;
-   LIST_ENTRY WriteDataQueue;
-   LIST_ENTRY EncapsulatedDataQueue;
-   LIST_ENTRY DispatchQueue;
-   PIRP pCurrentDispatch;
+    LIST_ENTRY ReadDataQueue;
+    LIST_ENTRY WriteDataQueue;
+    LIST_ENTRY EncapsulatedDataQueue;
+    LIST_ENTRY DispatchQueue;
+    PIRP pCurrentDispatch;
 
-   PCHAR pInterruptBuffer;
-   USHORT wMaxPktSize;
-   UCHAR BulkPipeOutput;
-   UCHAR BulkPipeInput;
-   UCHAR InterruptPipe;
-   UCHAR ControlInterface; // contains the Interrupt Pipe
-   UCHAR DataInterface; // contains the Bulk Pipes; == ControlInterface == 0 if not CDC
+    PCHAR  pInterruptBuffer;
+    USHORT wMaxPktSize;
+    UCHAR  BulkPipeOutput;
+    UCHAR  BulkPipeInput;
+    UCHAR  InterruptPipe;
+    UCHAR  ControlInterface; // contains the Interrupt Pipe
+    UCHAR  DataInterface; // contains the Bulk Pipes; == ControlInterface == 0 if not CDC
 
-   PIRP PurgeIrp;
-   PIRP pNotificationIrp;
-   KEVENT ForTimeoutEvent;
-   UCHAR  ucModelType;    // MODELTYPE_NET
+    PIRP   PurgeIrp;
+    PIRP   pNotificationIrp;
+    KEVENT ForTimeoutEvent;
+    UCHAR  ucModelType;    // MODELTYPE_NET
 
-   KSPIN_LOCK ControlSpinLock;
-   KSPIN_LOCK ReadSpinLock;
-   KSPIN_LOCK WriteSpinLock;
-   KSPIN_LOCK SingleIrpSpinLock;
-   USHORT bmDevState;
+    KSPIN_LOCK ControlSpinLock;
+    KSPIN_LOCK ReadSpinLock;
+    KSPIN_LOCK WriteSpinLock;
+    KSPIN_LOCK SingleIrpSpinLock;
+    USHORT bmDevState;
 
-   UNICODE_STRING ucsDeviceMapEntry;
-   UNICODE_STRING ucsPortName;
-   char                 PortName[16];
+    UNICODE_STRING ucsDeviceMapEntry;
+    UNICODE_STRING ucsPortName;
+    char           PortName[16];
 
-   USHORT idVendor;
-   USHORT idProduct;
-   BOOLEAN bPowerManagement; // true = enabled, false = disabled
-   LONG lReadBufferSize;
-   LONG lReadBuffer20pct;
-   LONG lReadBuffer50pct;
-   LONG lReadBuffer80pct;
-   LONG lReadBufferHigh;
-   LONG lReadBufferLow;
-   PUCHAR pucReadBufferStart;
-   PUCHAR pucReadBufferGet;
-   PUCHAR pucReadBufferPut;
+    USHORT  idVendor;
+    USHORT  idProduct;
+    BOOLEAN bPowerManagement; // true = enabled, false = disabled
+    LONG    lReadBufferSize;
+    LONG    lReadBuffer20pct;
+    LONG    lReadBuffer50pct;
+    LONG    lReadBuffer80pct;
+    LONG    lReadBufferHigh;
+    LONG    lReadBufferLow;
+    PUCHAR  pucReadBufferStart;
+    PUCHAR  pucReadBufferGet;
+    PUCHAR  pucReadBufferPut;
 
-   //Bus drivers set the appropriate values in this structure in response
-   //to an IRP_MN_QUERY_CAPABILITIES IRP. Function and filter drivers might
-   //alter the capabilities set by the bus driver.
-   DEVICE_CAPABILITIES DeviceCapabilities;
+    //Bus drivers set the appropriate values in this structure in response
+    //to an IRP_MN_QUERY_CAPABILITIES IRP. Function and filter drivers might
+    //alter the capabilities set by the bus driver.
+    DEVICE_CAPABILITIES DeviceCapabilities;
 
-   // default power state to power down to on self-suspend 
-   // ULONG PowerDownLevel; 
+    // default power state to power down to on self-suspend 
+    // ULONG PowerDownLevel; 
 
-   #ifdef QCUSB_PWR
-   BOOLEAN            PowerSuspended;
-   BOOLEAN            SelectiveSuspended;
-   SYSTEM_POWER_STATE SystemPower;
-   DEVICE_POWER_STATE DevicePower;
-   BOOLEAN            PMWmiRegistered;
-   BOOLEAN            bRemoteWakeupEnabled;  // device side
-   BOOLEAN            bDeviceSelfPowered;    // device side
-   char               bmAttributes;    // device side
-   BOOLEAN            PowerManagementEnabled;
-   BOOLEAN            WaitWakeEnabled;       // host side
-   PIRP               WaitWakeIrp;
-   ULONG              PowerDownLevel;
-   UCHAR              IoBusyMask;
-   BOOLEAN            IdleTimerLaunched;
-   KTIMER             IdleTimer;
-   KDPC               IdleDpc;
-   PIRP               IdleNotificationIrp;
-   USHORT             WdmVersion;
-   ULONG              SelectiveSuspendIdleTime;
-   BOOLEAN            SelectiveSuspendInMili;   
-   BOOLEAN            InServiceSelectiveSuspension;
-   WMILIB_CONTEXT     WmiLibInfo;
-   BOOLEAN            PrepareToPowerDown;
-   POWER_COMPLETION_CONTEXT PwrCompContext[QCUSB_SYS_PWR_IRP_MAX];
-   LONG               PwrCtextIdx;
+#ifdef QCUSB_PWR
+    BOOLEAN            PowerSuspended;
+    BOOLEAN            SelectiveSuspended;
+    SYSTEM_POWER_STATE SystemPower;
+    DEVICE_POWER_STATE DevicePower;
+    BOOLEAN            PMWmiRegistered;
+    BOOLEAN            bRemoteWakeupEnabled;  // device side
+    BOOLEAN            bDeviceSelfPowered;    // device side
+    char               bmAttributes;    // device side
+    BOOLEAN            PowerManagementEnabled;
+    BOOLEAN            WaitWakeEnabled;       // host side
+    PIRP               WaitWakeIrp;
+    ULONG              PowerDownLevel;
+    UCHAR              IoBusyMask;
+    BOOLEAN            IdleTimerLaunched;
+    KTIMER             IdleTimer;
+    KDPC               IdleDpc;
+    PIRP               IdleNotificationIrp;
+    USHORT             WdmVersion;
+    ULONG              SelectiveSuspendIdleTime;
+    BOOLEAN            SelectiveSuspendInMili;
+    BOOLEAN            InServiceSelectiveSuspension;
+    WMILIB_CONTEXT     WmiLibInfo;
+    BOOLEAN            PrepareToPowerDown;
+    POWER_COMPLETION_CONTEXT PwrCompContext[QCUSB_SYS_PWR_IRP_MAX];
+    LONG               PwrCtextIdx;
 
-   KEVENT             InterruptRegIdleEvent;
-   KEVENT             RegIdleAckEvent;
+    KEVENT             InterruptRegIdleEvent;
+    KEVENT             RegIdleAckEvent;
 
-   LIST_ENTRY         IdleIrpCompletionStack;
-   KEVENT             InterruptIdleEvent;
-   KEVENT             InterruptIdlenessCompletedEvent;
-   KEVENT             DispatchPreWakeupEvent;
-   LIST_ENTRY         OriginatedPwrReqQueue;
-   LIST_ENTRY         OriginatedPwrReqPool;
-   SELF_ORIGINATED_POWER_REQ SelfPwrReq[SELF_ORIGINATED_PWR_REQ_MAX];
-   #endif
+    LIST_ENTRY         IdleIrpCompletionStack;
+    KEVENT             InterruptIdleEvent;
+    KEVENT             InterruptIdlenessCompletedEvent;
+    KEVENT             DispatchPreWakeupEvent;
+    LIST_ENTRY         OriginatedPwrReqQueue;
+    LIST_ENTRY         OriginatedPwrReqPool;
+    SELF_ORIGINATED_POWER_REQ SelfPwrReq[SELF_ORIGINATED_PWR_REQ_MAX];
+#endif
 
-   KEVENT DSPSyncEvent;
-   // Start of WDM_VxD.c support structures (service threads)
-   PKEVENT pL2ReadEvents[L2_READ_EVENT_COUNT];  // array of events which alert the L2 read thread
-   PKEVENT pL1ReadEvents[L1_READ_EVENT_COUNT];  // array of events which alert the L1 read thread
-   PKEVENT pWriteEvents[WRITE_EVENT_COUNT+QCUSB_MAX_MWT_BUF_COUNT];  // array of events which alert the write thread
-   PKEVENT pInterruptPipeEvents[INT_PIPE_EVENT_COUNT];
-   PKEVENT pDispatchEvents[DSP_EVENT_COUNT];
+    KEVENT DSPSyncEvent;
+    // Start of WDM_VxD.c support structures (service threads)
+    PKEVENT pL2ReadEvents[L2_READ_EVENT_COUNT];  // array of events which alert the L2 read thread
+    PKEVENT pL1ReadEvents[L1_READ_EVENT_COUNT];  // array of events which alert the L1 read thread
+    PKEVENT pWriteEvents[WRITE_EVENT_COUNT + QCUSB_MAX_MWT_BUF_COUNT];  // array of events which alert the write thread
+    PKEVENT pInterruptPipeEvents[INT_PIPE_EVENT_COUNT];
+    PKEVENT pDispatchEvents[DSP_EVENT_COUNT];
 
-   PKEVENT pReadControlEvent;
-   PLONG   pRspAvailableCount;
-   LONG   lRspAvailableCount;
-   KEVENT DispatchReadControlEvent;
+    PKEVENT pReadControlEvent;
+    PLONG   pRspAvailableCount;
+    LONG    lRspAvailableCount;
+    KEVENT  DispatchReadControlEvent;
 
-   KEVENT L1ReadThreadClosedEvent;
-   KEVENT L2ReadThreadClosedEvent;
-   KEVENT ReadIrpPurgedEvent;
-   KEVENT WriteThreadClosedEvent;
-   KEVENT InterruptPipeClosedEvent;
-   KEVENT InterruptStopServiceEvent;
-   KEVENT InterruptStopServiceRspEvent;
-   KEVENT InterruptResumeServiceEvent;
-   KEVENT InterruptEmptyRdQueueEvent;
-   KEVENT InterruptEmptyWtQueueEvent;
-   KEVENT InterruptEmptyCtlQueueEvent;
-   KEVENT InterruptEmptySglQueueEvent;
-   KEVENT CancelReadEvent;
-   KEVENT L1CancelReadEvent;
-   KEVENT CancelWriteEvent;
-   KEVENT CancelInterruptPipeEvent;
-   KEVENT WriteCompletionEvent;
-   KEVENT L2ReadCompletionEvent;
-   KEVENT L1ReadCompletionEvent;
-   KEVENT L1ReadAvailableEvent;
-   KEVENT L1ReadPurgeAckEvent;
-   KEVENT KickWriteEvent;
-   KEVENT L2KickReadEvent;
-   KEVENT L1KickReadEvent;
-   KEVENT L1ReadPurgeEvent;
-   KEVENT WritePurgeEvent;
-   KEVENT ReadThreadStartedEvent;
-   KEVENT L2ReadThreadStartedEvent;
-   KEVENT WriteThreadStartedEvent;
-   KEVENT DspThreadStartedEvent;
-   KEVENT IntThreadStartedEvent;
-   KEVENT eInterruptCompletion;
-   KEVENT DispatchStartEvent;
-   KEVENT DispatchCancelEvent;
-   KEVENT DispatchThreadClosedEvent;
-   KEVENT DispatchPurgeEvent;
-   KEVENT DispatchPurgeCompleteEvent;
-   KEVENT DispatchStartPollingEvent;
-   KEVENT DispatchStopPollingEvent;
-   KEVENT DispatchStandbyEvent;
-   KEVENT DispatchWakeupEvent;
-   KEVENT DispatchWakeupResetEvent;
-   KEVENT WriteCancelCurrentEvent;
-   KEVENT WriteFlowOnEvent;
-   KEVENT WriteFlowOffEvent;
-   KEVENT WriteFlowOffAckEvent;
-   LIST_ENTRY MWTSentIrpQueue;
-   LIST_ENTRY MWTSentIrpRecordPool;
-   LONG   MWTPendingCnt;
+    KEVENT L1ReadThreadClosedEvent;
+    KEVENT L2ReadThreadClosedEvent;
+    KEVENT ReadIrpPurgedEvent;
+    KEVENT WriteThreadClosedEvent;
+    KEVENT InterruptPipeClosedEvent;
+    KEVENT InterruptStopServiceEvent;
+    KEVENT InterruptStopServiceRspEvent;
+    KEVENT InterruptResumeServiceEvent;
+    KEVENT InterruptEmptyRdQueueEvent;
+    KEVENT InterruptEmptyWtQueueEvent;
+    KEVENT InterruptEmptyCtlQueueEvent;
+    KEVENT InterruptEmptySglQueueEvent;
+    KEVENT CancelReadEvent;
+    KEVENT L1CancelReadEvent;
+    KEVENT CancelWriteEvent;
+    KEVENT CancelInterruptPipeEvent;
+    KEVENT WriteCompletionEvent;
+    KEVENT L2ReadCompletionEvent;
+    KEVENT L1ReadCompletionEvent;
+    KEVENT L1ReadAvailableEvent;
+    KEVENT L1ReadPurgeAckEvent;
+    KEVENT KickWriteEvent;
+    KEVENT L2KickReadEvent;
+    KEVENT L1KickReadEvent;
+    KEVENT L1ReadPurgeEvent;
+    KEVENT WritePurgeEvent;
+    KEVENT ReadThreadStartedEvent;
+    KEVENT L2ReadThreadStartedEvent;
+    KEVENT WriteThreadStartedEvent;
+    KEVENT DspThreadStartedEvent;
+    KEVENT IntThreadStartedEvent;
+    KEVENT eInterruptCompletion;
+    KEVENT DispatchStartEvent;
+    KEVENT DispatchCancelEvent;
+    KEVENT DispatchThreadClosedEvent;
+    KEVENT DispatchPurgeEvent;
+    KEVENT DispatchPurgeCompleteEvent;
+    KEVENT DispatchStartPollingEvent;
+    KEVENT DispatchStopPollingEvent;
+    KEVENT DispatchStandbyEvent;
+    KEVENT DispatchWakeupEvent;
+    KEVENT DispatchWakeupResetEvent;
+    KEVENT WriteCancelCurrentEvent;
+    KEVENT WriteFlowOnEvent;
+    KEVENT WriteFlowOffEvent;
+    KEVENT WriteFlowOffAckEvent;
+    LIST_ENTRY MWTSentIrpQueue;
+    LIST_ENTRY MWTSentIrpRecordPool;
+    LONG   MWTPendingCnt;
 
-   KEVENT L1StopEvent;
-   KEVENT L1StopAckEvent;
-   KEVENT L1ResumeEvent;
-   KEVENT L1ResumeAckEvent;
-   KEVENT L2StopEvent;
-   KEVENT L2StopAckEvent;
-   KEVENT L2ResumeEvent;
-   KEVENT L2ResumeAckEvent;
-   KEVENT WriteStopEvent;
-   KEVENT WriteResumeEvent;
-   KEVENT L2USBReadCompEvent;
+    KEVENT L1StopEvent;
+    KEVENT L1StopAckEvent;
+    KEVENT L1ResumeEvent;
+    KEVENT L1ResumeAckEvent;
+    KEVENT L2StopEvent;
+    KEVENT L2StopAckEvent;
+    KEVENT L2ResumeEvent;
+    KEVENT L2ResumeAckEvent;
+    KEVENT WriteStopEvent;
+    KEVENT WriteResumeEvent;
+    KEVENT L2USBReadCompEvent;
 
-   BOOLEAN bDeviceRemoved;
-   BOOLEAN bDeviceSurpriseRemoved;
+    BOOLEAN bDeviceRemoved;
+    BOOLEAN bDeviceSurpriseRemoved;
 
-   NTSTATUS ControlPipeStatus;
-   NTSTATUS IntPipeStatus;
-   NTSTATUS InputPipeStatus;
-   NTSTATUS OutputPipeStatus;
-   NTSTATUS XwdmStatus;
-   HANDLE hInterruptThreadHandle;
-   HANDLE hL1ReadThreadHandle;
-   HANDLE hL2ReadThreadHandle;
-   HANDLE hWriteThreadHandle;
-   HANDLE hDispatchThreadHandle;
-   PKTHREAD pInterruptThread;  // typedef struct _KTHREAD *PKTHREAD;
-   PKTHREAD pL1ReadThread;
-   PKTHREAD pL2ReadThread;
-   PKTHREAD pWriteThread;
-   PKTHREAD pDispatchThread;
-   ULONG    DispatchThreadCancelStarted;
-   ULONG    InterruptThreadCancelStarted;
-   ULONG    ReadThreadCancelStarted;
-   ULONG    ReadThreadInCreation;
-   ULONG    WriteThreadCancelStarted;
-   ULONG    WriteThreadInCreation;
+    NTSTATUS ControlPipeStatus;
+    NTSTATUS IntPipeStatus;
+    NTSTATUS InputPipeStatus;
+    NTSTATUS OutputPipeStatus;
+    NTSTATUS XwdmStatus;
+    HANDLE   hInterruptThreadHandle;
+    HANDLE   hL1ReadThreadHandle;
+    HANDLE   hL2ReadThreadHandle;
+    HANDLE   hWriteThreadHandle;
+    HANDLE   hDispatchThreadHandle;
+    PKTHREAD pInterruptThread;  // typedef struct _KTHREAD *PKTHREAD;
+    PKTHREAD pL1ReadThread;
+    PKTHREAD pL2ReadThread;
+    PKTHREAD pWriteThread;
+    PKTHREAD pDispatchThread;
+    ULONG    DispatchThreadCancelStarted;
+    ULONG    InterruptThreadCancelStarted;
+    ULONG    ReadThreadCancelStarted;
+    ULONG    ReadThreadInCreation;
+    ULONG    WriteThreadCancelStarted;
+    ULONG    WriteThreadInCreation;
 
-   HANDLE hTxLogFile;
-   HANDLE hRxLogFile;
-   UNICODE_STRING ucLoggingDir;
-   BOOLEAN        bLoggingOk;
-   ULONG          ulRxLogCount;
-   ULONG          ulLastRxLogCount;
-   ULONG          ulTxLogCount;
-   ULONG          ulLastTxLogCount;
+    HANDLE hTxLogFile;
+    HANDLE hRxLogFile;
+    UNICODE_STRING ucLoggingDir;
+    BOOLEAN        bLoggingOk;
+    ULONG          ulRxLogCount;
+    ULONG          ulLastRxLogCount;
+    ULONG          ulTxLogCount;
+    ULONG          ulLastTxLogCount;
 
-   PIRP pWriteCurrent;
+    PIRP pWriteCurrent;
 
-   BOOLEAN bL1ReadActive;
-   BOOLEAN bL2ReadActive;
-   BOOLEAN bWriteActive;
-   BOOLEAN bReadBufferReset;
-   BOOLEAN bL1InCancellation;
-   BOOLEAN bL1Stopped;
-   BOOLEAN bL2Stopped;
-   BOOLEAN bL2Polling;
-   BOOLEAN bWriteStopped;
-   BOOLEAN bEncStopped;
-   BOOLEAN bIntActive;
-   PIRP    InterruptIrp;
-   LONG    IdleCallbackInProgress;
-   KEVENT  IdleCbkCompleteEvent;
-   BOOLEAN bIdleIrpCompleted;
-   BOOLEAN bLowPowerMode;
+    BOOLEAN bL1ReadActive;
+    BOOLEAN bL2ReadActive;
+    BOOLEAN bWriteActive;
+    BOOLEAN bReadBufferReset;
+    BOOLEAN bL1InCancellation;
+    BOOLEAN bL1Stopped;
+    BOOLEAN bL2Stopped;
+    BOOLEAN bL2Polling;
+    BOOLEAN bWriteStopped;
+    BOOLEAN bEncStopped;
+    BOOLEAN bIntActive;
+    PIRP    InterruptIrp;
+    LONG    IdleCallbackInProgress;
+    KEVENT  IdleCbkCompleteEvent;
+    BOOLEAN bIdleIrpCompleted;
+    BOOLEAN bLowPowerMode;
 
-   USBMRD_L2BUFFER *pL2ReadBuffer;
+    USBMRD_L2BUFFER *pL2ReadBuffer;
 
-   // for multi-reads
-   LIST_ENTRY L2CompletionQueue;
-   LIST_ENTRY L2PendingQueue;
-   KSPIN_LOCK L2Lock;
-   LONG       L2IrpStartIdx;
-   LONG       L2IrpEndIdx;
+    // for multi-reads
+    LIST_ENTRY L2CompletionQueue;
+    LIST_ENTRY L2PendingQueue;
+    KSPIN_LOCK L2Lock;
+    LONG       L2IrpStartIdx;
+    LONG       L2IrpEndIdx;
 
-   LONG L2FillIdx;
-   LONG L2IrpIdx;
+    LONG L2FillIdx;
+    LONG L2IrpIdx;
 
-   #ifdef QCUSB_MULTI_WRITES
-   BOOLEAN UseMultiWrites;
-   PQCMWT_BUFFER pMwtBuffer[QCUSB_MAX_MWT_BUF_COUNT];
-   QCMWT_CXLREQ  CxlRequest[QCUSB_MAX_MWT_BUF_COUNT];
-   ULONG      NumberOfMultiWrites;
-   LIST_ENTRY MWriteIdleQueue;
-   LIST_ENTRY MWritePendingQueue;
-   LIST_ENTRY MWriteCompletionQueue;
-   LIST_ENTRY MWriteCancellingQueue;
-   KEVENT     WriteStopAckEvent;
-   KEVENT     WritePurgeAckEvent;
-   #endif // QCUSB_MULTI_WRITES
+#ifdef QCUSB_MULTI_WRITES
+    BOOLEAN UseMultiWrites;
+    PQCMWT_BUFFER pMwtBuffer[QCUSB_MAX_MWT_BUF_COUNT];
+    QCMWT_CXLREQ  CxlRequest[QCUSB_MAX_MWT_BUF_COUNT];
+    ULONG      NumberOfMultiWrites;
+    LIST_ENTRY MWriteIdleQueue;
+    LIST_ENTRY MWritePendingQueue;
+    LIST_ENTRY MWriteCompletionQueue;
+    LIST_ENTRY MWriteCancellingQueue;
+    KEVENT     WriteStopAckEvent;
+    KEVENT     WritePurgeAckEvent;
+#endif // QCUSB_MULTI_WRITES
 
-   PQCUSB_IRP_RECORDS WriteCancelRecords;
+    PQCUSB_IRP_RECORDS WriteCancelRecords;
 
-   BOOLEAN bVendorFeature;
-   BOOLEAN bFdoReused;
+    BOOLEAN bVendorFeature;
+    BOOLEAN bFdoReused;
 
-   // device configuration parameters
-   BOOLEAN ContinueOnOverflow;
-   BOOLEAN ContinueOnDataError;
-   BOOLEAN EnableLogging;
-   BOOLEAN UseMultiReads;
-   BOOLEAN NoTimeoutOnCtlReq;
-   USHORT  MinInPktSize;
-   ULONG   NumOfRetriesOnError;
-   ULONG   MaxPipeXferSize;
-   ULONG   NumberOfL2Buffers;
+    // device configuration parameters
+    BOOLEAN ContinueOnOverflow;
+    BOOLEAN ContinueOnDataError;
+    BOOLEAN EnableLogging;
+    BOOLEAN UseMultiReads;
+    BOOLEAN NoTimeoutOnCtlReq;
+    USHORT  MinInPktSize;
+    ULONG   NumOfRetriesOnError;
+    ULONG   MaxPipeXferSize;
+    ULONG   NumberOfL2Buffers;
 
-   // pending Read IRPs
-   LONG    NumberOfPendingReadIRPs;
-   LONG    NumberOfQueuedReadIRPs;
+    // pending Read IRPs
+    LONG    NumberOfPendingReadIRPs;
+    LONG    NumberOfQueuedReadIRPs;
 
-   ULONG   DebugMask;
-   UCHAR   DebugLevel;
+    ULONG   DebugMask;
+    UCHAR   DebugLevel;
 
-   QC_STATS Sts;
-   QC_XFER_STATISTICS QcXferStats;
+    QC_STATS Sts;
+    QC_XFER_STATISTICS QcXferStats;
 
-   QCUSB_ENTRY_POINTS EntryPoints;  // for direct MJ function calls
+    QCUSB_ENTRY_POINTS EntryPoints;  // for direct MJ function calls
 
-   #ifdef NDIS_WDM
-   NDIS_HANDLE NdisConfigurationContext;
-   #endif
+#ifdef NDIS_WDM
+    NDIS_HANDLE NdisConfigurationContext;
+#endif
 
-   DEVICE_POWER_STATE  PowerState;
-   UCHAR DeviceControlCapabilities;
-   UCHAR DeviceDataCapabilities;
-   BOOLEAN SetCommFeatureSupported;
-   BOOLEAN ExWdmMonitorStarted;
-   PVOID   ExWdmIfNotificationEntry;
-   KEVENT DispatchXwdmOpenEvent;
-   KEVENT DispatchXwdmCloseEvent;
-   KEVENT DispatchXwdmQueryRmEvent;
-   KEVENT DispatchXwdmReopenEvent;
-   KEVENT DispatchXwdmQuerySysPwrEvent;
-   KEVENT DispatchXwdmQuerySysPwrAckEvent;
-   KEVENT DispatchXwdmNotifyEvent;
-   PDEVICE_OBJECT ExWdmDeviceObject;
-   PFILE_OBJECT   ExFileObject;
-   PVOID          ExWdmDevNotificationEntry;
-   UNICODE_STRING ExWdmDeviceSymbName;
-   PIRP           XwdmNotificationIrp;
-   KSPIN_LOCK     ExWdmSpinLock;
-   BOOLEAN        ExWdmInService;
- 
-   #ifdef QCUSB_SHARE_INTERRUPT
-   #ifdef QCUSB_SHARE_INTERRUPT_OLD
-   UCHAR DeviceId[DEVICE_ID_LEN];
-   #else
-   PDEVICE_OBJECT DeviceId;
-   #endif
-   #endif // QCUSB_SHARE_INTERRUPT
-   BOOLEAN bEnableResourceSharing;
-   BOOLEAN bEnableDataBundling[2];
-   QCTLP_TMP_BUF TlpFrameBuffer;
-   QCTLP_BUF_STATE TlpBufferState;   
+    DEVICE_POWER_STATE  PowerState;
+    UCHAR   DeviceControlCapabilities;
+    UCHAR   DeviceDataCapabilities;
+    BOOLEAN SetCommFeatureSupported;
+    BOOLEAN ExWdmMonitorStarted;
+    PVOID   ExWdmIfNotificationEntry;
+    KEVENT  DispatchXwdmOpenEvent;
+    KEVENT  DispatchXwdmCloseEvent;
+    KEVENT  DispatchXwdmQueryRmEvent;
+    KEVENT  DispatchXwdmReopenEvent;
+    KEVENT  DispatchXwdmQuerySysPwrEvent;
+    KEVENT  DispatchXwdmQuerySysPwrAckEvent;
+    KEVENT  DispatchXwdmNotifyEvent;
+    PDEVICE_OBJECT ExWdmDeviceObject;
+    PFILE_OBJECT   ExFileObject;
+    PVOID          ExWdmDevNotificationEntry;
+    UNICODE_STRING ExWdmDeviceSymbName;
+    PIRP           XwdmNotificationIrp;
+    KSPIN_LOCK     ExWdmSpinLock;
+    BOOLEAN        ExWdmInService;
 
-   UCHAR HighSpeedUsbOk;
+#ifdef QCUSB_SHARE_INTERRUPT
+#ifdef QCUSB_SHARE_INTERRUPT_OLD
+    UCHAR DeviceId[DEVICE_ID_LEN];
+#else
+    PDEVICE_OBJECT DeviceId;
+#endif
+#endif // QCUSB_SHARE_INTERRUPT
+    BOOLEAN bEnableResourceSharing;
+    BOOLEAN bEnableDataBundling[2];
+    QCTLP_TMP_BUF TlpFrameBuffer;
+    QCTLP_BUF_STATE TlpBufferState;
 
-   #ifdef QC_IP_MODE
-   BOOLEAN IPOnlyMode;
-   BOOLEAN QoSMode;
-   QCUSB_ETH_HDR EthHdr; // for inbound packets
-   #endif // QC_IP_MODE
+    UCHAR HighSpeedUsbOk;
 
-   BOOLEAN WWANMode;
+#ifdef QC_IP_MODE
+    BOOLEAN IPOnlyMode;
+    BOOLEAN QoSMode;
+    QCUSB_ETH_HDR EthHdr; // for inbound packets
+#endif // QC_IP_MODE
+
+    BOOLEAN WWANMode;
 
 #if defined(QCMP_MBIM_UL_SUPPORT)
-   BOOLEAN  MBIMULEnabled;   // host-device negotiation
+    BOOLEAN  MBIMULEnabled;   // host-device negotiation
 #endif
 
 #if defined(QCMP_MBIM_DL_SUPPORT)
-   BOOLEAN  MBIMDLEnabled;   // host-device negotiation
+    BOOLEAN  MBIMDLEnabled;   // host-device negotiation
 #endif
 
 #if defined(QCMP_QMAP_V1_SUPPORT)
-   BOOLEAN QMAPEnabledV4;
+    BOOLEAN QMAPEnabledV4;
 #endif
 #ifdef QCUSB_MUX_PROTOCOL
 #if defined(QCMP_QMAP_V2_SUPPORT)
-   BOOLEAN QMAPEnabledV2;
-   BOOLEAN QMAPEnabledV3;
+    BOOLEAN QMAPEnabledV2;
+    BOOLEAN QMAPEnabledV3;
 #endif
 #endif
 
 #if defined(QCMP_QMAP_V1_SUPPORT)
-   BOOLEAN QMAPEnabledV1;
+    BOOLEAN QMAPEnabledV1;
 #endif
 
-   // to support multiple physical devices
-   LONG DispatchThreadInCancellation;
-   LONG InterruptThreadInCancellation;
-   LONG L1ReadThreadInCancellation;
-   LONG WriteThreadInCancellation;
-   LONG RdErrorCount;
-   LONG WtErrorCount;
-   LONG TLPCount;
-   BOOLEAN RdThreadInCreation;
-   BOOLEAN WtThreadInCreation;
+    // to support multiple physical devices
+    LONG DispatchThreadInCancellation;
+    LONG InterruptThreadInCancellation;
+    LONG L1ReadThreadInCancellation;
+    LONG WriteThreadInCancellation;
+    LONG RdErrorCount;
+    LONG WtErrorCount;
+    LONG TLPCount;
+    BOOLEAN RdThreadInCreation;
+    BOOLEAN WtThreadInCreation;
 
-   #ifdef QCUSB_MUX_PROTOCOL
-   BOOLEAN MuxEnabled;
-   ULONG   MuxCtrlDLCI;
-   ULONG   MuxDataDLCI;
-   #endif // QCUSB_MUX_PROTOCOL
+#ifdef QCUSB_MUX_PROTOCOL
+    BOOLEAN MuxEnabled;
+    ULONG   MuxCtrlDLCI;
+    ULONG   MuxDataDLCI;
+#endif // QCUSB_MUX_PROTOCOL
 
-   LONG QosSetting;
+    LONG QosSetting;
 
-   LONG MTU;
+    LONG MTU;
 
-   MUX_INTERFACE_INFO MuxInterface;
-   ULONG FrameDropCount;
-   ULONGLONG FrameDropBytes;
-   LONG FlowControlEnabledCount;
-   ULONG QMAPDLMinPadding;   
+    MUX_INTERFACE_INFO MuxInterface;
+    ULONG FrameDropCount;
+    ULONGLONG FrameDropBytes;
+    LONG FlowControlEnabledCount;
+    ULONG QMAPDLMinPadding;
 
-   #ifdef QCUSB_MUX_PROTOCOL
-   // BURST_SUPPORT
-   LONG   BurstFashion;  // EQUAL_INTERVAL=0; EQUAL_GAP=1
-   KTIMER BurstTimer;
-   KDPC   BurstDpc;
-   ULONG  BurstInterval;  // ms
-   ULONG  BurstSize;
-   ULONG  BurstPendingCount;
-   ULONG  BurstCount;
-   BOOLEAN BurstTimerLaunched;
-   #endif // QCUSB_MUX_PROTOCOL
+#ifdef QCUSB_MUX_PROTOCOL
+    // BURST_SUPPORT
+    LONG   BurstFashion;  // EQUAL_INTERVAL=0; EQUAL_GAP=1
+    KTIMER BurstTimer;
+    KDPC   BurstDpc;
+    ULONG  BurstInterval;  // ms
+    ULONG  BurstSize;
+    ULONG  BurstPendingCount;
+    ULONG  BurstCount;
+    BOOLEAN BurstTimerLaunched;
+#endif // QCUSB_MUX_PROTOCOL
 
-   ULONG EnableData5G;
+    ULONG EnableData5G;
 }  DEVICE_EXTENSION, *PDEVICE_EXTENSION;
 
 // device states
@@ -1297,14 +1314,14 @@ extern char gServiceName[255];
 #define USB_CDC_INT_PARITY_ERROR 0x20   // bit 5
 #define USB_CDC_INT_OVERRUN      0x30   // bit 6
 
-#define MAX_DEVICE_ID_LEN 1024 //128
-#define MAX_ENTRY_NAME_LEN 1024 //64
-#define MAX_ENTRY_DATA_LEN 2048 //256 11/14/98
+#define MAX_DEVICE_ID_LEN   1024 //128
+#define MAX_ENTRY_NAME_LEN  1024 //64
+#define MAX_ENTRY_DATA_LEN  2048 //256 11/14/98
 #define MAX_ENTRY_LARGE_LEN 1024 //512
-#define MAX_USB_KEY_LEN 2048
-#define MAX_NAME_LEN 1024 //128
-#define MAX_KEY_NAME_LEN 1024 //256
-#define DEVICE_PATH_SIZE 1024 //255
+#define MAX_USB_KEY_LEN     2048
+#define MAX_NAME_LEN        1024 //128
+#define MAX_KEY_NAME_LEN    1024 //256
+#define DEVICE_PATH_SIZE    1024 //255
 
 // for compatibility
 #ifndef USBD_STATUS_XACT_ERROR
@@ -1353,18 +1370,18 @@ VOID USBMAIN_CancalNotificationIrp
 
 VOID USBMAIN_DispatchDebugOutput
 (
-   PIRP               Irp,
-   PIO_STACK_LOCATION IrpStack,
-   PDEVICE_OBJECT     DeviceObject,
-   KIRQL              Irql
+    PIRP               Irp,
+    PIO_STACK_LOCATION IrpStack,
+    PDEVICE_OBJECT     DeviceObject,
+    KIRQL              Irql
 );
 
 VOID USBMAIN_ResetRspAvailableCount
 (
-   PDEVICE_EXTENSION pDevExt,
-   USHORT Interface,
-   char *info,
-   UCHAR cookie
+    PDEVICE_EXTENSION pDevExt,
+    USHORT Interface,
+    char *info,
+    UCHAR cookie
 );
 NTSTATUS USBMAIN_StopDataThreads(PDEVICE_EXTENSION pDevExt, BOOLEAN CancelWaitWake);
 

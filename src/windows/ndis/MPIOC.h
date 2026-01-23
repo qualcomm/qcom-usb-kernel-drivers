@@ -49,95 +49,95 @@ extern PNDIS_SPIN_LOCK MP_CtlLock;
 
 typedef struct _FILTER_DEVICE_INFO
 {
-   PMP_ADAPTER pAdapter;
-   PUNICODE_STRING pDeviceName;
-   PUNICODE_STRING pDeviceLinkName;
-   PDRIVER_DISPATCH*  MajorFunctions;
-   PDEVICE_OBJECT pControlDeviceObject;
-   PDEVICE_OBJECT pFilterDeviceObject;
-   PUNICODE_STRING pFileName;
-   ULONG UniqueIdentifier;
+    PMP_ADAPTER pAdapter;
+    PUNICODE_STRING pDeviceName;
+    PUNICODE_STRING pDeviceLinkName;
+    PDRIVER_DISPATCH *MajorFunctions;
+    PDEVICE_OBJECT pControlDeviceObject;
+    PDEVICE_OBJECT pFilterDeviceObject;
+    PUNICODE_STRING pFileName;
+    ULONG UniqueIdentifier;
 }FILTER_DEVICE_INFO, *PFILTER_DEVICE_INFO;
-   
+
 
 typedef struct _MPIOC_DEV_INFO
 {
-   BOOLEAN        Acquired;
-   UCHAR          IdleTime;
-   LONG           DeviceOpenCount;
-   LIST_ENTRY     List;
-   UCHAR          Type;
-   UCHAR          ClientId;
-   UCHAR          ClientIdV6;
-   UCHAR          QMIType;
-   PVOID          FsContext;
-   LONG           QMUXTransactionId;
-   KEVENT         ClientIdReceivedEvent;
-   KEVENT         ClientIdReleasedEvent;
-   KEVENT         DataFormatSetEvent;
-   KEVENT         CtlSyncEvent;
-   PMP_ADAPTER    Adapter;
-   BOOLEAN        MPStopped;
-   NDIS_HANDLE    NdisDeviceHandle;
-   PDEVICE_OBJECT ControlDeviceObject;
-   FILTER_DEVICE_INFO FilterDeviceInfo;
-   UNICODE_STRING SymbolicName;
-   UNICODE_STRING DeviceName;
-   CHAR           ClientFileName[IOCDEV_CLIENT_FILE_NAME_LEN];
-   LIST_ENTRY     ReadIrpQueue;
-   LIST_ENTRY     WriteIrpQueue;
-   LIST_ENTRY     ReadDataQueue;
-   LIST_ENTRY     IrpCompletionQueue;
-   NDIS_SPIN_LOCK IoLock;
-   PIRP           GetServiceFileIrp;
+    BOOLEAN        Acquired;
+    UCHAR          IdleTime;
+    LONG           DeviceOpenCount;
+    LIST_ENTRY     List;
+    UCHAR          Type;
+    UCHAR          ClientId;
+    UCHAR          ClientIdV6;
+    UCHAR          QMIType;
+    PVOID          FsContext;
+    LONG           QMUXTransactionId;
+    KEVENT         ClientIdReceivedEvent;
+    KEVENT         ClientIdReleasedEvent;
+    KEVENT         DataFormatSetEvent;
+    KEVENT         CtlSyncEvent;
+    PMP_ADAPTER    Adapter;
+    BOOLEAN        MPStopped;
+    NDIS_HANDLE    NdisDeviceHandle;
+    PDEVICE_OBJECT ControlDeviceObject;
+    FILTER_DEVICE_INFO FilterDeviceInfo;
+    UNICODE_STRING SymbolicName;
+    UNICODE_STRING DeviceName;
+    CHAR           ClientFileName[IOCDEV_CLIENT_FILE_NAME_LEN];
+    LIST_ENTRY     ReadIrpQueue;
+    LIST_ENTRY     WriteIrpQueue;
+    LIST_ENTRY     ReadDataQueue;
+    LIST_ENTRY     IrpCompletionQueue;
+    NDIS_SPIN_LOCK IoLock;
+    PIRP           GetServiceFileIrp;
 
-   // for write thread
-   PKTHREAD       pWriteThread;
-   HANDLE         hWriteThreadHandle;
-   BOOLEAN        bWtThreadInCreation;
-   KEVENT         WriteThreadStartedEvent;
-   BOOLEAN        bWriteActive;
-   BOOLEAN        bWriteStopped;
-   PIRP           pWriteCurrent;
-   PKEVENT        pWriteEvents[IOCDEV_WRITE_EVENT_COUNT];
-   KEVENT         WriteCompletionEvent;
-   KEVENT         EmptyCompletionQueueEvent;
-   KEVENT         WriteCancelCurrentEvent;
-   KEVENT         KickWriteEvent;
-   KEVENT         CancelWriteEvent;
-   KEVENT         WritePurgeEvent;
-   KEVENT         WriteStopEvent;
-   KEVENT         WtWorkerThreadExitEvent;
-   KEVENT         ClientClosedEvent;
-   USHORT         NumOfRetriesOnError;
-   LONG           WriteThreadInCancellation;
-   INT            iErrorCount;
+    // for write thread
+    PKTHREAD       pWriteThread;
+    HANDLE         hWriteThreadHandle;
+    BOOLEAN        bWtThreadInCreation;
+    KEVENT         WriteThreadStartedEvent;
+    BOOLEAN        bWriteActive;
+    BOOLEAN        bWriteStopped;
+    PIRP           pWriteCurrent;
+    PKEVENT        pWriteEvents[IOCDEV_WRITE_EVENT_COUNT];
+    KEVENT         WriteCompletionEvent;
+    KEVENT         EmptyCompletionQueueEvent;
+    KEVENT         WriteCancelCurrentEvent;
+    KEVENT         KickWriteEvent;
+    KEVENT         CancelWriteEvent;
+    KEVENT         WritePurgeEvent;
+    KEVENT         WriteStopEvent;
+    KEVENT         WtWorkerThreadExitEvent;
+    KEVENT         ClientClosedEvent;
+    USHORT         NumOfRetriesOnError;
+    LONG           WriteThreadInCancellation;
+    INT            iErrorCount;
 
-   // for read thread (internal client)
-   KEVENT         ReadDataAvailableEvent;
+    // for read thread (internal client)
+    KEVENT         ReadDataAvailableEvent;
 
-   // custom PnP support
-   PIRP           NotificationIrp;  // IOCTL_QCDEV_WAIT_NOTIFY
-   PIRP           IPV4MtuNotificationIrp;  // IOCTL_QCDEV_IPV4_MTU_NOTIFY
-   PIRP           IPV6MtuNotificationIrp;  // IOCTL_QCDEV_IPV6_MTU_NOTIFY
+    // custom PnP support
+    PIRP           NotificationIrp;  // IOCTL_QCDEV_WAIT_NOTIFY
+    PIRP           IPV4MtuNotificationIrp;  // IOCTL_QCDEV_IPV4_MTU_NOTIFY
+    PIRP           IPV6MtuNotificationIrp;  // IOCTL_QCDEV_IPV6_MTU_NOTIFY
 
-   // Security State
-   UCHAR          SecurityReset;
+    // Security State
+    UCHAR          SecurityReset;
 
-   // IRP count
-   ULONG          IrpCount; 
+    // IRP count
+    ULONG          IrpCount;
 
-   // WDS IP Client
-   KEVENT         QMIWDSIPAddrReceivedEvent;
-   BOOLEAN        IpFamilySet;
+    // WDS IP Client
+    KEVENT         QMIWDSIPAddrReceivedEvent;
+    BOOLEAN        IpFamilySet;
 
 } MPIOC_DEV_INFO, *PMPIOC_DEV_INFO, **PPMPIOC_DEV_INFO;
 
 typedef struct _MPIOC_READ_ITEM
 {
-   LIST_ENTRY List;
-   PVOID      Buffer;
-   ULONG      Length;
+    LIST_ENTRY List;
+    PVOID      Buffer;
+    ULONG      Length;
 } MPIOC_READ_ITEM, *PMPIOC_READ_ITEM;
 
 // ==================== Function Prototypes =======================
@@ -146,151 +146,151 @@ typedef struct _MPIOC_READ_ITEM
 
 NDIS_STATUS MPIOC_RegisterDevice
 (
-   PMP_ADAPTER Adapter,
-   NDIS_HANDLE WrapperConfigurationContext
+    PMP_ADAPTER Adapter,
+    NDIS_HANDLE WrapperConfigurationContext
 );
 
 NDIS_STATUS MPIOC_DeregisterDevice(PMP_ADAPTER Adapter);
 
 NTSTATUS MPIOC_IRPDispatch
 (
-   PDEVICE_OBJECT DeviceObject,
-   PIRP           Irp
+    PDEVICE_OBJECT DeviceObject,
+    PIRP           Irp
 );
 
 #endif  // IOCTL_INTERFACE
 
 NDIS_STATUS MPIOC_RegisterAllDevices
 (
-   NDIS_HANDLE WrapperConfigurationContext,
-   PMP_ADAPTER Adapter,
-   USHORT      NumDev
+    NDIS_HANDLE WrapperConfigurationContext,
+    PMP_ADAPTER Adapter,
+    USHORT      NumDev
 );
 
 NDIS_STATUS MPIOC_RegisterFilterDevice
 (
-   NDIS_HANDLE WrapperConfigurationContext,
-   PMP_ADAPTER pAdapter
+    NDIS_HANDLE WrapperConfigurationContext,
+    PMP_ADAPTER pAdapter
 );
 
 NDIS_STATUS MPIOC_AddDevice
 (
-   OUT PPMPIOC_DEV_INFO IocDevice,
-   UCHAR          Type,
-   PMP_ADAPTER    Adapter,
-   NDIS_HANDLE    NdisDeviceHandle,
-   PDEVICE_OBJECT ControlDeviceObject,
-   PUNICODE_STRING SymbolicName,
-   PUNICODE_STRING DeviceName,
-   PCHAR           ClientFileName
+    OUT PPMPIOC_DEV_INFO IocDevice,
+    UCHAR           Type,
+    PMP_ADAPTER     Adapter,
+    NDIS_HANDLE     NdisDeviceHandle,
+    PDEVICE_OBJECT  ControlDeviceObject,
+    PUNICODE_STRING SymbolicName,
+    PUNICODE_STRING DeviceName,
+    PCHAR           ClientFileName
 );
 
 PMPIOC_DEV_INFO MPIOC_FindFreeClientObject(PDEVICE_OBJECT DeviceObject);
 
 VOID MPIOC_CheckForAquiredDeviceIdleTime
 (
-   PMP_ADAPTER pAdapter
+    PMP_ADAPTER pAdapter
 );
 
 NDIS_STATUS MPIOC_DeleteDevice
 (
-   PMP_ADAPTER    pAdapter,
-   PMPIOC_DEV_INFO IocDevice,
-   PDEVICE_OBJECT ControlDeviceObject
+    PMP_ADAPTER     pAdapter,
+    PMPIOC_DEV_INFO IocDevice,
+    PDEVICE_OBJECT  ControlDeviceObject
 );
 
 NDIS_STATUS MPIOC_DeleteFilterDevice
 (
-   PMP_ADAPTER    pAdapter,
-   PMPIOC_DEV_INFO IocDevice,
-   PDEVICE_OBJECT ControlDeviceObject
+    PMP_ADAPTER     pAdapter,
+    PMPIOC_DEV_INFO IocDevice,
+    PDEVICE_OBJECT  ControlDeviceObject
 );
 
 PMPIOC_DEV_INFO MPIOC_FindIoDevice
 (
-   PMP_ADAPTER     pAdapter,
-   PDEVICE_OBJECT  DeviceObject,
-   PQCQMI          pQMI,
-   PMPIOC_DEV_INFO IocDevice,
-   PIRP            Irp,
-   ULONG           QMIType
+    PMP_ADAPTER     pAdapter,
+    PDEVICE_OBJECT  DeviceObject,
+    PQCQMI          pQMI,
+    PMPIOC_DEV_INFO IocDevice,
+    PIRP            Irp,
+    ULONG           QMIType
 );
 
 VOID MPIOC_CancelGetServiceFileIrpRoutine
 (
-   PDEVICE_OBJECT DeviceObject,
-   PIRP           pIrp
+    PDEVICE_OBJECT DeviceObject,
+    PIRP           pIrp
 );
 
 NTSTATUS MPIOC_Read
 (
-   IN PDEVICE_OBJECT DeviceObject,
-   IN PIRP           Irp
+    IN PDEVICE_OBJECT DeviceObject,
+    IN PIRP           Irp
 );
 
 VOID MPIOC_CancelReadRoutine
 (
-   PDEVICE_OBJECT DeviceObject,
-   PIRP           pIrp
+    PDEVICE_OBJECT DeviceObject,
+    PIRP           pIrp
 );
 
 NTSTATUS MPIOC_Write
 (
-   IN PDEVICE_OBJECT DeviceObject,
-   IN PIRP           Irp
+    IN PDEVICE_OBJECT DeviceObject,
+    IN PIRP           Irp
 );
 
 NTSTATUS MPIOC_WtIrpCompletion
 (
-   PDEVICE_OBJECT pDO,
-   PIRP           pIrp,
-   PVOID          pContext
+    PDEVICE_OBJECT pDO,
+    PIRP           pIrp,
+    PVOID          pContext
 );
 
 void MPIOC_WriteThread
 (
-   PVOID           Context    // PMPIOC_DEV_INFO
+    PVOID           Context    // PMPIOC_DEV_INFO
 );
 
 VOID MPIOC_EmptyIrpCompletionQueue(PMPIOC_DEV_INFO pIocDev);
 
 VOID MPIOC_PurgeQueue
 (
-   PMPIOC_DEV_INFO pIocDev,
-   PLIST_ENTRY     queue,
-   PNDIS_SPIN_LOCK pSpinLock,
-   UCHAR           cookie
+    PMPIOC_DEV_INFO pIocDev,
+    PLIST_ENTRY     queue,
+    PNDIS_SPIN_LOCK pSpinLock,
+    UCHAR           cookie
 );
 
 ULONG MPIOC_GetMdlTotalCount(PMDL Mdl);
 
 NTSTATUS MPIOC_WriteIrpCompletion
 (
-   PMPIOC_DEV_INFO   pIocDev,
-   ULONG             ulRequestedBytes,
-   NTSTATUS          ntStatus,
-   UCHAR             cookie
+    PMPIOC_DEV_INFO   pIocDev,
+    ULONG             ulRequestedBytes,
+    NTSTATUS          ntStatus,
+    UCHAR             cookie
 );
 
 VOID MPIOC_CancelWriteRoutine
 (
-   PDEVICE_OBJECT DeviceObject,
-   PIRP           pIrp
+    PDEVICE_OBJECT DeviceObject,
+    PIRP           pIrp
 );
 
 NTSTATUS MPIOC_StartWriteThread(PMPIOC_DEV_INFO pIocDev);
 
 VOID MPIOC_CancelWriteThread
 (
-   PMPIOC_DEV_INFO pIocDev
+    PMPIOC_DEV_INFO pIocDev
 );
 
 VOID MPIOC_CleanupQueues(PMPIOC_DEV_INFO pIocDev, UCHAR cookie);
 
 VOID MPIOC_SetStopState
 (
-   PMP_ADAPTER pAdapter,
-   BOOLEAN     TerminateAll
+    PMP_ADAPTER pAdapter,
+    BOOLEAN     TerminateAll
 );
 
 VOID MPIOC_InvalidateClients(PMP_ADAPTER pAdapter);
@@ -321,27 +321,27 @@ typedef USHORT SECURITY_DESCRIPTOR_CONTROL, *PSECURITY_DESCRIPTOR_CONTROL;
 #ifndef SECURITY_DESCRIPTOR
 typedef struct _SECURITY_DESCRIPTOR
 {
-   UCHAR  Revision;
-   UCHAR  Sbz1;
-   SECURITY_DESCRIPTOR_CONTROL Control;
-   PSID Owner;
-   PSID Group;
-   PACL Sacl;
-   PACL Dacl;
+    UCHAR  Revision;
+    UCHAR  Sbz1;
+    SECURITY_DESCRIPTOR_CONTROL Control;
+    PSID   Owner;
+    PSID   Group;
+    PACL   Sacl;
+    PACL   Dacl;
 } SECURITY_DESCRIPTOR, *PISECURITY_DESCRIPTOR;
 #endif  // SECURITY_DESCRIPTOR
 
 NDIS_STATUS MPIOC_ResetDeviceSecurity
 (
-   PMP_ADAPTER pAdapter,
-   PUNICODE_STRING DeviceLinkName
+    PMP_ADAPTER     pAdapter,
+    PUNICODE_STRING DeviceLinkName
 );
 
 NTSTATUS MPIOC_GetPeerDeviceNameCompletion
 (
-   PDEVICE_OBJECT pDO,
-   PIRP           pIrp,
-   PVOID          pContext
+    PDEVICE_OBJECT pDO,
+    PIRP           pIrp,
+    PVOID          pContext
 );
 
 NTSTATUS MPIOC_GetPeerDeviceName(PMP_ADAPTER pAdapter, PIRP Irp, ULONG BufLen);

@@ -42,7 +42,7 @@ WMI_QUERY_REGINFO_CALLBACK            QCPNP_PMQueryWmiRegInfo;
 NTSTATUS QCPNP_DeviceCreate
 (
     PWDFDEVICE_INIT  DeviceInit,
-    PDEVICE_CONTEXT* DeviceContext
+    PDEVICE_CONTEXT *DeviceContext
 );
 
 DEVICE_TYPE QCPNP_GetDeviceType
@@ -88,7 +88,7 @@ NTSTATUS QCPNP_CreateWorkerThread
     PKSTART_ROUTINE startRoutine,
     PKEVENT waitForStartedEvent,
     PLARGE_INTEGER waitForStartedTimeout,
-    PVOID* threadObject
+    PVOID *threadObject
 );
 
 NTSTATUS QCPNP_SetupIoThreadsAndQueues
@@ -113,10 +113,10 @@ NTSTATUS QCPNP_ReportDeviceName
 
 NTSTATUS QCPNP_RegisterDevName
 (
-   PDEVICE_CONTEXT pDevContext,
-   ULONG       IoControlCode,
-   PVOID       Buffer,
-   ULONG       BufferLength
+    PDEVICE_CONTEXT pDevContext,
+    ULONG       IoControlCode,
+    PVOID       Buffer,
+    ULONG       BufferLength
 );
 
 void QCPNP_RegisterDevNameCompletion
@@ -134,23 +134,23 @@ NTSTATUS QCPNP_RegisterWmiPowerGuid
 
 NTSTATUS QCPNP_SetFunctionProtocol
 (
-    PDEVICE_CONTEXT pDevContext, 
+    PDEVICE_CONTEXT pDevContext,
     ULONG ProtocolCode
 );
 
 NTSTATUS QCPNP_GetStringDescriptor
 (
-   WDFDEVICE      Device,
-   UCHAR          Index,
-   USHORT         LanguageId,
-   BOOLEAN        MatchPrefix
+    WDFDEVICE      Device,
+    UCHAR          Index,
+    USHORT         LanguageId,
+    BOOLEAN        MatchPrefix
 );
 
 NTSTATUS QCPNP_GetCID
 (
-   PDEVICE_CONTEXT pDevContext,
-   PCHAR  ProductString,
-   INT    ProductStrLen
+    PDEVICE_CONTEXT pDevContext,
+    PCHAR  ProductString,
+    INT    ProductStrLen
 );
 
 NTSTATUS QCPNP_GetSocVer
@@ -183,9 +183,9 @@ VOID QCPWR_SyncUpWaitWake
 
 VOID QCPWR_SetIdleTimer
 (
-    PDEVICE_CONTEXT pDevContex, 
-    UCHAR           BusyMask, 
-    BOOLEAN         NoReset, 
+    PDEVICE_CONTEXT pDevContex,
+    UCHAR           BusyMask,
+    BOOLEAN         NoReset,
     UCHAR           Cookie
 );
 

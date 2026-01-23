@@ -30,20 +30,20 @@ extern LIST_ENTRY MPUSB_FdoMap;
 /*************** Driver Entry Points ******************/
 
 #if defined(NDIS50_MINIPORT)
-   #define MP_NDIS_MAJOR_VERSION       5
-   #define MP_NDIS_MINOR_VERSION       0
+#define MP_NDIS_MAJOR_VERSION       5
+#define MP_NDIS_MINOR_VERSION       0
 #elif defined(NDIS51_MINIPORT)
-   #define MP_NDIS_MAJOR_VERSION       5
-   #define MP_NDIS_MINOR_VERSION       1
+#define MP_NDIS_MAJOR_VERSION       5
+#define MP_NDIS_MINOR_VERSION       1
 #elif defined(NDIS60_MINIPORT)
-   #define MP_NDIS_MAJOR_VERSION       6
-   #define MP_NDIS_MINOR_VERSION       0
-   #define MP_NDIS_MAJOR_VERSION620    6
-   #define MP_NDIS_MINOR_VERSION620    20
-   #define MP_NDIS_MAJOR_VERSION630    6
-   #define MP_NDIS_MINOR_VERSION630    30
-   #define MP_MAJOR_DRIVER_VERSION     2
-   #define MP_MINOR_DRIVER_VERSION     0
+#define MP_NDIS_MAJOR_VERSION       6
+#define MP_NDIS_MINOR_VERSION       0
+#define MP_NDIS_MAJOR_VERSION620    6
+#define MP_NDIS_MINOR_VERSION620    20
+#define MP_NDIS_MAJOR_VERSION630    6
+#define MP_NDIS_MINOR_VERSION630    30
+#define MP_MAJOR_DRIVER_VERSION     2
+#define MP_MINOR_DRIVER_VERSION     0
 #else
 #endif
 
@@ -55,19 +55,20 @@ extern LIST_ENTRY MPUSB_FdoMap;
 #define QCDEV_MAX_SER_STR_SIZE         24 //16
 
 #define RESET_TIMEOUT 25
-typedef enum _RST_STATE {
-      RST_STATE_START_CLEANUP,
-      RST_STATE_COMPLETE,
-      RST_STATE_WAIT_USB,
-      RST_STATE_TIMEOUT,
-      RST_STATE_QUEUES_EMPTY,
-      RST_STATE_WAIT_FOR_EMPTY
+typedef enum _RST_STATE
+{
+    RST_STATE_START_CLEANUP,
+    RST_STATE_COMPLETE,
+    RST_STATE_WAIT_USB,
+    RST_STATE_TIMEOUT,
+    RST_STATE_QUEUES_EMPTY,
+    RST_STATE_WAIT_FOR_EMPTY
 } RST_STATE;
 
 typedef enum _RECONF_TIMER_STATE
 {
-   RECONF_TIMER_IDLE,
-   RECONF_TIMER_ARMED
+    RECONF_TIMER_IDLE,
+    RECONF_TIMER_ARMED
 } RECONF_TIMER_STATE;
 
 #define     QC_DATA_MTU_DEFAULT        1500
@@ -85,42 +86,42 @@ typedef enum _RECONF_TIMER_STATE
 
 typedef struct _QCMP_OID_COPY
 {
-   NDIS_REQUEST_TYPE RequestType;
-   PVOID             RequestId;
-   NDIS_HANDLE       RequestHandle;
+    NDIS_REQUEST_TYPE RequestType;
+    PVOID             RequestId;
+    NDIS_HANDLE       RequestHandle;
 
-   union _QCMP_REQUEST_DATA
-   {
-       struct _QCMP_QUERY
-       {
-           NDIS_OID  Oid;
-           PVOID     InformationBuffer;
-           UINT      InformationBufferLength;
-           UINT      BytesWritten;
-           UINT      BytesNeeded;
-       } QUERY_INFORMATION;
+    union _QCMP_REQUEST_DATA
+    {
+        struct _QCMP_QUERY
+        {
+            NDIS_OID  Oid;
+            PVOID     InformationBuffer;
+            UINT      InformationBufferLength;
+            UINT      BytesWritten;
+            UINT      BytesNeeded;
+        } QUERY_INFORMATION;
 
-       struct _QCMP_SET
-       {
-           NDIS_OID  Oid;
-           PVOID     InformationBuffer;
-           UINT      InformationBufferLength;
-           UINT      BytesRead;
-           UINT      BytesNeeded;
-       } SET_INFORMATION;
+        struct _QCMP_SET
+        {
+            NDIS_OID  Oid;
+            PVOID     InformationBuffer;
+            UINT      InformationBufferLength;
+            UINT      BytesRead;
+            UINT      BytesNeeded;
+        } SET_INFORMATION;
 
-       struct _QCMP_METHOD
-       {
-           NDIS_OID  Oid;
-           PVOID     InformationBuffer;
-           ULONG     InputBufferLength;
-           ULONG     OutputBufferLength;
-           ULONG     MethodId;
-           UINT      BytesWritten;
-           UINT      BytesRead;
-           UINT      BytesNeeded;
-       } METHOD_INFORMATION;
-   } DATA;
+        struct _QCMP_METHOD
+        {
+            NDIS_OID  Oid;
+            PVOID     InformationBuffer;
+            ULONG     InputBufferLength;
+            ULONG     OutputBufferLength;
+            ULONG     MethodId;
+            UINT      BytesWritten;
+            UINT      BytesRead;
+            UINT      BytesNeeded;
+        } METHOD_INFORMATION;
+    } DATA;
 } QCMP_OID_COPY, *PQCMP_OID_COPY;
 
 #ifdef NDIS60_MINIPORT
@@ -128,51 +129,51 @@ typedef struct _QCMP_OID_COPY
 
 typedef enum _QNBL_TX_STATUS
 {
-   QNBL_STATUS_PENDING = 0,
-   QNBL_STATUS_COMPLETE,
-   QNBL_STATUS_ABORT,
+    QNBL_STATUS_PENDING = 0,
+    QNBL_STATUS_COMPLETE,
+    QNBL_STATUS_ABORT,
 } QNBL_TX_STATUS;
 
 typedef struct _MPUSB_TX_CONTEXT_NBL
 {
-   LIST_ENTRY     List; 
-   PVOID          Adapter;  // miniport adapter
-   PVOID          NBL;      // net buffer list
-   int            TotalNBs; // total number of net buffers
-   int            NumProcessed;
-   int            NumCompleted;
-   int            TxBytesSucceeded;
-   int            TxBytesFailed;
-   int            TxFramesFailed;
-   int            TxFramesDropped;
-   int            AbortFlag;
-   int            Canceld;
-   NDIS_STATUS    NdisStatus;
+    LIST_ENTRY     List;
+    PVOID          Adapter;  // miniport adapter
+    PVOID          NBL;      // net buffer list
+    int            TotalNBs; // total number of net buffers
+    int            NumProcessed;
+    int            NumCompleted;
+    int            TxBytesSucceeded;
+    int            TxBytesFailed;
+    int            TxFramesFailed;
+    int            TxFramesDropped;
+    int            AbortFlag;
+    int            Canceld;
+    NDIS_STATUS    NdisStatus;
 } MPUSB_TX_CONTEXT_NBL, *PMPUSB_TX_CONTEXT_NBL;
 
 typedef struct _MPUSB_TX_CONTEXT_NB
 {
-   LIST_ENTRY       List; 
-   PIRP  Irp;   // IRP, for info only
-   PVOID NB;    // net buffer, for info only
-   PVOID NBL;   // the owning NBL
-   int   Index; // net bufer index
-   int   DataLength;
-   int   Completed;
+    LIST_ENTRY       List;
+    PIRP  Irp;   // IRP, for info only
+    PVOID NB;    // net buffer, for info only
+    PVOID NBL;   // the owning NBL
+    int   Index; // net bufer index
+    int   DataLength;
+    int   Completed;
 } MPUSB_TX_CONTEXT_NB, *PMPUSB_TX_CONTEXT_NB;
 
 #define QCMP_MAX_DATA_PKT_SIZE QC_DATA_MTU_MAX
 
 typedef struct _MPUSB_RX_NBL
 {
-   LIST_ENTRY       List;
-   PMDL             RxMdl;
-   PNET_BUFFER_LIST RxNBL;
-   PIRP             Irp;
-   int              Index; // for debugging
-   PVOID            BvaPtr;
-   UCHAR            BVA[QCMP_MAX_DATA_PKT_SIZE];   // base virtual address
-   // NDIS_NET_BUFFER_LIST_8021Q_INFO OOB;
+    LIST_ENTRY       List;
+    PMDL             RxMdl;
+    PNET_BUFFER_LIST RxNBL;
+    PIRP             Irp;
+    int              Index; // for debugging
+    PVOID            BvaPtr;
+    UCHAR            BVA[QCMP_MAX_DATA_PKT_SIZE];   // base virtual address
+    // NDIS_NET_BUFFER_LIST_8021Q_INFO OOB;
 } MPUSB_RX_NBL, *PMPUSB_RX_NBL;
 
 #else
@@ -189,7 +190,8 @@ typedef enum _NDIS_HALT_ACTION
     NdisHaltDeviceStopped
 } NDIS_HALT_ACTION, *PNDIS_HALT_ACTION;
 
-typedef enum _NDIS_SHUTDOWN_ACTION {
+typedef enum _NDIS_SHUTDOWN_ACTION
+{
     NdisShutdownPowerOff,
     NdisShutdownBugCheck
 } NDIS_SHUTDOWN_ACTION, PNDIS_SHUTDOWN_ACTION;
@@ -302,10 +304,10 @@ typedef enum _NDIS_SHUTDOWN_ACTION {
               DbgPrint _x_; \
            } \
         }
-              
+
 #else 
-   #define QCNET_DbgPrintG(_x_)
-   #define QCNET_DbgPrint(mask,level,_x_)
+#define QCNET_DbgPrintG(_x_)
+#define QCNET_DbgPrint(mask,level,_x_)
 #endif
 
 #undef ntohl
@@ -352,7 +354,7 @@ typedef struct _MP_GLOBAL_DATA
 
     LONG            MACAddressByte;
     LONG            InstanceIndex;
-    UCHAR           DeviceId[MP_DEVICE_ID_MAX+1];
+    UCHAR           DeviceId[MP_DEVICE_ID_MAX + 1];
     SYSTEM_POWER_STATE LastSysPwrIrpState;
     LONG            MuxId;
 } MP_GLOBAL_DATA, *PMP_GLOBAL_DATA;
@@ -368,8 +370,8 @@ extern NDIS_GUID      QCMPSupportedOidGuids[];
 extern ULONG          QCMP_SupportedOidGuidsSize;
 
 #ifdef NDIS60_MINIPORT
-extern NDIS_HANDLE  MiniportDriverContext;
-extern NDIS_HANDLE  NdisMiniportDriverHandle;
+extern NDIS_HANDLE    MiniportDriverContext;
+extern NDIS_HANDLE    NdisMiniportDriverHandle;
 #endif // NDIS60_MINIPORT
 
 typedef struct ControlTxTag
@@ -410,16 +412,16 @@ typedef struct ControlRxTag
 
 typedef struct _QCWRITEQUEUE
 {
-   LIST_ENTRY QCWRITERequest;
-   ULONG QMILength;
-   CHAR Buffer[1];
+    LIST_ENTRY QCWRITERequest;
+    ULONG      QMILength;
+    CHAR       Buffer[1];
 }QCWRITEQUEUE, *PQCWRITEQUEUE;
 
 typedef struct _QCQMIQUEUE
 {
-   LIST_ENTRY QCQMIRequest;
-   ULONG QMILength;
-   QCQMI QMI;
+    LIST_ENTRY QCQMIRequest;
+    ULONG QMILength;
+    QCQMI QMI;
 }QCQMIQUEUE, *PQCQMIQUEUE;
 
 typedef struct OIDWriteTag
@@ -550,29 +552,29 @@ typedef struct LLHeaderTag
 
 typedef struct _RX_THREAD_CONTEXT
 {
-   PVOID AdapterContext;
-   INT   Index;
+    PVOID AdapterContext;
+    INT   Index;
 } RX_THREAD_CONTEXT, *PRX_THREAD_CONTEXT;
 
 typedef enum _QOS_FLOW_QUEUE_TYPE
 {
-   FLOW_SEND_WITH_DATA    = 0,
-   FLOW_SEND_WITHOUT_DATA = 1,
-   FLOW_QUEUED            = 2,
-   FLOW_DEFAULT,
-   FLOW_QUEUE_MAX
+    FLOW_SEND_WITH_DATA,
+    FLOW_SEND_WITHOUT_DATA,
+    FLOW_QUEUED,
+    FLOW_DEFAULT,
+    FLOW_QUEUE_MAX
 } QOS_FLOW_QUEUE_TYPE;
 
 #pragma pack(push, 1)
 
 typedef struct _MPQOS_FLOW_ENTRY
 {
-   LIST_ENTRY List;
-   ULONG      FlowId;
-   LIST_ENTRY FilterList;  // list of QCQOS_QMI_FILTER
-   LIST_ENTRY Packets;     // list of NDIS_PACKET
-   BOOLEAN    QueueState;
-   QOS_FLOW_QUEUE_TYPE FlowState;
+    LIST_ENTRY List;
+    ULONG      FlowId;
+    LIST_ENTRY FilterList;  // list of QCQOS_QMI_FILTER
+    LIST_ENTRY Packets;     // list of NDIS_PACKET
+    BOOLEAN    QueueState;
+    QOS_FLOW_QUEUE_TYPE FlowState;
 } MPQOS_FLOW_ENTRY, *PMPQOS_FLOW_ENTRY;
 
 #ifdef QC_IP_MODE
@@ -589,55 +591,55 @@ typedef struct _QC_ETH_HDR
 
 typedef struct _QC_ARP_HDR
 {
-   USHORT HardwareType;
-   USHORT ProtocolType;
-   UCHAR  HLEN;        // length of HA  (6)
-   UCHAR  PLEN;        // length of IP  (4)
-   USHORT Operation;
-   UCHAR  SenderHA[ETH_LENGTH_OF_ADDRESS];  // 6
-   ULONG  SenderIP;
-   UCHAR  TargetHA[ETH_LENGTH_OF_ADDRESS];  // 6
-   ULONG  TargetIP;
+    USHORT HardwareType;
+    USHORT ProtocolType;
+    UCHAR  HLEN;        // length of HA  (6)
+    UCHAR  PLEN;        // length of IP  (4)
+    USHORT Operation;
+    UCHAR  SenderHA[ETH_LENGTH_OF_ADDRESS];  // 6
+    ULONG  SenderIP;
+    UCHAR  TargetHA[ETH_LENGTH_OF_ADDRESS];  // 6
+    ULONG  TargetIP;
 } QC_ARP_HDR, *PQC_ARP_HDR;
 
 typedef struct _QC_IP_SETTINGS
 {
-   struct
-   {
-      int   Flags;        // reserved
-      ULONG Address;
-      ULONG Gateway;
-      ULONG SubnetMask;
-      ULONG DnsPrimary;
-      ULONG DnsSecondary;
-   } IPV4;
+    struct
+    {
+        int   Flags;        // reserved
+        ULONG Address;
+        ULONG Gateway;
+        ULONG SubnetMask;
+        ULONG DnsPrimary;
+        ULONG DnsSecondary;
+    } IPV4;
 
-   struct
-   {
-      int   Flags;        // reserved
-      union
-      {
-         UCHAR  Byte[16];
-         USHORT Word[8];
-      } Address;
-      union
-      {
-         UCHAR  Byte[16];
-         USHORT Word[8];
-      } Gateway;
-      union
-      {
-         UCHAR  Byte[16];
-         USHORT Word[8];
-      } DnsPrimary;
-      union
-      {
-         UCHAR  Byte[16];
-         USHORT Word[8];
-      } DnsSecondary;
-      UCHAR PrefixLengthIPAddr;
-      UCHAR PrefixLengthGateway;
-   } IPV6;
+    struct
+    {
+        int   Flags;        // reserved
+        union
+        {
+            UCHAR  Byte[16];
+            USHORT Word[8];
+        } Address;
+        union
+        {
+            UCHAR  Byte[16];
+            USHORT Word[8];
+        } Gateway;
+        union
+        {
+            UCHAR  Byte[16];
+            USHORT Word[8];
+        } DnsPrimary;
+        union
+        {
+            UCHAR  Byte[16];
+            USHORT Word[8];
+        } DnsSecondary;
+        UCHAR PrefixLengthIPAddr;
+        UCHAR PrefixLengthGateway;
+    } IPV6;
 
 } QC_IP_SETTINGS, *PQC_IP_SETTINGS;
 
@@ -648,15 +650,15 @@ typedef struct _QC_IP_SETTINGS
 // statistics
 typedef enum _MP_STATS_TYPE
 {
-   MP_RML_CTL = 0, // control op
-   MP_RML_RD,      // read IRP
-   MP_RML_WT,      // write IRP
-   MP_RML_TH,      // thread
-   MP_CNT_TIMER,   // timer
-   MP_MEM_CTL,     // control memory blocks
-   MP_MEM_RD,      // read memory blocks
-   MP_MEM_WT,      // write memory blocks
-   MP_STAT_MAX
+    MP_RML_CTL = 0, // control op
+    MP_RML_RD,      // read IRP
+    MP_RML_WT,      // write IRP
+    MP_RML_TH,      // thread
+    MP_CNT_TIMER,   // timer
+    MP_MEM_CTL,     // control memory blocks
+    MP_MEM_RD,      // read memory blocks
+    MP_MEM_WT,      // write memory blocks
+    MP_STAT_MAX
 } MP_STATS_TYPE;
 
 #if DBG
@@ -678,63 +680,63 @@ typedef enum _MP_STATS_TYPE
 
 typedef enum _DEVICE_READT_STATE
 {
-   DeviceWWanUnknown = 0,
-   DeviceWWanOff,
-   DeviceWWanOn,
-   DeviceWWanBadSim,
-   DeviceWWanNoSim,
-   DeviceWWanDeviceLocked,
-   DeviceWWanNoServiceActivated,
-   
+    DeviceWWanUnknown = 0,
+    DeviceWWanOff,
+    DeviceWWanOn,
+    DeviceWWanBadSim,
+    DeviceWWanNoSim,
+    DeviceWWanDeviceLocked,
+    DeviceWWanNoServiceActivated,
+
 }DEVICE_READY_STATE;
 
 typedef enum _DEVICE_CK_PIN_STATE
 {
-   DeviceWWanCkUnknown = 0,
-   DeviceWWanCkDeviceLocked,
-   DeviceWWanCkDeviceUnlocked,
-   
+    DeviceWWanCkUnknown = 0,
+    DeviceWWanCkDeviceLocked,
+    DeviceWWanCkDeviceUnlocked,
+
 }DEVICE_CK_PIN_STATE;
 
 typedef enum _DEVICE_RADIO_STATE
 {
-   DeviceWwanRadioUnknown = 0,
-   DeviceWWanRadioOff,
-   DeviceWWanRadioOn,
+    DeviceWwanRadioUnknown = 0,
+    DeviceWWanRadioOff,
+    DeviceWWanRadioOn,
 
 }DEVICE_RADIO_STATE;
 
 typedef enum _DEVICE_REGISTER_STATE
 {
-   QMI_NAS_NOT_REGISTERED = 0,
-   QMI_NAS_REGISTERED,
-   QMI_NAS_NOT_REGISTERED_SEARCHING,
-   QMI_NAS_REGISTRATION_DENIED,
-   QMI_NAS_REGISTRATION_UNKNOWN
+    QMI_NAS_NOT_REGISTERED = 0,
+    QMI_NAS_REGISTERED,
+    QMI_NAS_NOT_REGISTERED_SEARCHING,
+    QMI_NAS_REGISTRATION_DENIED,
+    QMI_NAS_REGISTRATION_UNKNOWN
 
 }DEVICE_REGISTER_STATE;
 
 typedef enum _DEVICE_PACKET_STATE
 {
-   DeviceWwanPacketUnknown = 0,
-   DeviceWWanPacketAttached,
-   DeviceWWanPacketDetached,
+    DeviceWwanPacketUnknown = 0,
+    DeviceWWanPacketAttached,
+    DeviceWWanPacketDetached,
 
 }DEVICE_PACKET_STATE;
 
 typedef enum _DEVICE_CONTEXT_STATE
 {
-   DeviceWwanContextUnknown = 0,
-   DeviceWWanContextAttached,
-   DeviceWWanContextDetached,
+    DeviceWwanContextUnknown = 0,
+    DeviceWWanContextAttached,
+    DeviceWWanContextDetached,
 
 }DEVICE_CONTEXT_STATE;
 
 typedef enum _DEVICE_REGISTER_MODE
 {
-   DeviceWWanRegisteredUnknown = 0,
-   DeviceWWanRegisteredAutomatic,
-   DeviceWWanRegisteredManual,
+    DeviceWWanRegisteredUnknown = 0,
+    DeviceWWanRegisteredAutomatic,
+    DeviceWWanRegisteredManual,
 
 }DEVICE_REGISTER_MODE;
 
@@ -742,8 +744,8 @@ typedef enum _DEVICE_REGISTER_MODE
 
 typedef struct _SMS_LIST
 {
-   ULONG MessageIndex;
-   UCHAR TagType;
+    ULONG MessageIndex;
+    UCHAR TagType;
 }SMS_LIST, *PSMS_LIST;
 
 #pragma pack(pop)
@@ -752,27 +754,27 @@ typedef struct _SMS_LIST
 
 typedef struct _DEVICE_STATIC_INFO
 {
-   USHORT  ModelIdLen;
-   WCHAR   ModelId[64];
-   USHORT  FirmwareRevisionLen;
-   WCHAR   FirmwareRevision[64];
-   USHORT  MEIDLen;
-   WCHAR   MEID[64];
-   USHORT  ESNLen;
-   WCHAR   ESN[64];
-   USHORT  IMEILen;
-   WCHAR   IMEI[64];
-   USHORT  IMSILen;
-   WCHAR   IMSI[64];
-   USHORT  MINLen;
-   WCHAR   MIN[64];
-   USHORT  MDNLen;
-   WCHAR   MDN[64];
-   USHORT  ManufacturerLen;
-   WCHAR   Manufacturer[64];
-   USHORT  HardwareRevisionLen;
-   WCHAR   HardwareRevision[64];
-      
+    USHORT  ModelIdLen;
+    WCHAR   ModelId[64];
+    USHORT  FirmwareRevisionLen;
+    WCHAR   FirmwareRevision[64];
+    USHORT  MEIDLen;
+    WCHAR   MEID[64];
+    USHORT  ESNLen;
+    WCHAR   ESN[64];
+    USHORT  IMEILen;
+    WCHAR   IMEI[64];
+    USHORT  IMSILen;
+    WCHAR   IMSI[64];
+    USHORT  MINLen;
+    WCHAR   MIN[64];
+    USHORT  MDNLen;
+    WCHAR   MDN[64];
+    USHORT  ManufacturerLen;
+    WCHAR   Manufacturer[64];
+    USHORT  HardwareRevisionLen;
+    WCHAR   HardwareRevision[64];
+
 }DEVICE_STATIC_INFO, *PDEVICE_STATIC_INFO;
 
 #if defined(QCMP_UL_TLP) || defined(QCMP_MBIM_UL_SUPPORT) || defined(QCMP_MBIM_DL_SUPPORT)
@@ -781,50 +783,52 @@ typedef struct _DEVICE_STATIC_INFO
 
 typedef struct _DATAGRAM_STRUCT
 {
-   union {
-      ULONG Datagram;
-      struct {
-         USHORT DatagramPtr;
-         USHORT DatagramLen;
-      };
-   };
+    union
+    {
+        ULONG Datagram;
+        struct
+        {
+            USHORT DatagramPtr;
+            USHORT DatagramLen;
+        };
+    };
 } DATAGRAM_STRUCT, *PDATAGRAM_STRUCT;
 
 typedef struct _NTB_16BIT_HEADER
 {
-   ULONG  dwSignature;
-   USHORT wHeaderLength;
-   USHORT wSequence;
-   USHORT wBlockLength;
-   USHORT wNdpIndex;
+    ULONG  dwSignature;
+    USHORT wHeaderLength;
+    USHORT wSequence;
+    USHORT wBlockLength;
+    USHORT wNdpIndex;
 } NTB_16BIT_HEADER, *PNTB_16BIT_HEADER;
 
 typedef struct _NTB_32BIT_HEADER
 {
-   ULONG  dwSignature;
-   USHORT wHeaderLength;
-   USHORT wSequence;
-   ULONG  wBlockLength;
-   ULONG  wNdpIndex;
+    ULONG  dwSignature;
+    USHORT wHeaderLength;
+    USHORT wSequence;
+    ULONG  wBlockLength;
+    ULONG  wNdpIndex;
 } NTB_32BIT_HEADER, *PNTB_32BIT_HEADER;
 
 typedef struct _NDP_16BIT_HEADER
 {
-   ULONG  dwSignature;
-   USHORT wLength;
-   //USHORT wReserved;
-   USHORT wNextNdpIndex;
+    ULONG  dwSignature;
+    USHORT wLength;
+    //USHORT wReserved;
+    USHORT wNextNdpIndex;
 } NDP_16BIT_HEADER, *PNDP_16BIT_HEADER;
 
 typedef struct _NDP_32BIT_HEADER
 {
-   ULONG  dwSignature;
-   USHORT wLength;
-   USHORT wReserved6;
-   ULONG  wNextNdpIndex;
-   ULONG  wReserved12;
-   ULONG  wDatagramIndex;
-   ULONG  wDatagramLength;
+    ULONG  dwSignature;
+    USHORT wLength;
+    USHORT wReserved6;
+    ULONG  wNextNdpIndex;
+    ULONG  wReserved12;
+    ULONG  wDatagramIndex;
+    ULONG  wDatagramLength;
 } NDP_32BIT_HEADER, *PNDP_32BIT_HEADER;
 
 #pragma pack(pop)
@@ -837,43 +841,49 @@ typedef struct _NDP_32BIT_HEADER
 
 typedef struct _QMAP_STRUCT
 {
-   union {
-      UCHAR PadCD;
-      struct {
-         UCHAR  PadLen:6;
-         UCHAR  ReservedBit:1;
-         UCHAR  CDBit:1;
-      };
-   };
-   UCHAR MuxId;
-   USHORT PacketLen;
+    union
+    {
+        UCHAR PadCD;
+        struct
+        {
+            UCHAR  PadLen : 6;
+            UCHAR  ReservedBit : 1;
+            UCHAR  CDBit : 1;
+        };
+    };
+    UCHAR MuxId;
+    USHORT PacketLen;
 } QMAP_STRUCT, *PQMAP_STRUCT;
 
 typedef struct _QMAP_UL_CHECKSUM
 {
-   USHORT CksumStartOffset;
-   union {
-         USHORT CksumInsertOffsetCU;
-      struct {
-         USHORT  CksumInsertOffset:14;
-         USHORT  UDPIP4Ind:1;
-         USHORT  CkEnable:1;
-      };
-   };
+    USHORT CksumStartOffset;
+    union
+    {
+        USHORT CksumInsertOffsetCU;
+        struct
+        {
+            USHORT  CksumInsertOffset : 14;
+            USHORT  UDPIP4Ind : 1;
+            USHORT  CkEnable : 1;
+        };
+    };
 } QMAP_UL_CHECKSUM, *PQMAP_UL_CHECKSUM;
 
 typedef struct _QMAP_DL_CHECKSUM
 {
-   union {
-      USHORT RsvdV;
-      struct {
-         USHORT  Reserved:15;
-         USHORT  Valid:1;
-      };
-   };
-   USHORT CksumStartOffset;
-   USHORT CksumLength;
-   USHORT CksumValue;
+    union
+    {
+        USHORT RsvdV;
+        struct
+        {
+            USHORT  Reserved : 15;
+            USHORT  Valid : 1;
+        };
+    };
+    USHORT CksumStartOffset;
+    USHORT CksumLength;
+    USHORT CksumValue;
 } QMAP_DL_CHECKSUM, *PQMAP_DL_CHECKSUM;
 
 #pragma pack(pop)
@@ -887,17 +897,17 @@ typedef struct _QMAP_DL_CHECKSUM
 
 typedef struct _QMAP_PSEUDO_CHECKSUM
 {
-   ULONG SrcAddr;
-   ULONG DestAddr;
-   UCHAR Zeros;
-   UCHAR Protocol;
-   USHORT Length;
+    ULONG SrcAddr;
+    ULONG DestAddr;
+    UCHAR Zeros;
+    UCHAR Protocol;
+    USHORT Length;
 } QMAP_PSEUDO_CHECKSUM, *PQMAP_PSEUDO_CHECKSUM;
 
 typedef struct _QMAP_PSEUDO_CHECKSUMV6
 {
     UCHAR SrcAddr[16];
-    UCHAR DestAddr[16];   
+    UCHAR DestAddr[16];
     ULONG payloadLen;
     UCHAR Zeros[3];
     UCHAR NextHdr;
@@ -905,67 +915,71 @@ typedef struct _QMAP_PSEUDO_CHECKSUMV6
 
 typedef struct _IPV4_FRAG_PKT
 {
-   union {
-   USHORT Rsvd2;
-   struct {
-   USHORT Offset:13;
-   USHORT Flags:3;
-   };
-   };
+    union
+    {
+        USHORT Rsvd2;
+        struct
+        {
+            USHORT Offset : 13;
+            USHORT Flags : 3;
+        };
+    };
 }IPV4_FRAG_PKT, *PIPV4_FRAG_PKT;
 
 typedef struct _QMAP_IPV4
 {
-   USHORT version;
-   USHORT TotaLlen;
-   USHORT Rsvd1;
-   union {
-    USHORT Rsvd2;
-    struct {
-    USHORT Offset:13;
-    USHORT Flags:3;
+    USHORT version;
+    USHORT TotaLlen;
+    USHORT Rsvd1;
+    union
+    {
+        USHORT Rsvd2;
+        struct
+        {
+            USHORT Offset : 13;
+            USHORT Flags : 3;
+        };
     };
-    };
-   UCHAR TTL;
-   UCHAR Protocol;
-   USHORT HeaderChk;
-   ULONG SrcAddr;
-   ULONG DestAddr;   
+    UCHAR TTL;
+    UCHAR Protocol;
+    USHORT HeaderChk;
+    ULONG SrcAddr;
+    ULONG DestAddr;
 } QMAP_IPV4, *PQMAP_IPV4;
 
 typedef struct _QMAP_IPV6
 {
-   ULONG Rsvd;
-   USHORT payloadLen;
-   UCHAR nextHdr;
-   UCHAR HopLimit;
-   UCHAR SrcAddr[16];
-   UCHAR DestAddr[16];   
+    ULONG Rsvd;
+    USHORT payloadLen;
+    UCHAR nextHdr;
+    UCHAR HopLimit;
+    UCHAR SrcAddr[16];
+    UCHAR DestAddr[16];
 } QMAP_IPV6, *PQMAP_IPV6;
 
 typedef struct _QMAP_TCP
 {
-   USHORT SrcPort;
-   USHORT DestPort;
-   ULONG Sequence;
-   ULONG Ack;
-   ULONG Rsvd;
-   USHORT ChkSum;
+    USHORT SrcPort;
+    USHORT DestPort;
+    ULONG Sequence;
+    ULONG Ack;
+    ULONG Rsvd;
+    USHORT ChkSum;
 } QMAP_TCP, *PQMAP_TCP;
 
 typedef struct _QMAP_UDP
 {
-   USHORT SrcPort;
-   USHORT DestPort;
-   USHORT Len;
-   USHORT ChkSum;
+    USHORT SrcPort;
+    USHORT DestPort;
+    USHORT Len;
+    USHORT ChkSum;
 } QMAP_UDP, *PQMAP_UDP;
 
 typedef struct _QMAP_ICMP
 {
-   UCHAR Type;
-   UCHAR Code;
-   USHORT ChkSum;
+    UCHAR Type;
+    UCHAR Code;
+    USHORT ChkSum;
 } QMAP_ICMP, *PQMAP_ICMP;
 
 #pragma pack(pop)
@@ -982,686 +996,687 @@ typedef struct _QMAP_ICMP
 #define MP_MAX_PKT_SZIE     1520  // 1514 + 6 (QoS)
 #define MP_NUM_MBIM_UL_DATAGRAM_ITEMS_DEFAULT 1024
 
-typedef enum _TLP_STATE {
-   TLP_AGG_SEND = 0,
-   TLP_AGG_MORE,
-   TLP_AGG_SMALL_BUF,
-   TLP_AGG_NO_BUF
+typedef enum _TLP_STATE
+{
+    TLP_AGG_SEND = 0,
+    TLP_AGG_MORE,
+    TLP_AGG_SMALL_BUF,
+    TLP_AGG_NO_BUF
 } TLP_STATE;
 
 typedef struct _TLP_BUF_ITEM
 {
-   PIRP   Irp;
-   PUCHAR Buffer;
-   PUCHAR CurrentPtr;
-   INT    DataLength;
-   INT    RemainingCapacity;
-   INT    AggregationCount;
-   LIST_ENTRY PacketList;  // aggregated packets
-   LIST_ENTRY List;
-   INT    Index;
-   PVOID  Adapter;
-   PNTB_16BIT_HEADER pNtbHeader;
-   NDP_16BIT_HEADER NdpHeader;
-   DATAGRAM_STRUCT DataGrams[MP_NUM_MBIM_UL_DATAGRAM_ITEMS_DEFAULT];
+    PIRP   Irp;
+    PUCHAR Buffer;
+    PUCHAR CurrentPtr;
+    INT    DataLength;
+    INT    RemainingCapacity;
+    INT    AggregationCount;
+    LIST_ENTRY PacketList;  // aggregated packets
+    LIST_ENTRY List;
+    INT    Index;
+    PVOID  Adapter;
+    PNTB_16BIT_HEADER pNtbHeader;
+    NDP_16BIT_HEADER NdpHeader;
+    DATAGRAM_STRUCT DataGrams[MP_NUM_MBIM_UL_DATAGRAM_ITEMS_DEFAULT];
 } TLP_BUF_ITEM, *PTLP_BUF_ITEM;
 
 #endif // QCMP_UL_TLP || QCMP_MBIM_UL_SUPPORT
 
 typedef struct _MP_ADAPTER
 {
-   LIST_ENTRY              List;
-   LONG                    RefCount;
-   LONG                    InstanceIdx;
-   UNICODE_STRING          InterfaceGUID;
-   UNICODE_STRING          DnsRegPathV4;
-   UNICODE_STRING          DnsRegPathV6;
-   ANSI_STRING             NetCfgInstanceId;
-   USHORT                  DeviceInstance;
-   BOOLEAN                 DeviceInstanceObtained;
-   BOOLEAN                 NetworkAddressReadOk;
-   NDIS_MEDIUM             NdisMediumType;
+    LIST_ENTRY              List;
+    LONG                    RefCount;
+    LONG                    InstanceIdx;
+    UNICODE_STRING          InterfaceGUID;
+    UNICODE_STRING          DnsRegPathV4;
+    UNICODE_STRING          DnsRegPathV6;
+    ANSI_STRING             NetCfgInstanceId;
+    USHORT                  DeviceInstance;
+    BOOLEAN                 DeviceInstanceObtained;
+    BOOLEAN                 NetworkAddressReadOk;
+    NDIS_MEDIUM             NdisMediumType;
 #ifdef NDIS620_MINIPORT
-   NET_IFTYPE              NetIfType;
-   ULONG                   NetLuidIndex;
-   NET_LUID                NetLuid;
+    NET_IFTYPE              NetIfType;
+    ULONG                   NetLuidIndex;
+    NET_LUID                NetLuid;
 #endif // NDIS620_MINIPORT
-   SHORT                   DeviceId;
-   ULONG                   QMI_ID;
-   NDIS_EVENT              RemoveEvent; 
-   LONG                    Stats[MP_STAT_MAX];
-   IO_REMOVE_LOCK          MPRmLock;
-   PIO_REMOVE_LOCK         pMPRmLock;
+    SHORT                   DeviceId;
+    ULONG                   QMI_ID;
+    NDIS_EVENT              RemoveEvent;
+    LONG                    Stats[MP_STAT_MAX];
+    IO_REMOVE_LOCK          MPRmLock;
+    PIO_REMOVE_LOCK         pMPRmLock;
 
-   CHAR                    PortName[32];
-   INT                     DebugLevel;
-   ULONG                   DebugMask;
-   ULONG                   USBDebugMask;
+    CHAR                    PortName[32];
+    INT                     DebugLevel;
+    ULONG                   DebugMask;
+    ULONG                   USBDebugMask;
 
-   // Other information regarding the device for chaching
-   LONG                    RuntimeDeviceClass;
-   UCHAR                   DeviceClass;
-   UCHAR                   CDMAUIMSupport;
-   UCHAR                   SimSupport;
-   UCHAR                   MipMode;
-   UCHAR                   MessageProtocol;
-   PCHAR                   ICCID;
-   ULONG                   ConnectIPv4Handle;
-   ULONG                   ConnectIPv6Handle;
-   ULONG                   WWanServiceConnectHandle;
-   ULONG                   RssiThreshold;
-   ULONG                   RegisterMode;
-   ULONG                   RegisterRadioAccess;
-   UCHAR                   CkFacility;
-   UCHAR                   SMSCapacityType;
-   UCHAR                   AuthPreference;
-   UCHAR                   RegisterRetryCount;
-   UCHAR                   IPType;
-   UCHAR                   SetSelDomain;
+    // Other information regarding the device for chaching
+    LONG                    RuntimeDeviceClass;
+    UCHAR                   DeviceClass;
+    UCHAR                   CDMAUIMSupport;
+    UCHAR                   SimSupport;
+    UCHAR                   MipMode;
+    UCHAR                   MessageProtocol;
+    PCHAR                   ICCID;
+    ULONG                   ConnectIPv4Handle;
+    ULONG                   ConnectIPv6Handle;
+    ULONG                   WWanServiceConnectHandle;
+    ULONG                   RssiThreshold;
+    ULONG                   RegisterMode;
+    ULONG                   RegisterRadioAccess;
+    UCHAR                   CkFacility;
+    UCHAR                   SMSCapacityType;
+    UCHAR                   AuthPreference;
+    UCHAR                   RegisterRetryCount;
+    UCHAR                   IPType;
+    UCHAR                   SetSelDomain;
 
-   // Provisioned Context
+    // Provisioned Context
 #ifdef NDIS620_MINIPORT
-   UCHAR                   SIMICCID[256];
-   WWAN_CONTEXT            WwanContext;
-   UCHAR                   ContextSet;
-   NDIS_WWAN_READY_INFO    ReadyInfo;
-   WCHAR                   TNList[2][WWAN_TN_LEN];
-   CHAR                    CurrentCarrier[255];
-   CHAR                    SystemID[255];
-   NDIS_WWAN_RADIO_STATE   RadioState;        
-   DEVICE_READY_STATE      DeviceReadyState;
-   DEVICE_RADIO_STATE      DeviceRadioState;
-   DEVICE_REGISTER_STATE   DeviceRegisterState;
-   DEVICE_REGISTER_STATE   PreviousDeviceRegisterState;
-   DEVICE_PACKET_STATE     DevicePacketState;
-   DEVICE_PACKET_STATE     DeviceCircuitState;
-   DEVICE_CONTEXT_STATE    DeviceContextState;
-   DEVICE_CK_PIN_STATE     DeviceCkPinLock;
-   DEVICE_PACKET_STATE     CDMAPacketService;
-   ULONG                   nwRejectCause;
-   ULONG                   SmsListIndex;
-   ULONG                   SmsUIMNumMessages;
-   ULONG                   SmsDeviceNumMessages;
-   ULONG                   SmsNumMessages;
-   ULONG                   SmsUIMMaxMessages;
-   ULONG                   SmsDeviceMaxMessages;
-   ULONG                   SmsStatusIndex;    
-   SMS_LIST                SmsList[1024];
-   NDIS_WWAN_SMS_CONFIGURATION   SmsConfiguration;        
+    UCHAR                   SIMICCID[256];
+    WWAN_CONTEXT            WwanContext;
+    UCHAR                   ContextSet;
+    NDIS_WWAN_READY_INFO    ReadyInfo;
+    WCHAR                   TNList[2][WWAN_TN_LEN];
+    CHAR                    CurrentCarrier[255];
+    CHAR                    SystemID[255];
+    NDIS_WWAN_RADIO_STATE   RadioState;
+    DEVICE_READY_STATE      DeviceReadyState;
+    DEVICE_RADIO_STATE      DeviceRadioState;
+    DEVICE_REGISTER_STATE   DeviceRegisterState;
+    DEVICE_REGISTER_STATE   PreviousDeviceRegisterState;
+    DEVICE_PACKET_STATE     DevicePacketState;
+    DEVICE_PACKET_STATE     DeviceCircuitState;
+    DEVICE_CONTEXT_STATE    DeviceContextState;
+    DEVICE_CK_PIN_STATE     DeviceCkPinLock;
+    DEVICE_PACKET_STATE     CDMAPacketService;
+    ULONG                   nwRejectCause;
+    ULONG                   SmsListIndex;
+    ULONG                   SmsUIMNumMessages;
+    ULONG                   SmsDeviceNumMessages;
+    ULONG                   SmsNumMessages;
+    ULONG                   SmsUIMMaxMessages;
+    ULONG                   SmsDeviceMaxMessages;
+    ULONG                   SmsStatusIndex;
+    SMS_LIST                SmsList[1024];
+    NDIS_WWAN_SMS_CONFIGURATION   SmsConfiguration;
 
-   //SIM retries left
-   UCHAR                   SimRetriesLeft;
+    //SIM retries left
+    UCHAR                   SimRetriesLeft;
 
-   //MB Access
-   ULONG                   MBDunCallOn;
+    //MB Access
+    ULONG                   MBDunCallOn;
 
-   // Model String from registry
-   UNICODE_STRING          RegModelId;
+    // Model String from registry
+    UNICODE_STRING          RegModelId;
 
-   //Deregister Indication
-   UCHAR                   DeregisterIndication; 
+    //Deregister Indication
+    UCHAR                   DeregisterIndication;
 
 #endif
 
-   //
-   // Keep track of various device objects.
-   //
+    //
+    // Keep track of various device objects.
+    //
 #if defined(NDIS_WDM)
-   PDEVICE_OBJECT          Pdo; 
-   PDEVICE_OBJECT          Fdo; 
-   PDEVICE_OBJECT          NextDeviceObject; 
-   PDEVICE_OBJECT          USBDo;
-   BOOLEAN                 UsbRemoved;
-   LONG                    RemovalInProgress;
+    PDEVICE_OBJECT          Pdo;
+    PDEVICE_OBJECT          Fdo;
+    PDEVICE_OBJECT          NextDeviceObject;
+    PDEVICE_OBJECT          USBDo;
+    BOOLEAN                 UsbRemoved;
+    LONG                    RemovalInProgress;
 #endif
 
-   NDIS_HANDLE             AdapterHandle;    
-   ULONG                   Flags;
-   UCHAR                   PermanentAddress[ETH_LENGTH_OF_ADDRESS];
-   UCHAR                   CurrentAddress[ETH_LENGTH_OF_ADDRESS];
+    NDIS_HANDLE             AdapterHandle;
+    ULONG                   Flags;
+    UCHAR                   PermanentAddress[ETH_LENGTH_OF_ADDRESS];
+    UCHAR                   CurrentAddress[ETH_LENGTH_OF_ADDRESS];
 
-   ULONG                   NextTxID;
+    ULONG                   NextTxID;
 
-   //
-   // Variables to track resources for the Reset operation
-   //
-   NDIS_TIMER              ResetTimer;
-   RST_STATE               ResetState;
-   LONG                    nResetTimerCount;
+    //
+    // Variables to track resources for the Reset operation
+    //
+    NDIS_TIMER              ResetTimer;
+    RST_STATE               ResetState;
+    LONG                    nResetTimerCount;
 
-   NDIS_TIMER              ReconfigTimer;
-   RECONF_TIMER_STATE      ReconfigTimerState;
-   ULONG                   ReconfigDelay;
-   KEVENT                  ReconfigCompletionEvent;
+    NDIS_TIMER              ReconfigTimer;
+    RECONF_TIMER_STATE      ReconfigTimerState;
+    ULONG                   ReconfigDelay;
+    KEVENT                  ReconfigCompletionEvent;
 
-   // IPv6
-   NDIS_TIMER              ReconfigTimerIPv6;
-   RECONF_TIMER_STATE      ReconfigTimerStateIPv6;
-   ULONG                   ReconfigDelayIPv6;
-   KEVENT                  ReconfigCompletionEventIPv6;
+    // IPv6
+    NDIS_TIMER              ReconfigTimerIPv6;
+    RECONF_TIMER_STATE      ReconfigTimerStateIPv6;
+    ULONG                   ReconfigDelayIPv6;
+    KEVENT                  ReconfigCompletionEventIPv6;
 
 #ifdef NDIS620_MINIPORT
-   NDIS_TIMER              SignalStateTimer;
-   LONG                    nSignalStateTimerCount;
+    NDIS_TIMER              SignalStateTimer;
+    LONG                    nSignalStateTimerCount;
 
-   NDIS_TIMER              MsisdnTimer;
-   ULONG                   MsisdnTimerCount;
-   ULONG                   MsisdnTimerValue;
-   /* Register Packet timer*/
-   NDIS_TIMER              RegisterPacketTimer;
-   PVOID                   RegisterPacketTimerContext;
+    NDIS_TIMER              MsisdnTimer;
+    ULONG                   MsisdnTimerCount;
+    ULONG                   MsisdnTimerValue;
+    /* Register Packet timer*/
+    NDIS_TIMER              RegisterPacketTimer;
+    PVOID                   RegisterPacketTimerContext;
 
-   NDIS_TIMER              SignalStateDisconnectTimer;
-   LONG                    nSignalStateDisconnectTimer;
-   LONG                    nSignalStateDisconnectTimerCalled;
+    NDIS_TIMER              SignalStateDisconnectTimer;
+    LONG                    nSignalStateDisconnectTimer;
+    LONG                    nSignalStateDisconnectTimerCalled;
 #endif
 
 #ifdef QCMP_TEST_MODE
-   ULONG                   TestConnectDelay;
+    ULONG                   TestConnectDelay;
 #endif // QCMP_TEST_MODE
 
-    #ifdef QCUSB_MUX_PROTOCOL
+#ifdef QCUSB_MUX_PROTOCOL
     BOOLEAN                 MuxEnabled;
     ULONG                   MuxCtrlDLCI;
     ULONG                   MuxDataDLCI;
     BOOLEAN                 DLPauseEnabled;
     ULONG                   DLPausePktCount;
     ULONG                   DLPktCount;
-    #ifdef QC_DUAL_IP_FC
+#ifdef QC_DUAL_IP_FC
     BOOLEAN                 FlowControlV4;
     BOOLEAN                 FlowControlV6;
     LIST_ENTRY              FlowControlListV4;
     LIST_ENTRY              FlowControlListV6;
     ULONG                   MPEnableQCDualIpFc;
-    #endif // QC_DUAL_IP_FC    
-    #endif // QCUSB_MUX_PROTOCOL
+#endif // QC_DUAL_IP_FC    
+#endif // QCUSB_MUX_PROTOCOL
 #if defined(QCMP_QMAP_V2_SUPPORT) || defined(QCMP_QMAP_V1_SUPPORT)
     BOOLEAN                 QMAPFlowControl;
     LIST_ENTRY              QMAPFlowControlList;
 #endif // QC_DUAL_IP_FC    
 
-    #ifdef QCMP_SUPPORT_CTRL_QMIC
+#ifdef QCMP_SUPPORT_CTRL_QMIC
     ULONG   QMIFuzzing;
     ULONG   ExternalQMICtrlCid;
     BOOLEAN ExternalQCTLEnabled;
     BOOLEAN CtrlDevAcquired;
-    #endif // QCMP_SUPPORT_CTRL_QMIC
-/*
-    LONG                    testTxLIndx;
-    PNDIS_PACKET            testTxList[2500];
-    PUCHAR                  testTxUsbBufList[2500];
-    LONG                    testTxCLIndx;
-    PNDIS_PACKET            testTxCompleteList[2500];
+#endif // QCMP_SUPPORT_CTRL_QMIC
+    /*
+        LONG                    testTxLIndx;
+        PNDIS_PACKET            testTxList[2500];
+        PUCHAR                  testTxUsbBufList[2500];
+        LONG                    testTxCLIndx;
+        PNDIS_PACKET            testTxCompleteList[2500];
 
-    LONG                    testNotPendTx;
+        LONG                    testNotPendTx;
 
-    LONG                    testTotTxQ;
-    LONG                    testTotTxS;
-    LONG                    testTotTxU;
-    LONG                    testTotTxC;
-    LONG                    testTotTxI;
-*/
-   //
-   // Variables to track resources for the send operation
-   //
-   NDIS_SPIN_LOCK          TxLock;      
-   LONG                    nBusyTx;
+        LONG                    testTotTxQ;
+        LONG                    testTotTxS;
+        LONG                    testTotTxU;
+        LONG                    testTotTxC;
+        LONG                    testTotTxI;
+    */
+    //
+    // Variables to track resources for the send operation
+    //
+    NDIS_SPIN_LOCK          TxLock;
+    LONG                    nBusyTx;
 
-   LIST_ENTRY              TxPendingList;
-   LIST_ENTRY              TxBusyList;
-   LIST_ENTRY              TxCompleteList;
+    LIST_ENTRY              TxPendingList;
+    LIST_ENTRY              TxBusyList;
+    LIST_ENTRY              TxCompleteList;
 
-   LONG                    nPendingOidReq;
+    LONG                    nPendingOidReq;
 #ifdef NDIS60_MINIPORT
-   LIST_ENTRY              OidRequestList;
+    LIST_ENTRY              OidRequestList;
 #endif // NDIS60_MINIPORT
 
-   LIST_ENTRY              LHFreeList;
-   PUCHAR                  LLHeaderMem;
+    LIST_ENTRY              LHFreeList;
+    PUCHAR                  LLHeaderMem;
 
-   //
-   // Variables to track resources for the Receive operation
-   //
-   NDIS_SPIN_LOCK          RxLock;
-   LONG                    nBusyRx;
-   LONG                    nRxHeldByNdis;
-   LONG                    nRxPendingInUsb;
-   LONG                    nRxFreeInMP;
-   LONG                    nRxInNblChain;
+    //
+    // Variables to track resources for the Receive operation
+    //
+    NDIS_SPIN_LOCK          RxLock;
+    LONG                    nBusyRx;
+    LONG                    nRxHeldByNdis;
+    LONG                    nRxPendingInUsb;
+    LONG                    nRxFreeInMP;
+    LONG                    nRxInNblChain;
 
-   LIST_ENTRY              RxFreeList;
-   LIST_ENTRY              RxPendingList;
+    LIST_ENTRY              RxFreeList;
+    LIST_ENTRY              RxPendingList;
 
-   NDIS_HANDLE             RxPacketPoolHandle;
-   NDIS_HANDLE             RxBufferPool;
+    NDIS_HANDLE             RxPacketPoolHandle;
+    NDIS_HANDLE             RxBufferPool;
 #ifdef NDIS60_MINIPORT
-   PMPUSB_RX_NBL           RxBufferMem;  // for NDIS6
-   LIST_ENTRY              RxNblChain[RX_THREAD_COUNT];   // RX chain for protocol layer
-   UCHAR                   ActiveRxSlot[RX_THREAD_COUNT];
+    PMPUSB_RX_NBL           RxBufferMem;  // for NDIS6
+    LIST_ENTRY              RxNblChain[RX_THREAD_COUNT];   // RX chain for protocol layer
+    UCHAR                   ActiveRxSlot[RX_THREAD_COUNT];
 #endif 
-   LONG                    DropDataTest; 
+    LONG                    DropDataTest;
 
-   //
-   // Variables used to track resources for control read operatons
-   //
-   NDIS_SPIN_LOCK          CtrlReadLock;
-   LONG                    nBusyRCtrl;
+    //
+    // Variables used to track resources for control read operatons
+    //
+    NDIS_SPIN_LOCK          CtrlReadLock;
+    LONG                    nBusyRCtrl;
 
-   LIST_ENTRY              CtrlReadFreeList;
-   LIST_ENTRY              CtrlReadPendingList;
-   LIST_ENTRY              CtrlReadCompleteList;
+    LIST_ENTRY              CtrlReadFreeList;
+    LIST_ENTRY              CtrlReadPendingList;
+    LIST_ENTRY              CtrlReadCompleteList;
 
-   PUCHAR                  CtrlReadBufMem;
+    PUCHAR                  CtrlReadBufMem;
 
-   // Variables used to write only one QMI request at a time
-   NDIS_SPIN_LOCK          CtrlWriteLock;
-   LONG                    nBusyWrite;
+    // Variables used to write only one QMI request at a time
+    NDIS_SPIN_LOCK          CtrlWriteLock;
+    LONG                    nBusyWrite;
 
-   LIST_ENTRY              CtrlWriteList;
-   LIST_ENTRY              CtrlWritePendingList;
+    LIST_ENTRY              CtrlWriteList;
+    LIST_ENTRY              CtrlWritePendingList;
 
-   // Variables used to track resources for the OID write operations
-   NDIS_SPIN_LOCK          OIDLock;
-   LONG                    nBusyOID;
+    // Variables used to track resources for the OID write operations
+    NDIS_SPIN_LOCK          OIDLock;
+    LONG                    nBusyOID;
 
-   LIST_ENTRY              OIDFreeList;
-   LIST_ENTRY              OIDPendingList;
-   LIST_ENTRY              OIDWaitingList;
+    LIST_ENTRY              OIDFreeList;
+    LIST_ENTRY              OIDPendingList;
+    LIST_ENTRY              OIDWaitingList;
 
-   PUCHAR                  OIDBufMem;
+    PUCHAR                  OIDBufMem;
 
-   USHORT                  ProtocolType;
-   USHORT                  HeaderOffset;
+    USHORT                  ProtocolType;
+    USHORT                  HeaderOffset;
 
-   //
-   // Variables used to track resources for OID Async operations
-   //
-   LIST_ENTRY              OIDAsyncList;
+    //
+    // Variables used to track resources for OID Async operations
+    //
+    LIST_ENTRY              OIDAsyncList;
 
-   //
-   // Packet Filter and look ahead size.
-   //
-   ULONG                   PacketFilter;
-   ULONG                   ulLookAhead;
-   ULONG                   ulMaxBusySends;
-   ULONG                   ulMaxBusyRecvs;
+    //
+    // Packet Filter and look ahead size.
+    //
+    ULONG                   PacketFilter;
+    ULONG                   ulLookAhead;
+    ULONG                   ulMaxBusySends;
+    ULONG                   ulMaxBusyRecvs;
 
-   // multicast list
-   ULONG                   ulMCListSize;
-   UCHAR                   MCList[MAX_MCAST_LIST_LEN][ETH_LENGTH_OF_ADDRESS];
+    // multicast list
+    ULONG                   ulMCListSize;
+    UCHAR                   MCList[MAX_MCAST_LIST_LEN][ETH_LENGTH_OF_ADDRESS];
 
-   // Packet counts (local)
-   ULONG64                 GoodTransmits;
-   ULONG64                 GoodReceives;
+    // Packet counts (local)
+    ULONG64                 GoodTransmits;
+    ULONG64                 GoodReceives;
 
-   ULONG64                 BadTransmits;
-   ULONG64                 BadReceives;
-   ULONG64                 DroppedReceives;
+    ULONG64                 BadTransmits;
+    ULONG64                 BadReceives;
+    ULONG64                 DroppedReceives;
 
-   // Bytes counts (local)
-   ULONG64                 TxBytesGood;
-   ULONG64                 TxBytesBad;
-   ULONG64                 TxFramesFailed;
-   ULONG64                 TxFramesDropped;
-   ULONG64                 RxBytesGood;
-   ULONG64                 RxBytesBad;
-   ULONG64                 RxBytesDropped;
+    // Bytes counts (local)
+    ULONG64                 TxBytesGood;
+    ULONG64                 TxBytesBad;
+    ULONG64                 TxFramesFailed;
+    ULONG64                 TxFramesDropped;
+    ULONG64                 RxBytesGood;
+    ULONG64                 RxBytesBad;
+    ULONG64                 RxBytesDropped;
 
-   // QC transport statistics
-   QC_XFER_STATISTICS      QcXferStats;
+    // QC transport statistics
+    QC_XFER_STATISTICS      QcXferStats;
 
-   // These values may be in the Registry
-   // They are initialized to a default then
-   // if present re-initialized from values in the
-   // registry
-   ULONG                   MaxDataSends;
-   ULONG                   MaxDataReceives;
+    // These values may be in the Registry
+    // They are initialized to a default then
+    // if present re-initialized from values in the
+    // registry
+    ULONG                   MaxDataSends;
+    ULONG                   MaxDataReceives;
 
-   ULONG                   MaxCtrlSends;
-   ULONG                   CtrlSendSize;
+    ULONG                   MaxCtrlSends;
+    ULONG                   CtrlSendSize;
 
-   ULONG                   MaxCtrlReceives;
-   ULONG                   CtrlReceiveSize;
+    ULONG                   MaxCtrlReceives;
+    ULONG                   CtrlReceiveSize;
 
-   ULONG                   LLHeaderBytes;
+    ULONG                   LLHeaderBytes;
 
-   ULONG                   ulCurrentTxRate;
-   ULONG                   ulCurrentRxRate;
-   ULONG                   ulServingSystemTxRate;
-   ULONG                   ulServingSystemRxRate;
-   ULONG                   ulMediaConnectStatus;
+    ULONG                   ulCurrentTxRate;
+    ULONG                   ulCurrentRxRate;
+    ULONG                   ulServingSystemTxRate;
+    ULONG                   ulServingSystemRxRate;
+    ULONG                   ulMediaConnectStatus;
 
-   ULONG                   NumClients;
-   UCHAR                   ClientId[QMUX_TYPE_MAX+1];
-   LONG                    PendingCtrlRequests[QMUX_TYPE_MAX+1];
-   LONG                    MaxPendingQMIReqs;
-   BOOLEAN                 IsQMIOutOfService;
-   UCHAR                   QMIType;
-   NDIS_SPIN_LOCK          QMICTLLock;
-   LIST_ENTRY              QMICTLTransactionList;
-   LONG                    QMICTLTransactionId;
-   LONG                    QMUXTransactionId;
-   ULONG                   QMIInitInProgress;
-   KEVENT                  MainAdapterQmiInitSuccessful;
-   KEVENT                  MainAdapterSetDataFormatSuccessful;
+    ULONG                   NumClients;
+    UCHAR                   ClientId[QMUX_TYPE_MAX + 1];
+    LONG                    PendingCtrlRequests[QMUX_TYPE_MAX + 1];
+    LONG                    MaxPendingQMIReqs;
+    BOOLEAN                 IsQMIOutOfService;
+    UCHAR                   QMIType;
+    NDIS_SPIN_LOCK          QMICTLLock;
+    LIST_ENTRY              QMICTLTransactionList;
+    LONG                    QMICTLTransactionId;
+    LONG                    QMUXTransactionId;
+    ULONG                   QMIInitInProgress;
+    KEVENT                  MainAdapterQmiInitSuccessful;
+    KEVENT                  MainAdapterSetDataFormatSuccessful;
 
-   QMI_SERVICE_VERSION     QMUXVersion[QMUX_TYPE_ALL+1];
-   CHAR                    AddendumVersionLabel[256];
-   KEVENT                  QMICTLInstanceIdReceivedEvent;
-   KEVENT                  QMICTLVersionReceivedEvent;
-   KEVENT                  DeviceInfoReceivedEvent;
-   KEVENT                  ClientIdReceivedEvent;
-   KEVENT                  ClientIdReleasedEvent;
-   KEVENT                  DataFormatSetEvent;
-   KEVENT                  CtlSyncEvent;
-   KEVENT                  ControlReadPostedEvent;
-   PCHAR                   DeviceManufacturer;
-   PCHAR                   DeviceModelID;
-   PCHAR                   DeviceRevisionID;
-   PCHAR                   HardwareRevisionID;
-   PCHAR                   DevicePriID;
-   PCHAR                   DeviceMSISDN;
-   PCHAR                   DeviceMIN;
-   PCHAR                   DeviceIMSI;
-   CHAR                    DeviceSerialNumberESN[QCDEV_MAX_SER_STR_SIZE];
-   CHAR                    DeviceSerialNumberIMEI[QCDEV_MAX_SER_STR_SIZE];
-   CHAR                    DeviceSerialNumberMEID[QCDEV_MAX_SER_STR_SIZE];
-   KEVENT                   QMICTLSyncReceivedEvent;
+    QMI_SERVICE_VERSION     QMUXVersion[QMUX_TYPE_ALL + 1];
+    CHAR                    AddendumVersionLabel[256];
+    KEVENT                  QMICTLInstanceIdReceivedEvent;
+    KEVENT                  QMICTLVersionReceivedEvent;
+    KEVENT                  DeviceInfoReceivedEvent;
+    KEVENT                  ClientIdReceivedEvent;
+    KEVENT                  ClientIdReleasedEvent;
+    KEVENT                  DataFormatSetEvent;
+    KEVENT                  CtlSyncEvent;
+    KEVENT                  ControlReadPostedEvent;
+    PCHAR                   DeviceManufacturer;
+    PCHAR                   DeviceModelID;
+    PCHAR                   DeviceRevisionID;
+    PCHAR                   HardwareRevisionID;
+    PCHAR                   DevicePriID;
+    PCHAR                   DeviceMSISDN;
+    PCHAR                   DeviceMIN;
+    PCHAR                   DeviceIMSI;
+    CHAR                    DeviceSerialNumberESN[QCDEV_MAX_SER_STR_SIZE];
+    CHAR                    DeviceSerialNumberIMEI[QCDEV_MAX_SER_STR_SIZE];
+    CHAR                    DeviceSerialNumberMEID[QCDEV_MAX_SER_STR_SIZE];
+    KEVENT                   QMICTLSyncReceivedEvent;
 
-   // statistics from device (foreign)
-   ULONG                   TxGoodPkts;
-   ULONG                   RxGoodPkts;
-   ULONG                   TxErrorPkts;
-   ULONG                   RxErrorPkts;
-   UCHAR                   EventReportMask;
-   UCHAR                   ProposedEventReportMask;
+    // statistics from device (foreign)
+    ULONG                   TxGoodPkts;
+    ULONG                   RxGoodPkts;
+    ULONG                   TxErrorPkts;
+    ULONG                   RxErrorPkts;
+    UCHAR                   EventReportMask;
+    UCHAR                   ProposedEventReportMask;
 
 #ifdef NDIS_WDM
-   KEVENT USBPnpCompletionEvent;
-   NDIS_SPIN_LOCK          UsbLock;      
+    KEVENT USBPnpCompletionEvent;
+    NDIS_SPIN_LOCK          UsbLock;
 #endif
 
-   SYSTEM_POWER_STATE       MiniportSystemPower;
-   DEVICE_POWER_STATE       MiniportDevicePower;
-   NDIS_DEVICE_POWER_STATE  PreviousDevicePowerState;
-   BOOLEAN                  ToPowerDown;
+    SYSTEM_POWER_STATE       MiniportSystemPower;
+    DEVICE_POWER_STATE       MiniportDevicePower;
+    NDIS_DEVICE_POWER_STATE  PreviousDevicePowerState;
+    BOOLEAN                  ToPowerDown;
 
-   // Needed to determine which RSSI to use
-   UCHAR                    nDataBearer;
+    // Needed to determine which RSSI to use
+    UCHAR                    nDataBearer;
 
-   // For MP main thread
-   HANDLE   hMPThreadHandle;
-   PKTHREAD pMPThread;
-   KEVENT   MPThreadStartedEvent;
-   KEVENT   MPThreadClosedEvent;
-   KEVENT   MPThreadCancelEvent;
-   KEVENT   MPThreadInitQmiEvent;
-   KEVENT   MPThreadTxTimerEvent;   
-   KEVENT   MPThreadTxEvent;
-   KEVENT   MPThreadMediaConnectEvent;
-   KEVENT   MPThreadMediaConnectEventIPv6;
-   KEVENT   MPThreadMediaDisconnectEvent;
-   KEVENT   MPThreadIODevActivityEvent;
+    // For MP main thread
+    HANDLE   hMPThreadHandle;
+    PKTHREAD pMPThread;
+    KEVENT   MPThreadStartedEvent;
+    KEVENT   MPThreadClosedEvent;
+    KEVENT   MPThreadCancelEvent;
+    KEVENT   MPThreadInitQmiEvent;
+    KEVENT   MPThreadTxTimerEvent;
+    KEVENT   MPThreadTxEvent;
+    KEVENT   MPThreadMediaConnectEvent;
+    KEVENT   MPThreadMediaConnectEventIPv6;
+    KEVENT   MPThreadMediaDisconnectEvent;
+    KEVENT   MPThreadIODevActivityEvent;
 #ifdef QCUSB_MUX_PROTOCOL
-   KEVENT   MPThreadDLPauseEvent;
-   KEVENT   MPThreadDLResumeEvent;
-   KEVENT   MPThreadPauseV4Event;
-   KEVENT   MPThreadPauseV6Event;
-   KEVENT   MPThreadResumeV4Event;
-   KEVENT   MPThreadResumeV6Event;   
+    KEVENT   MPThreadDLPauseEvent;
+    KEVENT   MPThreadDLResumeEvent;
+    KEVENT   MPThreadPauseV4Event;
+    KEVENT   MPThreadPauseV6Event;
+    KEVENT   MPThreadResumeV4Event;
+    KEVENT   MPThreadResumeV6Event;
 #endif // QCUSB_MUX_PROTOCOL
 #if defined(QCMP_QMAP_V2_SUPPORT) || defined(QCMP_QMAP_V1_SUPPORT)
-   LIST_ENTRY QMAPControlList;
-   KEVENT   MPThreadQMAPDLPauseEvent;
-   KEVENT   MPThreadQMAPDLResumeEvent;
-   KEVENT   MPThreadQMAPControlEvent;
-   BOOLEAN  QMAPDLPauseEnabled;
+    LIST_ENTRY QMAPControlList;
+    KEVENT   MPThreadQMAPDLPauseEvent;
+    KEVENT   MPThreadQMAPDLResumeEvent;
+    KEVENT   MPThreadQMAPControlEvent;
+    BOOLEAN  QMAPDLPauseEnabled;
 #endif    
-   PKEVENT  MPThreadEvent[MP_THREAD_EVENT_COUNT];
-   ULONG    MPThreadCancelStarted;
+    PKEVENT  MPThreadEvent[MP_THREAD_EVENT_COUNT];
+    ULONG    MPThreadCancelStarted;
 
-   // QOS
-   LONG     MPDisableQoS;
-   ULONG    VlanId;
-   BOOLEAN  IsQosPresent;
-   BOOLEAN  QosEnabled;
-   ULONG    QosHdrFmt;   
-   LONG     MPPendingPackets;
-   LONG     QosPendingPackets;
-   PKTHREAD pQosThread;
-   HANDLE   hQosThreadHandle;
-   KEVENT   QosThreadStartedEvent;
-   KEVENT   QosThreadClosedEvent;
-   KEVENT   QosThreadCancelEvent;
-   KEVENT   QosThreadTxEvent;
-   PKEVENT  QosThreadEvent[QOS_MAIN_THREAD_EVENT_COUNT];
+    // QOS
+    LONG     MPDisableQoS;
+    ULONG    VlanId;
+    BOOLEAN  IsQosPresent;
+    BOOLEAN  QosEnabled;
+    ULONG    QosHdrFmt;
+    LONG     MPPendingPackets;
+    LONG     QosPendingPackets;
+    PKTHREAD pQosThread;
+    HANDLE   hQosThreadHandle;
+    KEVENT   QosThreadStartedEvent;
+    KEVENT   QosThreadClosedEvent;
+    KEVENT   QosThreadCancelEvent;
+    KEVENT   QosThreadTxEvent;
+    PKEVENT  QosThreadEvent[QOS_MAIN_THREAD_EVENT_COUNT];
 
-   // WorkThread
-   PKTHREAD pWorkThread;
-   HANDLE   hWorkThreadHandle;
-   KEVENT   WorkThreadStartedEvent;
-   KEVENT   WorkThreadClosedEvent;
-   KEVENT   WorkThreadCancelEvent;
-   KEVENT   WorkThreadProcessEvent;
-   PKEVENT  WorkThreadEvent[WORK_THREAD_EVENT_COUNT];
-   ULONG    WorkThreadCancelStarted;
+    // WorkThread
+    PKTHREAD pWorkThread;
+    HANDLE   hWorkThreadHandle;
+    KEVENT   WorkThreadStartedEvent;
+    KEVENT   WorkThreadClosedEvent;
+    KEVENT   WorkThreadCancelEvent;
+    KEVENT   WorkThreadProcessEvent;
+    PKEVENT  WorkThreadEvent[WORK_THREAD_EVENT_COUNT];
+    ULONG    WorkThreadCancelStarted;
 
-   // RxThread
-   PKTHREAD pRxThread[RX_THREAD_COUNT];
-   HANDLE   hRxThreadHandle[RX_THREAD_COUNT];
-   KEVENT   RxThreadStartedEvent[RX_THREAD_COUNT];
-   KEVENT   RxThreadClosedEvent[RX_THREAD_COUNT];
-   KEVENT   RxThreadCancelEvent[RX_THREAD_COUNT];
-   KEVENT   RxThreadProcessEvent[RX_THREAD_COUNT];
-   PKEVENT  RxThreadEvent[RX_THREAD_COUNT][RX_THREAD_EVENT_COUNT];
-   ULONG    RxThreadCancelStarted;
-   RX_THREAD_CONTEXT RxThreadContext[RX_THREAD_COUNT];
-   NDIS_SPIN_LOCK RxIndLock[RX_THREAD_COUNT];
-   NDIS_SPIN_LOCK RxProtocolLock[RX_THREAD_COUNT];
-   ULONG    EnableData5G;
-   ULONG    RxIndClusterSize;
-   ULONG    RxStreams;
+    // RxThread
+    PKTHREAD pRxThread[RX_THREAD_COUNT];
+    HANDLE   hRxThreadHandle[RX_THREAD_COUNT];
+    KEVENT   RxThreadStartedEvent[RX_THREAD_COUNT];
+    KEVENT   RxThreadClosedEvent[RX_THREAD_COUNT];
+    KEVENT   RxThreadCancelEvent[RX_THREAD_COUNT];
+    KEVENT   RxThreadProcessEvent[RX_THREAD_COUNT];
+    PKEVENT  RxThreadEvent[RX_THREAD_COUNT][RX_THREAD_EVENT_COUNT];
+    ULONG    RxThreadCancelStarted;
+    RX_THREAD_CONTEXT RxThreadContext[RX_THREAD_COUNT];
+    NDIS_SPIN_LOCK RxIndLock[RX_THREAD_COUNT];
+    NDIS_SPIN_LOCK RxProtocolLock[RX_THREAD_COUNT];
+    ULONG    EnableData5G;
+    ULONG    RxIndClusterSize;
+    ULONG    RxStreams;
 
 #ifdef QC_IP_MODE
-   // Link Protocol
-   LONG     MPDisableIPMode;   
-   BOOLEAN  IsLinkProtocolSupported;
-   BOOLEAN  IPModeEnabled;
-   QC_IP_SETTINGS IPSettings;
-   KEVENT   QMIWDSIPAddrReceivedEvent;
-   USHORT   DeviceId2;
-   UCHAR    MacAddress2[ETH_LENGTH_OF_ADDRESS];
+    // Link Protocol
+    LONG     MPDisableIPMode;
+    BOOLEAN  IsLinkProtocolSupported;
+    BOOLEAN  IPModeEnabled;
+    QC_IP_SETTINGS IPSettings;
+    KEVENT   QMIWDSIPAddrReceivedEvent;
+    USHORT   DeviceId2;
+    UCHAR    MacAddress2[ETH_LENGTH_OF_ADDRESS];
 #endif // QC_IP_MODE
-   ULONG IPv4DataCall;
-   ULONG IPv6DataCall;
+    ULONG IPv4DataCall;
+    ULONG IPv6DataCall;
 
-   ULONG    IPV4Address;
-   ULONG    IPV6Address;  // use as flag, not actual address
-   BOOLEAN  IPV4Connected;
-   BOOLEAN  IPV6Connected;
+    ULONG    IPV4Address;
+    ULONG    IPV6Address;  // use as flag, not actual address
+    BOOLEAN  IPV4Connected;
+    BOOLEAN  IPV6Connected;
 
-   LONG     NumberOfConnections;
+    LONG     NumberOfConnections;
 
-   PKTHREAD pQosDispThread;
-   HANDLE   hQosDispThreadHandle;
-   KEVENT   QosDispThreadStartedEvent;
-   KEVENT   QosDispThreadClosedEvent;
-   KEVENT   QosDispThreadCancelEvent;
-   KEVENT   QosDispThreadTxEvent;
-   PKEVENT  QosDispThreadEvent[QOS_DISP_THREAD_EVENT_COUNT];
+    PKTHREAD pQosDispThread;
+    HANDLE   hQosDispThreadHandle;
+    KEVENT   QosDispThreadStartedEvent;
+    KEVENT   QosDispThreadClosedEvent;
+    KEVENT   QosDispThreadCancelEvent;
+    KEVENT   QosDispThreadTxEvent;
+    PKEVENT  QosDispThreadEvent[QOS_DISP_THREAD_EVENT_COUNT];
 
-   LIST_ENTRY FilterPrecedenceList; // global QoS filter list
-   LIST_ENTRY FlowDataQueue[FLOW_QUEUE_MAX]; // list of MPQOS_FLOW_ENTRY
-   MPQOS_FLOW_ENTRY DefaultQosFlow;
-   BOOLEAN  DefaultFlowEnabled;
-   UCHAR    QosPacketBuffer[ETH_MAX_PACKET_SIZE + 100];
-   
-   // QMIQOS Client
-   PKTHREAD pQmiQosThread;
-   HANDLE   hQmiQosThreadHandle;
-   KEVENT   QmiQosThreadStartedEvent;
-   KEVENT   QmiQosThreadClosedEvent;
-   KEVENT   QmiQosThreadCancelEvent;
-   PKEVENT  QmiQosThreadEvent[QMIQOS_THREAD_EVENT_COUNT];
+    LIST_ENTRY FilterPrecedenceList; // global QoS filter list
+    LIST_ENTRY FlowDataQueue[FLOW_QUEUE_MAX]; // list of MPQOS_FLOW_ENTRY
+    MPQOS_FLOW_ENTRY DefaultQosFlow;
+    BOOLEAN  DefaultFlowEnabled;
+    UCHAR    QosPacketBuffer[ETH_MAX_PACKET_SIZE + 100];
 
-   LONG MPMainThreadInCancellation;
-   LONG QosThreadInCancellation;
-   LONG QosDispatchThreadInCancellation;
-   LONG QosClientInCancellation;
-   LONG WorkThreadInCancellation;
+    // QMIQOS Client
+    PKTHREAD pQmiQosThread;
+    HANDLE   hQmiQosThreadHandle;
+    KEVENT   QmiQosThreadStartedEvent;
+    KEVENT   QmiQosThreadClosedEvent;
+    KEVENT   QmiQosThreadCancelEvent;
+    PKEVENT  QmiQosThreadEvent[QMIQOS_THREAD_EVENT_COUNT];
 
-   #if defined(QCMP_MBIM_DL_SUPPORT)|| defined(QCMP_MBIM_UL_SUPPORT)
-   LONG EnableMBIM;
-   #endif
-   
-   #if defined(QCMP_UL_TLP) || defined(QCMP_MBIM_UL_SUPPORT)
-   LONG     MPEnableMBIMUL;  // boolean value 0/1 from registry
-   BOOLEAN  MBIMULEnabled;   // host-device negotiation
-   LONG ntbSequence;
-   #endif
+    LONG MPMainThreadInCancellation;
+    LONG QosThreadInCancellation;
+    LONG QosDispatchThreadInCancellation;
+    LONG QosClientInCancellation;
+    LONG WorkThreadInCancellation;
 
-   #if defined(QCMP_MBIM_DL_SUPPORT)
-   LONG     MPEnableMBIMDL;  // boolean value 0/1 from registry
-   BOOLEAN  MBIMDLEnabled;   // host-device negotiation
-   #endif
-   
-   #if defined(QCMP_QMAP_V1_SUPPORT)
-   LONG MPEnableQMAPV1;
-   BOOLEAN QMAPEnabledV1;
-   #endif
+#if defined(QCMP_MBIM_DL_SUPPORT)|| defined(QCMP_MBIM_UL_SUPPORT)
+    LONG EnableMBIM;
+#endif
+
+#if defined(QCMP_UL_TLP) || defined(QCMP_MBIM_UL_SUPPORT)
+    LONG     MPEnableMBIMUL;  // boolean value 0/1 from registry
+    BOOLEAN  MBIMULEnabled;   // host-device negotiation
+    LONG ntbSequence;
+#endif
+
+#if defined(QCMP_MBIM_DL_SUPPORT)
+    LONG     MPEnableMBIMDL;  // boolean value 0/1 from registry
+    BOOLEAN  MBIMDLEnabled;   // host-device negotiation
+#endif
+
+#if defined(QCMP_QMAP_V1_SUPPORT)
+    LONG MPEnableQMAPV1;
+    BOOLEAN QMAPEnabledV1;
+#endif
 
 #ifdef QCUSB_MUX_PROTOCOL
 #if defined(QCMP_QMAP_V2_SUPPORT)
-   LONG MPEnableQMAPV2;
-   BOOLEAN QMAPEnabledV2;
+    LONG MPEnableQMAPV2;
+    BOOLEAN QMAPEnabledV2;
 #endif
 #endif
-   
+
 #ifdef QCUSB_MUX_PROTOCOL
 #if defined(QCMP_QMAP_V2_SUPPORT)
-      LONG MPEnableQMAPV3;
-      BOOLEAN QMAPEnabledV3;
+    LONG MPEnableQMAPV3;
+    BOOLEAN QMAPEnabledV3;
 #endif
 #endif
 
-   BOOLEAN WdsEnableUlParams;
+    BOOLEAN WdsEnableUlParams;
 
-   #if defined(QCMP_QMAP_V1_SUPPORT)
-   LONG MPEnableQMAPV4;
-   BOOLEAN QMAPEnabledV4;
-   #endif
-   
-   #if defined(QCMP_UL_TLP) || defined(QCMP_MBIM_UL_SUPPORT)
-   BOOLEAN    NumTLPBuffersConfigured;
-   LONG       NumTLPBuffers;
-   LONG       UplinkTLPSize;
-   BOOLEAN    TLPUplinkOn;
-   LIST_ENTRY UplinkFreeBufferQueue;
-   TLP_BUF_ITEM UlTlpItem[MP_NUM_UL_TLP_ITEMS];
+#if defined(QCMP_QMAP_V1_SUPPORT)
+    LONG MPEnableQMAPV4;
+    BOOLEAN QMAPEnabledV4;
+#endif
 
-   LONG       TxTLPPendinginUSB;
+#if defined(QCMP_UL_TLP) || defined(QCMP_MBIM_UL_SUPPORT)
+    BOOLEAN    NumTLPBuffersConfigured;
+    LONG       NumTLPBuffers;
+    LONG       UplinkTLPSize;
+    BOOLEAN    TLPUplinkOn;
+    LIST_ENTRY UplinkFreeBufferQueue;
+    TLP_BUF_ITEM UlTlpItem[MP_NUM_UL_TLP_ITEMS];
 
-   LONG     MPEnableTLP;  // boolean value 0/1 from registry
-   BOOLEAN  TLPEnabled;    // host-device negotiation
+    LONG     TxTLPPendinginUSB;
 
-   /* Register Transmit timer*/
-   KTIMER  TransmitTimer;
-   KDPC    TransmitTimerDPC;
-   ULONG   TransmitTimerValue;
-   BOOLEAN TransmitTimerLaunched;
-   ULONG   FlushBufferinTimer;
-   ULONG   FlushBufferBufferFull;
-   LONG    TimerResolution;
-   ULONG   ndpSignature;
+    LONG     MPEnableTLP;  // boolean value 0/1 from registry
+    BOOLEAN  TLPEnabled;    // host-device negotiation
 
-   ULONG   MaxTLPPackets;
-   #endif // QCMP_UL_TLP || QCMP_MBIM_UL_SUPPORT
+    /* Register Transmit timer*/
+    KTIMER  TransmitTimer;
+    KDPC    TransmitTimerDPC;
+    ULONG   TransmitTimerValue;
+    BOOLEAN TransmitTimerLaunched;
+    ULONG   FlushBufferinTimer;
+    ULONG   FlushBufferBufferFull;
+    LONG    TimerResolution;
+    ULONG   ndpSignature;
+
+    ULONG   MaxTLPPackets;
+#endif // QCMP_UL_TLP || QCMP_MBIM_UL_SUPPORT
 
 #if defined(QCMP_DL_TLP)
-   BOOLEAN  IsDLTLPSupported;
-   LONG       MPEnableDLTLP; 
-   BOOLEAN  TLPDLEnabled;
+    BOOLEAN  IsDLTLPSupported;
+    LONG     MPEnableDLTLP;
+    BOOLEAN  TLPDLEnabled;
 #endif
 
-   LONG MPQuickTx;  // boolean value 0/1
+    LONG MPQuickTx;  // boolean value 0/1
 
-   // WDSIP Client
-   UCHAR    WdsIpClientId;
-   PVOID    WdsIpClientContext;  // PMPIOC_DEV_INFO
-   PKTHREAD pWdsIpThread;
-   HANDLE   hWdsIpThreadHandle;
-   KEVENT   WdsIpThreadStartedEvent;
-   KEVENT   WdsIpThreadClosedEvent;
-   KEVENT   WdsIpThreadCancelEvent;
-   PKEVENT  WdsIpThreadEvent[WDSIP_THREAD_EVENT_COUNT];
-   CHAR     DnsInfoV4[256];
-   CHAR     DnsInfoV6[256];
-   BOOLEAN  IpFamilySet;
-   ULONG    IpThreadCancelStarted;
-   // WDS_ADMIN Client
-   BOOLEAN  IsWdsAdminPresent;
+    // WDSIP Client
+    UCHAR    WdsIpClientId;
+    PVOID    WdsIpClientContext;  // PMPIOC_DEV_INFO
+    PKTHREAD pWdsIpThread;
+    HANDLE   hWdsIpThreadHandle;
+    KEVENT   WdsIpThreadStartedEvent;
+    KEVENT   WdsIpThreadClosedEvent;
+    KEVENT   WdsIpThreadCancelEvent;
+    PKEVENT  WdsIpThreadEvent[WDSIP_THREAD_EVENT_COUNT];
+    CHAR     DnsInfoV4[256];
+    CHAR     DnsInfoV6[256];
+    BOOLEAN  IpFamilySet;
+    ULONG    IpThreadCancelStarted;
+    // WDS_ADMIN Client
+    BOOLEAN  IsWdsAdminPresent;
 
-   // QMI Initialization
-   LONG    QmiSyncNeeded;
-   LONG    QmiInInitialization;
-   BOOLEAN QmiInitialized;
-   BOOLEAN IsQmiWorking;
-   BOOLEAN WdsMediaConnected;
-   INT     QmiInitRetries;
-   //Named Events for triggering removal
-   PKEVENT NamedEvents[DEVICE_REMOVAL_EVENTS_MAX];
-   HANDLE  NamedEventsHandle[DEVICE_REMOVAL_EVENTS_MAX];
-   ULONG   NamedEventsIndex;
+    // QMI Initialization
+    LONG    QmiSyncNeeded;
+    LONG    QmiInInitialization;
+    BOOLEAN QmiInitialized;
+    BOOLEAN IsQmiWorking;
+    BOOLEAN WdsMediaConnected;
+    INT     QmiInitRetries;
+    //Named Events for triggering removal
+    PKEVENT NamedEvents[DEVICE_REMOVAL_EVENTS_MAX];
+    HANDLE  NamedEventsHandle[DEVICE_REMOVAL_EVENTS_MAX];
+    ULONG   NamedEventsIndex;
 
-   DEVICE_STATIC_INFO DeviceStaticInfo;
-   ULONG DeviceStaticInfoLen;
+    DEVICE_STATIC_INFO DeviceStaticInfo;
+    ULONG DeviceStaticInfoLen;
 
-   //Mip Dereg
-   BOOLEAN IsMipderegSent;
+    //Mip Dereg
+    BOOLEAN IsMipderegSent;
 
 #ifdef NDIS620_MINIPORT
-   NDIS_WWAN_PACKET_SERVICE_STATE WwanServingState;
-   NDIS_WWAN_REGISTRATION_STATE   NdisRegisterState;
-   UCHAR                          nVisibleIndex;
+    NDIS_WWAN_PACKET_SERVICE_STATE WwanServingState;
+    NDIS_WWAN_REGISTRATION_STATE   NdisRegisterState;
+    UCHAR                          nVisibleIndex;
 #endif
 
-   BOOLEAN IgnoreQMICTLErrors;
-   UCHAR   FriendlyName[256];
-   USHORT  FriendlyNameWLen;
-   WCHAR   FriendlyNameW[256];
-   ULONG   MTUSize;
+    BOOLEAN IgnoreQMICTLErrors;
+    UCHAR   FriendlyName[256];
+    USHORT  FriendlyNameWLen;
+    WCHAR   FriendlyNameW[256];
+    ULONG   MTUSize;
 
-   ULONG Deregister;
-   ULONG DisableTimerResolution;
+    ULONG   Deregister;
+    ULONG   DisableTimerResolution;
 
 #ifdef QCMP_DISABLE_QMI
-   ULONG DisableQMI;
+    ULONG DisableQMI;
 #endif
-   UCHAR MuxId;
-   ULONG DLAggMaxPackets;
-   ULONG DLAggSize;
+    UCHAR   MuxId;
+    ULONG   DLAggMaxPackets;
+    ULONG   DLAggSize;
 
-   ULONG   IPV4Mtu;
-   ULONG   IPV6Mtu;
-   KEVENT  IPV4MtuReceivedEvent;
-   KEVENT  IPV6MtuReceivedEvent;
-   PFILE_OBJECT MtuClient;
-   USHORT MCC;
-   USHORT MNC;
-   BOOLEAN IsLTE;
-   ULONG QMAPDLMinPadding;   
-   UCHAR BindIFId;
-   UCHAR BindEPType;
-   ULONG DisableQMAPFC;
-   
-   BOOLEAN  IsNASSysInfoPresent;
-   UCHAR AppType;
-   ULONG UIMICCID;
-   ULONG EnableSSDisconnectTimer;
+    ULONG   IPV4Mtu;
+    ULONG   IPV6Mtu;
+    KEVENT  IPV4MtuReceivedEvent;
+    KEVENT  IPV6MtuReceivedEvent;
+    PFILE_OBJECT MtuClient;
+    USHORT  MCC;
+    USHORT  MNC;
+    BOOLEAN IsLTE;
+    ULONG   QMAPDLMinPadding;
+    UCHAR   BindIFId;
+    UCHAR   BindEPType;
+    ULONG   DisableQMAPFC;
+
+    BOOLEAN IsNASSysInfoPresent;
+    UCHAR   AppType;
+    ULONG   UIMICCID;
+    ULONG   EnableSSDisconnectTimer;
 
 #ifdef QCUSB_MUX_PROTOCOL
-   ULONG FakeIMSI;
-   ULONG FakeICCID;
+    ULONG   FakeIMSI;
+    ULONG   FakeICCID;
 #endif
 } MP_ADAPTER, *PMP_ADAPTER;
 
@@ -1674,39 +1689,39 @@ NDIS_STATUS DriverEntry(PVOID DriverObject, PVOID RegistryPath);
 
 BOOLEAN MPMAIN_MiniportCheckForHang(NDIS_HANDLE MiniportAdapterContext);
 
-VOID MPMAIN_MiniportHalt (NDIS_HANDLE MiniportAdapterContext);
+VOID MPMAIN_MiniportHalt(NDIS_HANDLE MiniportAdapterContext);
 VOID MPMAIN_MiniportHaltEx
 (
-   NDIS_HANDLE MiniportAdapterContext,
-   NDIS_HALT_ACTION HaltAction
+    NDIS_HANDLE MiniportAdapterContext,
+    NDIS_HALT_ACTION HaltAction
 );
 
 VOID MPMAIN_MiniportShutdown
 (
-   IN  NDIS_HANDLE MiniportAdapterContext
+    IN  NDIS_HANDLE MiniportAdapterContext
 );
 VOID MPMAIN_MiniportShutdownEx
 (
-   IN  NDIS_HANDLE          MiniportAdapterContext,
-   IN  NDIS_SHUTDOWN_ACTION ShutdownAction
+    IN  NDIS_HANDLE          MiniportAdapterContext,
+    IN  NDIS_SHUTDOWN_ACTION ShutdownAction
 );
 
 VOID MPMAIN_MiniportUnload(PDRIVER_OBJECT DriverObject);
 
 NDIS_STATUS MPMAIN_MiniportReset
 (
-   PBOOLEAN AddressingReset,
-   NDIS_HANDLE MiniportAdapterContext
+    PBOOLEAN AddressingReset,
+    NDIS_HANDLE MiniportAdapterContext
 );
 
 #ifdef NDIS51_MINIPORT
 
 VOID MPMAIN_MiniportPnPEventNotify
 (
-   NDIS_HANDLE             MiniportAdapterContext,
-   NDIS_DEVICE_PNP_EVENT   PnPEvent,
-   PVOID                   InformationBuffer,
-   ULONG                   InformationBufferLength
+    NDIS_HANDLE             MiniportAdapterContext,
+    NDIS_DEVICE_PNP_EVENT   PnPEvent,
+    PVOID                   InformationBuffer,
+    ULONG                   InformationBufferLength
 );
 
 #endif
@@ -1714,22 +1729,22 @@ VOID MPMAIN_MiniportPnPEventNotify
 #ifdef NDIS_WDM
 NTSTATUS MPMAIN_PnpCompletionRoutine
 (
-   PDEVICE_OBJECT pDO,
-   PIRP           pIrp,
-   PVOID          pContext
+    PDEVICE_OBJECT pDO,
+    PIRP           pIrp,
+    PVOID          pContext
 );
 BOOLEAN MPMAIN_SetupPnpIrp
 (
-   PMP_ADAPTER           Adapter,
-   NDIS_DEVICE_PNP_EVENT PnPEvent,
-   PIRP                  pIrp
+    PMP_ADAPTER           Adapter,
+    NDIS_DEVICE_PNP_EVENT PnPEvent,
+    PIRP                  pIrp
 );
 
 NTSTATUS MPMAIN_PnpEventWithRemoval
 (
-   PMP_ADAPTER           Adapter,
-   NDIS_DEVICE_PNP_EVENT PnPEvent,
-   BOOLEAN               bRemove
+    PMP_ADAPTER           Adapter,
+    NDIS_DEVICE_PNP_EVENT PnPEvent,
+    BOOLEAN               bRemove
 );
 
 VOID MPMAIN_InitUsbGlobal(void);
@@ -1747,8 +1762,8 @@ NDIS_STATUS MPMAIN_SetDeviceDataFormat(PMP_ADAPTER pAdapter);
 
 VOID MPMAIN_DevicePowerStateChange
 (
-   PMP_ADAPTER             pAdapter,
-   NDIS_DEVICE_POWER_STATE PowerState
+    PMP_ADAPTER             pAdapter,
+    NDIS_DEVICE_POWER_STATE PowerState
 );
 
 BOOLEAN MPMAIN_InitializeQMI(PMP_ADAPTER pAdapter, INT QmiRetries);
@@ -1760,13 +1775,13 @@ VOID MPMAIN_Wait(LONGLONG WaitTime);
 
 VOID MPMAIN_PrintBytes
 (
-   PVOID Buf,
-   ULONG len,
-   ULONG PktLen,
-   char *info,
-   PMP_ADAPTER pAdapter,
-   ULONG DbgMask,
-   ULONG DbgLevel
+    PVOID Buf,
+    ULONG len,
+    ULONG PktLen,
+    char *info,
+    PMP_ADAPTER pAdapter,
+    ULONG DbgMask,
+    ULONG DbgLevel
 );
 
 VOID MPMAIN_PowerDownDevice(PVOID Context, DEVICE_POWER_STATE DevicePower);
@@ -1783,10 +1798,10 @@ VOID MPMAIN_DetermineNdisVersion(VOID);
 
 VOID MyNdisMIndicateStatus
 (
-   IN NDIS_HANDLE  MiniportAdapterHandle,
-   IN NDIS_STATUS  GeneralStatus,
-   IN PVOID        StatusBuffer,
-   IN UINT         StatusBufferSize
+    IN NDIS_HANDLE  MiniportAdapterHandle,
+    IN NDIS_STATUS  GeneralStatus,
+    IN PVOID        StatusBuffer,
+    IN UINT         StatusBufferSize
 );
 
 VOID MPMAIN_DisconnectNotification(PMP_ADAPTER pAdapter);
@@ -1814,26 +1829,26 @@ BOOLEAN MPTX_ProcessPendingTxQueue(PMP_ADAPTER);
 
 VOID MPMAIN_MiniportDevicePnPEventNotify
 (
-   IN NDIS_HANDLE            MiniportAdapterContext,
-   IN PNET_DEVICE_PNP_EVENT  NetDevicePnPEvent
+    IN NDIS_HANDLE            MiniportAdapterContext,
+    IN PNET_DEVICE_PNP_EVENT  NetDevicePnPEvent
 );
 
 NDIS_STATUS MPMAIN_MiniportResetEx
 (
-   IN NDIS_HANDLE  MiniportAdapterContext,
-   OUT PBOOLEAN    AddressingReset
+    IN NDIS_HANDLE  MiniportAdapterContext,
+    OUT PBOOLEAN    AddressingReset
 );
 
 NDIS_STATUS MPMAIN_MiniportPause
 (
-   IN NDIS_HANDLE                     MiniportAdapterContext,
-   IN PNDIS_MINIPORT_PAUSE_PARAMETERS MiniportPauseParameters
+    IN NDIS_HANDLE                     MiniportAdapterContext,
+    IN PNDIS_MINIPORT_PAUSE_PARAMETERS MiniportPauseParameters
 );
 
 NDIS_STATUS MPMAIN_MiniportRestart
 (
-   IN NDIS_HANDLE                       MiniportAdapterContext,
-   IN PNDIS_MINIPORT_RESTART_PARAMETERS MiniportRestartParameters
+    IN NDIS_HANDLE                       MiniportAdapterContext,
+    IN PNDIS_MINIPORT_RESTART_PARAMETERS MiniportRestartParameters
 );
 
 #endif // NDIS60_MINIPORT
@@ -1846,13 +1861,13 @@ NDIS_STATUS MPMAIN_OpenQMIClients(PMP_ADAPTER pAdapter);
 
 NDIS_STATUS MPMAIN_MiniportSetOptions
 (
-   IN NDIS_HANDLE  NdisDriverHandle,
-   IN NDIS_HANDLE  DriverContext
+    IN NDIS_HANDLE  NdisDriverHandle,
+    IN NDIS_HANDLE  DriverContext
 );
 
-BOOLEAN SetTimerResolution ( PMP_ADAPTER pAdapter, BOOLEAN Flag );
+BOOLEAN SetTimerResolution(PMP_ADAPTER pAdapter, BOOLEAN Flag);
 
-BOOLEAN MoveQMIRequests( PMP_ADAPTER pAdapter );
+BOOLEAN MoveQMIRequests(PMP_ADAPTER pAdapter);
 
 VOID CleanupTxQueues(PMP_ADAPTER pAdapter);
 
@@ -1860,76 +1875,76 @@ VOID CleanupTxQueues(PMP_ADAPTER pAdapter);
 // For debugging only
 VOID MPRCV_QnblInfo
 (
-   PMP_ADAPTER   pAdapter,
-   PMPUSB_RX_NBL RxNBL,
-   int           Index,
-   PCHAR         Msg
+    PMP_ADAPTER   pAdapter,
+    PMPUSB_RX_NBL RxNBL,
+    int           Index,
+    PCHAR         Msg
 );
 #endif // NDIS60_MINIPORT
 
 VOID ResetCompleteTimerDpc
 (
-   PVOID SystemSpecific1,
-   PVOID FunctionContext,
-   PVOID SystemSpecific2,
-   PVOID SystemSpecific3
+    PVOID SystemSpecific1,
+    PVOID FunctionContext,
+    PVOID SystemSpecific2,
+    PVOID SystemSpecific3
 );
 
 VOID ReconfigTimerDpc
 (
-   PVOID SystemSpecific1,
-   PVOID FunctionContext,
-   PVOID SystemSpecific2,
-   PVOID SystemSpecific3
+    PVOID SystemSpecific1,
+    PVOID FunctionContext,
+    PVOID SystemSpecific2,
+    PVOID SystemSpecific3
 );
 
 VOID ReconfigTimerDpcIPv6
 (
-   PVOID SystemSpecific1,
-   PVOID FunctionContext,
-   PVOID SystemSpecific2,
-   PVOID SystemSpecific3
+    PVOID SystemSpecific1,
+    PVOID FunctionContext,
+    PVOID SystemSpecific2,
+    PVOID SystemSpecific3
 );
 
 VOID TransmitTimerDpc
 (
-   PKDPC Dpc,
-   PVOID DeferredContext,
-   PVOID SystemArgument1,
-   PVOID SystemArgument2
+    PKDPC Dpc,
+    PVOID DeferredContext,
+    PVOID SystemArgument1,
+    PVOID SystemArgument2
 );
 
 #ifdef NDIS620_MINIPORT
 
 VOID SignalStateTimerDpc
 (
-   PVOID SystemSpecific1,
-   PVOID FunctionContext,
-   PVOID SystemSpecific2,
-   PVOID SystemSpecific3
+    PVOID SystemSpecific1,
+    PVOID FunctionContext,
+    PVOID SystemSpecific2,
+    PVOID SystemSpecific3
 );
 
 VOID MsisdnTimerDpc
 (
-   PVOID SystemSpecific1,
-   PVOID FunctionContext,
-   PVOID SystemSpecific2,
-   PVOID SystemSpecific3
+    PVOID SystemSpecific1,
+    PVOID FunctionContext,
+    PVOID SystemSpecific2,
+    PVOID SystemSpecific3
 );
 VOID RegisterPacketTimerDpc
 (
-   PVOID SystemSpecific1,
-   PVOID FunctionContext,
-   PVOID SystemSpecific2,
-   PVOID SystemSpecific3
+    PVOID SystemSpecific1,
+    PVOID FunctionContext,
+    PVOID SystemSpecific2,
+    PVOID SystemSpecific3
 );
 
 VOID SignalStateDisconnectTimerDpc
 (
-   PVOID SystemSpecific1,
-   PVOID FunctionContext,
-   PVOID SystemSpecific2,
-   PVOID SystemSpecific3
+    PVOID SystemSpecific1,
+    PVOID FunctionContext,
+    PVOID SystemSpecific2,
+    PVOID SystemSpecific3
 );
 
 #endif

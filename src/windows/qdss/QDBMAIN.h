@@ -3,7 +3,7 @@
                           Q D B M A I N . H
 
 GENERAL DESCRIPTION
-    This is the file which contains definitions for QDSS function driver. 
+    This is the file which contains definitions for QDSS function driver.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
@@ -23,8 +23,8 @@ GENERAL DESCRIPTION
 
 
 // {E093662A-FF18-4579-8681-506E9F561D3D}
-DEFINE_GUID(QDBUSB_GUID, 
-0xe093662a, 0xff18, 0x4579, 0x86, 0x81, 0x50, 0x6e, 0x9f, 0x56, 0x1d, 0x3d);
+DEFINE_GUID(QDBUSB_GUID,
+    0xe093662a, 0xff18, 0x4579, 0x86, 0x81, 0x50, 0x6e, 0x9f, 0x56, 0x1d, 0x3d);
 
 
 // global variable
@@ -72,12 +72,12 @@ extern ULONG SimData[2724];
 #undef QDB_DbgPrintG
 
 #ifdef QDB_DBGPRINT
-   #define QDB_DbgPrintG(mask,level,_x_) \
+#define QDB_DbgPrintG(mask,level,_x_) \
            { \
                  DbgPrint _x_; \
            }
 
-   #define QDB_DbgPrint(mask,level,_x_) \
+#define QDB_DbgPrint(mask,level,_x_) \
            { \
               if ((pDevContext->DebugMask & mask) && \
                   (pDevContext->DebugLevel >= level)) \
@@ -87,8 +87,8 @@ extern ULONG SimData[2724];
            }
 #else
 
-   #define QDB_DbgPrint(mask,level,_x_)
-   #define QDB_DbgPrintG(mask,level,_x_)
+#define QDB_DbgPrint(mask,level,_x_)
+#define QDB_DbgPrintG(mask,level,_x_)
 
 #endif // QDB_DBGPRINT
 
@@ -123,81 +123,81 @@ extern ULONG SimData[2724];
 
 typedef struct _QDB_IO_REQUEST
 {
-   LIST_ENTRY List;
-   PVOID      DeviceContext;
-   WDFREQUEST IoRequest;
-   WDFMEMORY  IoMemory;
-   PVOID      IoBuffer;
-   int        Index;
-   int        IsPending;
+    LIST_ENTRY List;
+    PVOID      DeviceContext;
+    WDFREQUEST IoRequest;
+    WDFMEMORY  IoMemory;
+    PVOID      IoBuffer;
+    int        Index;
+    int        IsPending;
 } QDB_IO_REQUEST, *PQDB_IO_REQUEST;
 
 #pragma pack(push, 1)
 
 typedef struct _QCQMAP_STRUCT
 {
-   UCHAR PadCD;
-   UCHAR MuxId;
-   USHORT PacketLen;
+    UCHAR PadCD;
+    UCHAR MuxId;
+    USHORT PacketLen;
 } QCQMAP_STRUCT, *PQCQMAP_STRUCT;
 
 #pragma pack(pop)
 
 typedef struct _QDB_STATS
 {
-   LONG  OutstandingRx;  // buffers not returned to app
-   LONG  DrainingRx;     // internal buffer for draining
-   LONG  NumRxExhausted; // no RX buffers
-   ULONG BytesDrained;   // bytes since drain started
-   ULONG PacketsDrained; // reserved -- debug only
-   ULONG IoFailureCount; // debug only
-} QDB_STATS, *PQDB_STATS; 
+    LONG  OutstandingRx;  // buffers not returned to app
+    LONG  DrainingRx;     // internal buffer for draining
+    LONG  NumRxExhausted; // no RX buffers
+    ULONG BytesDrained;   // bytes since drain started
+    ULONG PacketsDrained; // reserved -- debug only
+    ULONG IoFailureCount; // debug only
+} QDB_STATS, *PQDB_STATS;
 
 typedef struct _DEVICE_CONTEXT
 {
-   WDFIOTARGET                   MyIoTarget;
-   WDFUSBDEVICE                  WdfUsbDevice;
-   PDEVICE_OBJECT                PhysicalDeviceObject;
-   PDEVICE_OBJECT                MyDevice;
-   PDEVICE_OBJECT                TargetDevice;
-   PUSB_CONFIGURATION_DESCRIPTOR ConfigDesc; // dynamically allocated
-   CHAR                          SerialNumber[256];
-   LONG                          IfProtocol;
-   UCHAR                         FriendlyName[MAX_NAME_LEN];
-   WCHAR                         FriendlyNameHolder[MAX_NAME_LEN];
-   UNICODE_STRING                SymbolicLink;
-   BOOLEAN                       DeviceRemoval;
-   KEVENT                        DrainStoppedEvent;
-   ULONG                         DebugMask;
-   ULONG                         DebugLevel;
-   CHAR                          PortName[16];
-   WDFUSBINTERFACE               UsbInterfaceTRACE;
-   WDFUSBINTERFACE               UsbInterfaceDEBUG;
-   WDFUSBPIPE                    TraceIN;
-   WDFUSBPIPE                    DebugIN;
-   WDFUSBPIPE                    DebugOUT;
-   WDF_USB_PIPE_INFORMATION      TracePipeInfo;
-   WDF_USB_PIPE_INFORMATION      DebugINPipeInfo;
-   WDF_USB_PIPE_INFORMATION      DebugOUTPipeInfo;
-   ULONG                         MaxXfrSize; // not really used
-   WDFQUEUE                      RxQueue;
-   WDFQUEUE                      TxQueue;
-   WDFQUEUE                      DefaultQueue;
-   LONG                          RxCount;
-   LONG                          TxCount;
-   KSPIN_LOCK                    RxLock;
-   ULONG                         NumOfRxReqs;
-   ULONG                         FunctionType;
-   ULONG                         IoFailureThreshold;
-   QDB_IO_REQUEST                RxRequest[IO_REQ_NUM_RX];
-   BOOLEAN                       PipeDrain;
-   QDB_STATS                     Stats;
+    WDFIOTARGET                   MyIoTarget;
+    WDFUSBDEVICE                  WdfUsbDevice;
+    PDEVICE_OBJECT                PhysicalDeviceObject;
+    PDEVICE_OBJECT                MyDevice;
+    PDEVICE_OBJECT                TargetDevice;
+    PUSB_CONFIGURATION_DESCRIPTOR ConfigDesc; // dynamically allocated
+    CHAR                          SerialNumber[256];
+    LONG                          IfProtocol;
+    UCHAR                         FriendlyName[MAX_NAME_LEN];
+    WCHAR                         FriendlyNameHolder[MAX_NAME_LEN];
+    UNICODE_STRING                SymbolicLink;
+    BOOLEAN                       DeviceRemoval;
+    KEVENT                        DrainStoppedEvent;
+    ULONG                         DebugMask;
+    ULONG                         DebugLevel;
+    CHAR                          PortName[16];
+    WDFUSBINTERFACE               UsbInterfaceTRACE;
+    WDFUSBINTERFACE               UsbInterfaceDEBUG;
+    WDFUSBPIPE                    TraceIN;
+    WDFUSBPIPE                    DebugIN;
+    WDFUSBPIPE                    DebugOUT;
+    WDF_USB_PIPE_INFORMATION      TracePipeInfo;
+    WDF_USB_PIPE_INFORMATION      DebugINPipeInfo;
+    WDF_USB_PIPE_INFORMATION      DebugOUTPipeInfo;
+    ULONG                         MaxXfrSize; // not really used
+    WDFQUEUE                      RxQueue;
+    WDFQUEUE                      TxQueue;
+    WDFQUEUE                      DefaultQueue;
+    LONG                          RxCount;
+    LONG                          TxCount;
+    KSPIN_LOCK                    RxLock;
+    ULONG                         NumOfRxReqs;
+    ULONG                         FunctionType;
+    ULONG                         IoFailureThreshold;
+    QDB_IO_REQUEST                RxRequest[IO_REQ_NUM_RX];
+    BOOLEAN                       PipeDrain;
+    QDB_STATS                     Stats;
 } DEVICE_CONTEXT, *PDEVICE_CONTEXT;
 
 typedef struct _REQUEST_CONTEXT
 {
-   WDFMEMORY        IoBlock;
-   ULONG            Index;   // for debugging purpose
+    WDFMEMORY        IoBlock;
+    ULONG            Index;   // for debugging purpose
 } REQUEST_CONTEXT, *PREQUEST_CONTEXT;
 
 #define QDB_FILE_TYPE_TRACE 1
@@ -206,11 +206,11 @@ typedef struct _REQUEST_CONTEXT
 
 typedef struct _FILE_CONTEXT
 {
-   PDEVICE_CONTEXT DeviceContext;
-   WDFUSBPIPE TraceIN;
-   WDFUSBPIPE DebugIN;
-   WDFUSBPIPE DebugOUT;
-   UCHAR      Type;
+    PDEVICE_CONTEXT DeviceContext;
+    WDFUSBPIPE TraceIN;
+    WDFUSBPIPE DebugIN;
+    WDFUSBPIPE DebugOUT;
+    UCHAR      Type;
 } FILE_CONTEXT, *PFILE_CONTEXT;
 
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(DEVICE_CONTEXT, QdbDeviceGetContext)

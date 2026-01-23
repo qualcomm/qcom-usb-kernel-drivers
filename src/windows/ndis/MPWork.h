@@ -26,11 +26,11 @@ BOOLEAN MPWork_PostControlReads(PMP_ADAPTER  pAdapter);
 
 PMP_OID_WRITE MPWork_FindRequest(PMP_ADAPTER pAdapter, ULONG ulTxID);
 
-VOID dumpOIDList( PMP_ADAPTER pAdapter );
+VOID dumpOIDList(PMP_ADAPTER pAdapter);
 
 BOOLEAN MPWork_ResolveRequests(PMP_ADAPTER pAdapter);
 
-BOOLEAN MPWork_PostWriteRequests( PMP_ADAPTER pAdapter );
+BOOLEAN MPWork_PostWriteRequests(PMP_ADAPTER pAdapter);
 
 NTSTATUS MPWork_StartWorkThread(PMP_ADAPTER pAdapter);
 

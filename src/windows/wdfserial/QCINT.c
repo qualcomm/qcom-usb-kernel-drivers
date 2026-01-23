@@ -58,7 +58,7 @@ VOID QCINT_ReadInterruptPipe(PVOID pContext)
     WDFUSBPIPE       pipeInt;
     PKWAIT_BLOCK     pWaitBlock = ExAllocatePoolUninitialized(NonPagedPoolNx, (INT_PIPE_EVENT_COUNT) * sizeof(KWAIT_BLOCK), '7gaT');
     BOOLEAN          bRunning = TRUE; //loop flag
-    BOOLEAN          D0ExitState = FALSE, D0EntryState = FALSE; 
+    BOOLEAN          D0ExitState = FALSE, D0EntryState = FALSE;
     WDFMEMORY        outputMemory = NULL;
     WDFIOTARGET      ioTarget = NULL;
     WDF_OBJECT_ATTRIBUTES requestAttr;
@@ -196,7 +196,7 @@ VOID QCINT_ReadInterruptPipe(PVOID pContext)
                     QCSER_DBG_MASK_READ,
                     QCSER_DBG_LEVEL_DETAIL,
                     ("<%ws> QCINT: INT_COMPLETION, D0EntryState: %u, D0ExitState: %u\n",
-                        pDevContext->PortName, D0EntryState, D0ExitState)
+                    pDevContext->PortName, D0EntryState, D0ExitState)
                 );
                 KeClearEvent(&pDevContext->InterruptCompletion);
 
@@ -241,20 +241,20 @@ VOID QCINT_ReadInterruptPipe(PVOID pContext)
                 pNotificationStatus = (PUSB_NOTIFICATION_STATUS)pDevContext->pInterruptBuffer;
                 switch (pNotificationStatus->bNotification)
                 {
-                case CDC_NOTIFICATION_SERIAL_STATE:
-                    QCINT_HandleSerialStateNotification(pDevContext);
-                    break;
-                case CDC_NOTIFICATION_RESPONSE_AVAILABLE:
-                    //QCINT_HandleResponseAvailableNotification(pDevContext);
-                    break;
-                case CDC_NOTIFICATION_NETWORK_CONNECTION:
-                    //QCINT_HandleNetworkConnectionNotification(pDevContext);
-                    break;
-                case CDC_NOTIFICATION_CONNECTION_SPD_CHG:
-                    //QCINT_HandleConnectionSpeedChangeNotification(pDevContext);
-                    break;
-                default:
-                    break;
+                    case CDC_NOTIFICATION_SERIAL_STATE:
+                        QCINT_HandleSerialStateNotification(pDevContext);
+                        break;
+                    case CDC_NOTIFICATION_RESPONSE_AVAILABLE:
+                        //QCINT_HandleResponseAvailableNotification(pDevContext);
+                        break;
+                    case CDC_NOTIFICATION_NETWORK_CONNECTION:
+                        //QCINT_HandleNetworkConnectionNotification(pDevContext);
+                        break;
+                    case CDC_NOTIFICATION_CONNECTION_SPD_CHG:
+                        //QCINT_HandleConnectionSpeedChangeNotification(pDevContext);
+                        break;
+                    default:
+                        break;
                 }
                 KeSetEvent(&pDevContext->InterruptStartService, IO_NO_INCREMENT, FALSE);
                 break;
@@ -520,7 +520,7 @@ NTSTATUS StopInterruptService
         pDevContext->interruptThread = NULL;
     }
     return ntStatus;
-} 
+}
 
 VOID QCINT_HandleSerialStateNotification(PDEVICE_CONTEXT pDevContext)
 {
@@ -542,9 +542,9 @@ VOID QCINT_HandleSerialStateNotification(PDEVICE_CONTEXT pDevContext)
         QCSER_DBG_MASK_READ,
         QCSER_DBG_LEVEL_DETAIL,
         ("<%ws> QCINT: Req 0x%x Noti 0x%x Val 0x%x Idx 0x%x Len %d usVal 0x%x\n",
-            pDevContext->PortName, pUartStatus->bmRequestType, pUartStatus->bNotification,
-            pUartStatus->wValue, pUartStatus->wIndex, pUartStatus->wLength,
-            pUartStatus->usValue)
+        pDevContext->PortName, pUartStatus->bmRequestType, pUartStatus->bNotification,
+        pUartStatus->wValue, pUartStatus->wIndex, pUartStatus->wLength,
+        pUartStatus->usValue)
     );
 
     if (pUartStatus->usValue & USB_CDC_INT_RX_CARRIER)

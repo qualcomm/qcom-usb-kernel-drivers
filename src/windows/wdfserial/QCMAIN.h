@@ -98,12 +98,13 @@ typedef struct _QC_STATS
 } QC_STATS;
 
 #pragma pack(push, 1)
-typedef struct _MODEM_INFO {
+typedef struct _MODEM_INFO
+{
     ULONG ulDteRate;
     UCHAR ucStopBit;
     UCHAR ucParityType;
     UCHAR ucDataBits;
-} MODEM_INFO, * PMODEM_INFO;
+} MODEM_INFO, *PMODEM_INFO;
 #pragma pack(pop)
 
 typedef struct
@@ -119,7 +120,7 @@ typedef struct _RING_BUFFER
     size_t WriteHead;
     size_t ReadHead;
     size_t Capacity;
-} RING_BUFFER, * PRING_BUFFER;
+} RING_BUFFER, *PRING_BUFFER;
 
 typedef struct _DEVICE_CONTEXT
 {
@@ -255,7 +256,7 @@ typedef struct _DEVICE_CONTEXT
 
     WMILIB_CONTEXT            WmiLibInfo;   // to query system power management tab
     CHAR                      DevSerialNumber[256];  // to hold USB_STRING_DESCRIPTOR of the serial number
-    
+
 } DEVICE_CONTEXT, *PDEVICE_CONTEXT;
 
 typedef struct _READ_BUFFER_PARAM
@@ -277,9 +278,9 @@ typedef struct _REQUEST_CONTEXT
 #pragma pack(push, 1)
 typedef struct _PEER_DEV_INFO_HDR
 {
-   UCHAR Version;
-   USHORT DeviceNameLength;
-   USHORT SymLinkNameLength;
+    UCHAR Version;
+    USHORT DeviceNameLength;
+    USHORT SymLinkNameLength;
 } PEER_DEV_INFO_HDR, *PPEER_DEV_INFO_HDR;
 #pragma pack(pop)
 
@@ -488,7 +489,7 @@ typedef struct _VI_CONFIG
     LONGLONG Address;
     ULONG    Direction;
     ULONG    DataSize;
-} VI_CONFIG, * PVI_CONFIG;
+} VI_CONFIG, *PVI_CONFIG;
 #pragma pack(pop)
 #endif // QCUSB_MUX_PROTOCOL
 

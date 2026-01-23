@@ -178,7 +178,7 @@ NTSTATUS QCMAIN_DeleteDriverRegistryValue
         if (NT_SUCCESS(status))
         {
             RtlInitUnicodeString(&ucValueName, pValueName);
-            WdfRegistryRemoveValue (key, &ucValueName );
+            WdfRegistryRemoveValue(key, &ucValueName);
             WdfRegistryClose(key);
         }
     }

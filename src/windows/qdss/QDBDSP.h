@@ -15,38 +15,38 @@ GENERAL DESCRIPTION
 
 VOID QDBDSP_IoDeviceControl
 (
-   WDFQUEUE   Queue,
-   WDFREQUEST Request,
-   size_t     OutputBufferLength,
-   size_t     InputBufferLength,
-   ULONG      IoControlCode
+    WDFQUEUE   Queue,
+    WDFREQUEST Request,
+    size_t     OutputBufferLength,
+    size_t     InputBufferLength,
+    ULONG      IoControlCode
 );
 
 VOID QDBDSP_IoStop
 (
-   WDFQUEUE   Queue,
-   WDFREQUEST Request,
-   ULONG      ActionFlags
+    WDFQUEUE   Queue,
+    WDFREQUEST Request,
+    ULONG      ActionFlags
 );
 
 VOID QDBDSP_IoResume
 (
-   WDFQUEUE   Queue,
-   WDFREQUEST Request
+    WDFQUEUE   Queue,
+    WDFREQUEST Request
 );
 
 NTSTATUS QDBDSP_IrpIoCompletion
 (
-   PDEVICE_OBJECT DeviceObject,
-   PIRP           Irp,
-   PVOID          Context
+    PDEVICE_OBJECT DeviceObject,
+    PIRP           Irp,
+    PVOID          Context
 );
 
 NTSTATUS QDBDSP_GetParentId
 (
-   PDEVICE_CONTEXT pDevContext,
-   PVOID           IoBuffer,
-   ULONG           BufferLen
+    PDEVICE_CONTEXT pDevContext,
+    PVOID           IoBuffer,
+    ULONG           BufferLen
 );
 
 #endif // QDBDSP_H

@@ -36,7 +36,7 @@ NTSTATUS QCUTIL_RingBufferRead
     PRING_BUFFER ringBuffer,
     PUCHAR       destination,
     size_t       readLength,
-    size_t       *bytesRead
+    size_t      *bytesRead
 );
 
 BOOLEAN QCUTIL_RingBufferReadByte
@@ -66,14 +66,14 @@ VOID QCUTIL_InsertTailList
     PLIST_ENTRY     head,
     PLIST_ENTRY     entry,
     WDFSPINLOCK     lock,
-    size_t*         pListLength
+    size_t         *pListLength
 );
 
 VOID QCUTIL_RemoveEntryList
 (
     PLIST_ENTRY     entry,
     WDFSPINLOCK     lock,
-    size_t*         pListLength
+    size_t         *pListLength
 );
 
 BOOLEAN QCUTIL_FindEntryInList
@@ -119,7 +119,7 @@ VOID QCUTIL_PrintBytes
     PVOID Buf,
     ULONG len,
     ULONG PktLen,
-    char* info,
+    char *info,
     ULONG DbgMask,
     ULONG DbgLevel,
     PDEVICE_CONTEXT pDevContext

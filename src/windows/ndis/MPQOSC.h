@@ -30,15 +30,15 @@ VOID MPQOSC_QmiQosThread(PVOID Context);
 
 VOID MPQOSC_ProcessInboundMessage
 (
-   PMPIOC_DEV_INFO IocDevice,
-   PVOID           Message,
-   ULONG           Length
+    PMPIOC_DEV_INFO IocDevice,
+    PVOID           Message,
+    ULONG           Length
 );
 
 VOID MPQOSC_SendQosSetEventReportReq
 (
-   PMP_ADAPTER     pAdapter,
-   PMPIOC_DEV_INFO pIocDev
+    PMP_ADAPTER     pAdapter,
+    PMPIOC_DEV_INFO pIocDev
 );
 
 VOID ProcessSetQosEventReportRsp(PMPIOC_DEV_INFO IocDevice, PQMUX_MSG Message);
@@ -47,73 +47,73 @@ VOID ProcessQosEventReportInd(PMPIOC_DEV_INFO IocDevice, PQMUX_MSG Message);
 
 VOID ProcessQosFlowReport
 (
-   PMPIOC_DEV_INFO IocDevice,
-   PCHAR           FlowReport,
-   USHORT          ReportLength
+    PMPIOC_DEV_INFO IocDevice,
+    PCHAR           FlowReport,
+    USHORT          ReportLength
 );
 
 VOID MPQOSC_PurgeFilterList(PMP_ADAPTER pAdapter, PLIST_ENTRY FilterList);
 
 PCHAR ParseQmiQosFilter
 (
-   PMPIOC_DEV_INFO IocDevice,
-   PQMI_FILTER     QmiFilter,
-   PVOID           TLVs,
-   USHORT          TLVLength,
-   BOOLEAN         IsTx
+    PMPIOC_DEV_INFO IocDevice,
+    PQMI_FILTER     QmiFilter,
+    PVOID           TLVs,
+    USHORT          TLVLength,
+    BOOLEAN         IsTx
 );
 
 PMPQOS_FLOW_ENTRY FindQosFlow
 (
-   PMP_ADAPTER         pAdapter,
-   QOS_FLOW_QUEUE_TYPE StartQueueType,
-   QOS_FLOW_QUEUE_TYPE EndQueueType,
-   ULONG               FlowId
+    PMP_ADAPTER         pAdapter,
+    QOS_FLOW_QUEUE_TYPE StartQueueType,
+    QOS_FLOW_QUEUE_TYPE EndQueueType,
+    ULONG               FlowId
 );
 
 VOID AddQosFilter
 (
-   PMP_ADAPTER       pAdapter,
-   PMPQOS_FLOW_ENTRY QosFlow,
-   PLIST_ENTRY       QmiFilterList
+    PMP_ADAPTER       pAdapter,
+    PMPQOS_FLOW_ENTRY QosFlow,
+    PLIST_ENTRY       QmiFilterList
 );
 
 VOID AddQosFilterToPrecedenceList
 (
-   PMP_ADAPTER pAdapter,
-   PLIST_ENTRY QmiFilterList
+    PMP_ADAPTER pAdapter,
+    PLIST_ENTRY QmiFilterList
 );
 
 VOID RemoveQosFilterFromPrecedenceList
 (
-   PMP_ADAPTER pAdapter,
-   PLIST_ENTRY QmiFilterList
+    PMP_ADAPTER pAdapter,
+    PLIST_ENTRY QmiFilterList
 );
 
 #ifdef QCUSB_MUX_PROTOCOL
 #ifdef QMI_OVER_DATA
 VOID MPQOSC_SendQosEnableFlowDisableAckReq
 (
-   PMP_ADAPTER     pAdapter,
-   PMPIOC_DEV_INFO pIocDev,
-   BOOLEAN         Ack
+    PMP_ADAPTER     pAdapter,
+    PMPIOC_DEV_INFO pIocDev,
+    BOOLEAN         Ack
 );
 #endif
 #endif
 
 VOID MPQOSC_ComposeQosSetClientIpPrefReq
 (
-   PMP_ADAPTER     pAdapter,
-   PMPIOC_DEV_INFO pIocDev,
-   UCHAR           IPVersion
+    PMP_ADAPTER     pAdapter,
+    PMPIOC_DEV_INFO pIocDev,
+    UCHAR           IPVersion
 );
 
 VOID MPQOS_ProcessQosSetClientIpPrefResp
 (
-   PMP_ADAPTER     pAdapter,
-   PQMUX_MSG       Message,
-   PMPIOC_DEV_INFO pIocDev,
-   USHORT          Tid
+    PMP_ADAPTER     pAdapter,
+    PQMUX_MSG       Message,
+    PMPIOC_DEV_INFO pIocDev,
+    USHORT          Tid
 );
 
 #endif // MPQOSC_H

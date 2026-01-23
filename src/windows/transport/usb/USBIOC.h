@@ -13,9 +13,9 @@ GENERAL DESCRIPTION
 #define USBIOC_H
 
 #include "USBMAIN.h"
-                      
+
 // User-defined IOCTL code range: 2048-4095
-#define QCDEV_IOCTL_INDEX                   2048
+#define QCDEV_IOCTL_INDEX                 2048
 #define QCDEV_DUPLICATED_NOTIFICATION_REQ 0x00000002L
 
 /*
@@ -27,7 +27,7 @@ GENERAL DESCRIPTION
                                   METHOD_BUFFERED, \
                                   FILE_ANY_ACCESS)
 
-/* Make the following code as 3333 */
+ /* Make the following code as 3333 */
 #define IOCTL_QCDEV_DRIVER_ID   CTL_CODE(FILE_DEVICE_UNKNOWN, \
                                   QCDEV_IOCTL_INDEX+1285, \
                                   METHOD_BUFFERED, \
@@ -104,21 +104,21 @@ GENERAL DESCRIPTION
                                                  QCDEV_IOCTL_INDEX+1301, \
                                                  METHOD_BUFFERED, \
                                                  FILE_ANY_ACCESS)
-   
+
    /* Make the following code as 3350 - Device Remove Event - Pass the event name in UNICODE*/
 #define IOCTL_QCDEV_DEVICE_REMOVE_EVENTW CTL_CODE(FILE_DEVICE_UNKNOWN, \
                                                  QCDEV_IOCTL_INDEX+1302, \
                                                  METHOD_BUFFERED, \
                                                  FILE_ANY_ACCESS)
-   
-   /* Make the following code as 3351 - Event close - 
+
+   /* Make the following code as 3351 - Event close -
    Pass the unique identifier returned as part of IOCTL_QCDEV_DEVICE_REMOVE_EVENT(W/A) */
 #define IOCTL_QCDEV_DEVICE_EVENT_CLOSE CTL_CODE(FILE_DEVICE_UNKNOWN, \
                                                  QCDEV_IOCTL_INDEX+1303, \
                                                  METHOD_BUFFERED, \
                                                  FILE_ANY_ACCESS)
 
-/* Make the following code as 3352 - Device ID from filter device*/
+   /* Make the following code as 3352 - Device ID from filter device*/
 #define IOCTL_QCDEV_REQUEST_DEVICEID CTL_CODE(FILE_DEVICE_UNKNOWN, \
                                                  QCDEV_IOCTL_INDEX+1304, \
                                                  METHOD_BUFFERED, \
@@ -256,29 +256,29 @@ GENERAL DESCRIPTION
 
 NTSTATUS USBIOC_CacheNotificationIrp
 (
-   PDEVICE_OBJECT DeviceObject,
-   PVOID ioBuffer,
-   PIRP pIrp
+    PDEVICE_OBJECT DeviceObject,
+    PVOID          ioBuffer,
+    PIRP           pIrp
 );
 NTSTATUS USBIOC_NotifyClient(PIRP pIrp, ULONG info);
 
 NTSTATUS USBIOC_GetDriverGUIDString
 (
-   PDEVICE_OBJECT DeviceObject,
-   PVOID ioBuffer,
-   PIRP pIrp
+    PDEVICE_OBJECT DeviceObject,
+    PVOID          ioBuffer,
+    PIRP           pIrp
 );
 NTSTATUS USBIOC_GetServiceKey
 (
-   PDEVICE_OBJECT DeviceObject,
-   PVOID ioBuffer,
-   PIRP pIrp
+    PDEVICE_OBJECT DeviceObject,
+    PVOID          ioBuffer,
+    PIRP           pIrp
 );
 NTSTATUS USBIOC_GetDataHeaderLength
 (
-   PDEVICE_OBJECT DeviceObject,
-   PVOID          pInBuf,
-   PIRP           pIrp
+    PDEVICE_OBJECT DeviceObject,
+    PVOID          pInBuf,
+    PIRP           pIrp
 );
 
 #endif // USBIOC_H

@@ -28,10 +28,10 @@ VOID MPIP_WdsIpThread(PVOID Context);
 
 VOID MPIP_ProcessInboundMessage
 (
-   PMPIOC_DEV_INFO IocDevice,
-   PVOID           Message,
-   ULONG           Length,
-   PMP_OID_WRITE   pMatchOID  
+    PMPIOC_DEV_INFO IocDevice,
+    PVOID           Message,
+    ULONG           Length,
+    PMP_OID_WRITE   pMatchOID
 );
 
 VOID ProcessWdsPktSrvcStatusInd(PMPIOC_DEV_INFO IocDevice, PQMUX_MSG Message);

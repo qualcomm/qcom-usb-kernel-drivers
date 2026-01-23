@@ -49,18 +49,18 @@ extern char gDeviceName[255];
 #ifdef NDIS_WDM
 enum Ndis_RegEntryIndex
 {
-   NDIS_DEV_VER = 0,    // REG_SZ
-   NDIS_DEV_CONFIG,     // REG_DWORD
-   NDIS_LOG_DIR,        // REG_SZ
-   NDIS_RTY_NUM,        // REG_DWORD
-   NDIS_MAX_XFR,        // REG_DWORD
-   NDIS_L2_BUFS,        // REG_DWORD
-   NDIS_DBG_MASK,       // REG_DWORD
-   NDIS_RESIDENT,       // REG_DWORD
-   NDIS_WRITE_UNIT,     // REG_DWORD
-   NDIS_CTRL_FILE,      // REG_SZ
-   NDIS_THREAD_PRI,     // REG_DWORD
-   NDIS_MAX_REG_ENTRY
+    NDIS_DEV_VER = 0,    // REG_SZ
+    NDIS_DEV_CONFIG,     // REG_DWORD
+    NDIS_LOG_DIR,        // REG_SZ
+    NDIS_RTY_NUM,        // REG_DWORD
+    NDIS_MAX_XFR,        // REG_DWORD
+    NDIS_L2_BUFS,        // REG_DWORD
+    NDIS_DBG_MASK,       // REG_DWORD
+    NDIS_RESIDENT,       // REG_DWORD
+    NDIS_WRITE_UNIT,     // REG_DWORD
+    NDIS_CTRL_FILE,      // REG_SZ
+    NDIS_THREAD_PRI,     // REG_DWORD
+    NDIS_MAX_REG_ENTRY
 };
 
 #define NDIS_STR_DEV_VER     "DriverVersion"
@@ -137,39 +137,39 @@ enum Ndis_RegEntryIndex
 
 // macros 
 #ifdef DBG
-   #ifdef VERBOSE_ALLOC
-      typedef struct tagAllocationList
-      {
-         struct tagAllocationList *pPrev, *pNext;
-         PVOID pBuffer;
-         UCHAR *pWho;
-         ULONG ulSize;
-      }  ALLOCATION_LIST;
+#ifdef VERBOSE_ALLOC
+typedef struct tagAllocationList
+{
+    struct tagAllocationList *pPrev, *pNext;
+    PVOID pBuffer;
+    UCHAR *pWho;
+    ULONG ulSize;
+}  ALLOCATION_LIST;
 
-      void _ReportMemoryUsage();
-      PVOID _ExAllocatePool
-      (
-         IN    POOL_TYPE PoolType,
-         IN    ULONG NumberOfBytes,
-         UCHAR *pWho
-      );
-      VOID _ExFreePool(IN PVOID P);
+void _ReportMemoryUsage();
+PVOID _ExAllocatePool
+(
+    IN    POOL_TYPE PoolType,
+    IN    ULONG NumberOfBytes,
+    UCHAR *pWho
+);
+VOID _ExFreePool(IN PVOID P);
 
-      #define REPORT_MEMORY_USAGE
-   #endif
+#define REPORT_MEMORY_USAGE
+#endif
 #endif
 
 #ifndef REPORT_MEMORY_USAGE
-   #define _ReportMemoryUsage();
-   #define _ExAllocatePool(a,b,c) ExAllocatePool(a,b)
+#define _ReportMemoryUsage();
+#define _ExAllocatePool(a,b,c) ExAllocatePool(a,b)
 
-   #ifdef DEBUG_MSGS
-      #define _ExFreePool(_a) { \
+#ifdef DEBUG_MSGS
+#define _ExFreePool(_a) { \
          DbgPrint("\t\t\tfreeing: 0x%p \n", _a); \
          ExFreePool(_a);_a=NULL;}
-   #else
-      #define _ExFreePool(_a) { ExFreePool(_a); _a=NULL; }
-   #endif //DEBUG_MSGS
+#else
+#define _ExFreePool(_a) { ExFreePool(_a); _a=NULL; }
+#endif //DEBUG_MSGS
 
 #endif
 
@@ -247,7 +247,7 @@ enum Ndis_RegEntryIndex
 #define _closeRegKeyG(x,in,clue) _closeHandleG(x,in,clue)
 
 #ifdef QCUSB_DBGPRINT
-   #define QCUSB_DbgPrintG(mask,level,_x_) \
+#define QCUSB_DbgPrintG(mask,level,_x_) \
            { \
               if ( ((gVendorConfig.DebugMask & mask) && \
                     (gVendorConfig.DebugLevel >= level)) || \
@@ -257,7 +257,7 @@ enum Ndis_RegEntryIndex
               }    \
            }
 
-   #define QCUSB_DbgPrintX(x,mask,level,_x_) \
+#define QCUSB_DbgPrintX(x,mask,level,_x_) \
            { \
               if (x != NULL) \
               { \
@@ -274,7 +274,7 @@ enum Ndis_RegEntryIndex
               } \
            }
 
-   #define QCUSB_DbgPrint(mask,level,_x_) \
+#define QCUSB_DbgPrint(mask,level,_x_) \
            { \
               if ( ((pDevExt->DebugMask & mask) && \
                     (pDevExt->DebugLevel >= level)) || \
@@ -284,65 +284,65 @@ enum Ndis_RegEntryIndex
               }    \
            }
 
-   #ifdef QCUSB_DBGPRINT2
-      #define QCUSB_DbgPrint2(mask,level,_x_) QCUSB_DbgPrint(mask,level,_x_)
-      #define QCUSB_DbgPrintX2(x,mask,level,_x_) QCUSB_DbgPrintX(x,mask,level,_x_)
-      #define QCUSB_DbgPrintG2(mask,level,_x_) QCUSB_DbgPrintG(mask,level,_x_)
-   #else
-      #define QCUSB_DbgPrint2(mask,level,_x_)
-      #define QCUSB_DbgPrintX2(mask,level,_x_)
-      #define QCUSB_DbgPrintG2(mask,level,_x_)
-   #endif
+#ifdef QCUSB_DBGPRINT2
+#define QCUSB_DbgPrint2(mask,level,_x_) QCUSB_DbgPrint(mask,level,_x_)
+#define QCUSB_DbgPrintX2(x,mask,level,_x_) QCUSB_DbgPrintX(x,mask,level,_x_)
+#define QCUSB_DbgPrintG2(mask,level,_x_) QCUSB_DbgPrintG(mask,level,_x_)
 #else
-   #define QCUSB_DbgPrint(mask,level,_x_)
-   #define QCUSB_DbgPrint2(mask,level,_x_)
-   #define QCUSB_DbgPrintX(x,mask,level,_x_)
-   #define QCUSB_DbgPrintX2(x,mask,level,_x_)
-   #define QCUSB_DbgPrintG(mask,level,_x_)
-   #define QCUSB_DbgPrintG2(mask,level,_x_)
+#define QCUSB_DbgPrint2(mask,level,_x_)
+#define QCUSB_DbgPrintX2(mask,level,_x_)
+#define QCUSB_DbgPrintG2(mask,level,_x_)
+#endif
+#else
+#define QCUSB_DbgPrint(mask,level,_x_)
+#define QCUSB_DbgPrint2(mask,level,_x_)
+#define QCUSB_DbgPrintX(x,mask,level,_x_)
+#define QCUSB_DbgPrintX2(x,mask,level,_x_)
+#define QCUSB_DbgPrintG(mask,level,_x_)
+#define QCUSB_DbgPrintG2(mask,level,_x_)
 #endif // QCUSB_DBGPRINT
 
 #ifdef DBG
-   #ifndef DEBUG_MSGS
-      #define DEBUG_MSGS
-   #endif // !DEBUG_MSGS
-   #ifndef DEBUG_IRPS
-      #define DEBUG_IRPS
-   #endif
+#ifndef DEBUG_MSGS
+#define DEBUG_MSGS
+#endif // !DEBUG_MSGS
+#ifndef DEBUG_IRPS
+#define DEBUG_IRPS
+#endif
 #endif // DBG
 
 #ifdef DEBUG_MSGS
 // #define DEBUG_IRPS
 
-   extern BOOLEAN bDbgout; // because Windbg does dbgout over serial line.
-   extern ULONG ulIrpsCompleted;
+extern BOOLEAN bDbgout; // because Windbg does dbgout over serial line.
+extern ULONG ulIrpsCompleted;
 
-   #ifdef DEBUG_IRPS
-      #define _IoCompleteRequest(pIrp,_b_) {_QcIoCompleteRequest(pIrp,_b_);}
-   #else // !DEBUG_IRPS
-      #define _IoCompleteRequest IoCompleteRequest
-   #endif // !DEBUG_IRPS
+#ifdef DEBUG_IRPS
+#define _IoCompleteRequest(pIrp,_b_) {_QcIoCompleteRequest(pIrp,_b_);}
+#else // !DEBUG_IRPS
+#define _IoCompleteRequest IoCompleteRequest
+#endif // !DEBUG_IRPS
 
-   // #define _int3 { KIRQL ki3= KeGetCurrentIrql(); _asm int 3 }
-   #define _int3 
+// #define _int3 { KIRQL ki3= KeGetCurrentIrql(); _asm int 3 }
+#define _int3 
 
-   #undef ASSERT // when Windbg fails ASSERT(bTrue) it breaks & prints "bTrue" but doesn't point to source code
-   #define ASSERT(_x_) {if (!(_x_)) _int3;}
+#undef ASSERT // when Windbg fails ASSERT(bTrue) it breaks & prints "bTrue" but doesn't point to source code
+#define ASSERT(_x_) {if (!(_x_)) _int3;}
 
-   #define _dbgPrintUnicodeString(a,b) if (bDbgout) { dbgPrintUnicodeString(a,b); }
+#define _dbgPrintUnicodeString(a,b) if (bDbgout) { dbgPrintUnicodeString(a,b); }
 
 #else //DEBUG_MSGS
 
-   #ifndef _int3
-      #define _int3
-   #endif // _int3
+#ifndef _int3
+#define _int3
+#endif // _int3
 
-   #define _IoCompleteRequest(_a_,_b_) IoCompleteRequest(_a_,_b_)
-   #define _fail
-   #define _failx
-   #define _success
-   #define _warning
-   #define _dbgPrintUnicodeString(a,b)
+#define _IoCompleteRequest(_a_,_b_) IoCompleteRequest(_a_,_b_)
+#define _fail
+#define _failx
+#define _success
+#define _warning
+#define _dbgPrintUnicodeString(a,b)
 
 #endif //DEBUG_MSGS
 

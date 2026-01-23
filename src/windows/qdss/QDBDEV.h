@@ -18,9 +18,9 @@ GENERAL DESCRIPTION
 
 VOID QDBDEV_EvtDeviceFileCreate
 (
-   WDFDEVICE     Device,    // handle to a framework device object
-   WDFREQUEST    Request,   // handle to request object representing file creation req
-   WDFFILEOBJECT FileObject // handle to a framework file obj describing a file
+    WDFDEVICE     Device,    // handle to a framework device object
+    WDFREQUEST    Request,   // handle to request object representing file creation req
+    WDFFILEOBJECT FileObject // handle to a framework file obj describing a file
 );
 
 VOID QDBDEV_EvtDeviceFileClose(WDFFILEOBJECT FileObject);

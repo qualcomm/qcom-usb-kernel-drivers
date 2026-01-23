@@ -14,24 +14,24 @@ GENERAL DESCRIPTION
 
 VOID QDBRD_IoRead
 (
-   WDFQUEUE   Queue,
-   WDFREQUEST Request,
-   size_t     Length
+    WDFQUEUE   Queue,
+    WDFREQUEST Request,
+    size_t     Length
 );
 
 VOID QDBRD_ReadUSB
 (
-   IN WDFQUEUE         Queue,
-   IN WDFREQUEST       Request,
-   IN ULONG            Length
+    IN WDFQUEUE         Queue,
+    IN WDFREQUEST       Request,
+    IN ULONG            Length
 );
 
 VOID QDBRD_ReadUSBCompletion
 (
-   WDFREQUEST                  Request,
-   WDFIOTARGET                 Target,
-   PWDF_REQUEST_COMPLETION_PARAMS CompletionParams,
-   WDFCONTEXT                  Context
+    WDFREQUEST                  Request,
+    WDFIOTARGET                 Target,
+    PWDF_REQUEST_COMPLETION_PARAMS CompletionParams,
+    WDFCONTEXT                  Context
 );
 
 NTSTATUS QDBRD_AllocateRequestsRx(PDEVICE_CONTEXT pDevContext);
@@ -48,14 +48,14 @@ NTSTATUS QDBRD_PipeDrainStop(PDEVICE_CONTEXT pDevContext);
 
 VOID QDBRD_PipeDrainCompletion
 (
-   WDFREQUEST                  Request,
-   WDFIOTARGET                 Target,
-   PWDF_REQUEST_COMPLETION_PARAMS CompletionParams,
-   WDFCONTEXT                  Context
+    WDFREQUEST                  Request,
+    WDFIOTARGET                 Target,
+    PWDF_REQUEST_COMPLETION_PARAMS CompletionParams,
+    WDFCONTEXT                  Context
 );
 
 VOID QDBRD_ProcessDrainedDPLBlock(PDEVICE_CONTEXT pDevContext, PVOID Buffer, ULONG Length);
 
-PVOID QDBRD_RetrievePacket(PVOID* DataPtr, PULONG DataLength, PULONG PacketLength);
+PVOID QDBRD_RetrievePacket(PVOID *DataPtr, PULONG DataLength, PULONG PacketLength);
 
 #endif // QDBRD_H

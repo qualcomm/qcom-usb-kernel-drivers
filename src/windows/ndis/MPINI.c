@@ -34,474 +34,474 @@ GENERAL DESCRIPTION
 
 NDIS_STATUS MPINI_MiniportInitialize
 (
-   PNDIS_STATUS OpenErrorStatus,
-   PUINT SelectedMediumIndex,
-   PNDIS_MEDIUM MediumArray,
-   UINT MediumArraySize,
-   NDIS_HANDLE MiniportAdapterHandle,
-   NDIS_HANDLE WrapperConfigurationContext
+    PNDIS_STATUS OpenErrorStatus,
+    PUINT SelectedMediumIndex,
+    PNDIS_MEDIUM MediumArray,
+    UINT MediumArraySize,
+    NDIS_HANDLE MiniportAdapterHandle,
+    NDIS_HANDLE WrapperConfigurationContext
 )
 {
-   NDIS_STATUS          Status = NDIS_STATUS_SUCCESS;
-   PMP_ADAPTER          pAdapter=NULL;
-   NDIS_HANDLE          ConfigurationHandle;
-   UINT                 index;
-   INT                  temp;
+    NDIS_STATUS          Status = NDIS_STATUS_SUCCESS;
+    PMP_ADAPTER          pAdapter = NULL;
+    NDIS_HANDLE          ConfigurationHandle;
+    UINT                 index;
+    INT                  temp;
 
-   QCNET_DbgPrintG(("<%s> ---> MPINI_MiniportInitialize\n", gDeviceName));
+    QCNET_DbgPrintG(("<%s> ---> MPINI_MiniportInitialize\n", gDeviceName));
 
-   do
-   {
-      //
-      // Check to see if our media type exists in an array of supported 
-      // media types provided by NDIS.
-      //
-      for ( index = 0; index < MediumArraySize; ++index )
-         {
-         if ( MediumArray[index] == QCMP_MEDIA_TYPE )
+    do
+    {
+        //
+        // Check to see if our media type exists in an array of supported 
+        // media types provided by NDIS.
+        //
+        for (index = 0; index < MediumArraySize; ++index)
+        {
+            if (MediumArray[index] == QCMP_MEDIA_TYPE)
             {
-            break;
+                break;
             }
-         }
+        }
 
-      if ( index == MediumArraySize )
-         {
-         QCNET_DbgPrintG( ("<%s> Expected media is not in MediumArray.\n", gDeviceName) );
-         Status = NDIS_STATUS_UNSUPPORTED_MEDIA;
-         break;
-         }
+        if (index == MediumArraySize)
+        {
+            QCNET_DbgPrintG(("<%s> Expected media is not in MediumArray.\n", gDeviceName));
+            Status = NDIS_STATUS_UNSUPPORTED_MEDIA;
+            break;
+        }
 
-      //
-      // Set the index value as the selected medium for our device.
-      //
-      *SelectedMediumIndex = index;
+        //
+        // Set the index value as the selected medium for our device.
+        //
+        *SelectedMediumIndex = index;
 
-      //
-      // Allocate adapter context structure and initialize all the 
-      // memory resources for sending and receiving packets.
-      //
-      Status =  MPINI_AllocAdapter(&pAdapter);
-      if (Status != NDIS_STATUS_SUCCESS)
-      {
-         break;
-      }
+        //
+        // Allocate adapter context structure and initialize all the 
+        // memory resources for sending and receiving packets.
+        //
+        Status = MPINI_AllocAdapter(&pAdapter);
+        if (Status != NDIS_STATUS_SUCCESS)
+        {
+            break;
+        }
 
-      NdisInterlockedIncrement( &pAdapter->RefCount );  
-      pAdapter->InstanceIdx = NdisInterlockedIncrement(&GlobalData.InstanceIndex);
-      sprintf(pAdapter->PortName, "qnet%04d", pAdapter->InstanceIdx);
+        NdisInterlockedIncrement(&pAdapter->RefCount);
+        pAdapter->InstanceIdx = NdisInterlockedIncrement(&GlobalData.InstanceIndex);
+        sprintf(pAdapter->PortName, "qnet%04d", pAdapter->InstanceIdx);
 
 #ifdef NDIS_WDM
-      KeInitializeEvent(&pAdapter->USBPnpCompletionEvent, NotificationEvent,FALSE);
+        KeInitializeEvent(&pAdapter->USBPnpCompletionEvent, NotificationEvent, FALSE);
 #endif
-      NdisMGetDeviceProperty
-      (
-         MiniportAdapterHandle,
-         &pAdapter->Pdo,
-         &pAdapter->Fdo,
-         &pAdapter->NextDeviceObject,
-         NULL,
-         NULL
-      );
-      pAdapter->AdapterHandle = MiniportAdapterHandle;
+        NdisMGetDeviceProperty
+        (
+            MiniportAdapterHandle,
+            &pAdapter->Pdo,
+            &pAdapter->Fdo,
+            &pAdapter->NextDeviceObject,
+            NULL,
+            NULL
+        );
+        pAdapter->AdapterHandle = MiniportAdapterHandle;
 
-      // QCNET_DbgPrintG( ("<%s> MP: pdo 0x%p fdo 0x%p ndo 0x%p\n", gDeviceName,
-      //             pAdapter->Pdo, pAdapter->Fdo, pAdapter->NextDeviceObject) );
+        // QCNET_DbgPrintG( ("<%s> MP: pdo 0x%p fdo 0x%p ndo 0x%p\n", gDeviceName,
+        //             pAdapter->Pdo, pAdapter->Fdo, pAdapter->NextDeviceObject) );
 
-      // default MAC addresses or custom MAC addresses from registry
-      Status = MPINI_ReadNetworkAddress(pAdapter, WrapperConfigurationContext);
-      if ( Status != NDIS_STATUS_SUCCESS )
-      {
-         break;
-      }
+        // default MAC addresses or custom MAC addresses from registry
+        Status = MPINI_ReadNetworkAddress(pAdapter, WrapperConfigurationContext);
+        if (Status != NDIS_STATUS_SUCCESS)
+        {
+            break;
+        }
 
-      // Read Advanced configuration information from the registry.
-      Status = MPParam_GetConfigValues
-               (
-                  MiniportAdapterHandle, 
-                  WrapperConfigurationContext,
-                  pAdapter
-               );
-      if ( Status != NDIS_STATUS_SUCCESS )
-      {
-         break;
-      }
+        // Read Advanced configuration information from the registry.
+        Status = MPParam_GetConfigValues
+        (
+            MiniportAdapterHandle,
+            WrapperConfigurationContext,
+            pAdapter
+        );
+        if (Status != NDIS_STATUS_SUCCESS)
+        {
+            break;
+        }
 
 #ifndef EVENT_TRACING
-      pAdapter->DebugLevel = (pAdapter->DebugMask & MP_DBG_LEVEL_MASK);
-      pAdapter->DebugMask  = (pAdapter->DebugMask & MP_DBG_MASK_MASK);
+        pAdapter->DebugLevel = (pAdapter->DebugMask & MP_DBG_LEVEL_MASK);
+        pAdapter->DebugMask = (pAdapter->DebugMask & MP_DBG_MASK_MASK);
 #endif
 
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPMaxDataSends: %u\n", pAdapter->PortName, pAdapter->MaxDataSends)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPMaxDataReceives: %u\n", pAdapter->PortName, pAdapter->MaxDataReceives)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPMaxCtrlSends: %u\n", pAdapter->PortName, pAdapter->MaxCtrlSends)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPCtrlSendSize: %u\n", pAdapter->PortName, pAdapter->CtrlSendSize)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPMaxCtrlReceives: %u\n", pAdapter->PortName, pAdapter->MaxCtrlReceives)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPCtrlReceiveSize: %u\n", pAdapter->PortName, pAdapter->CtrlReceiveSize)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPNumClients: %u\n", pAdapter->PortName, pAdapter->NumClients)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPReconfigDelay: %u\n", pAdapter->PortName, pAdapter->ReconfigDelay)
-      );
-      #ifdef QCMP_TEST_MODE
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> MPTestConnectDelay: %u\n", pAdapter->PortName, pAdapter->TestConnectDelay)
-      );
-      #endif // QCMP_TEST_MODE
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPMaxDataSends: %u\n", pAdapter->PortName, pAdapter->MaxDataSends)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPMaxDataReceives: %u\n", pAdapter->PortName, pAdapter->MaxDataReceives)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPMaxCtrlSends: %u\n", pAdapter->PortName, pAdapter->MaxCtrlSends)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPCtrlSendSize: %u\n", pAdapter->PortName, pAdapter->CtrlSendSize)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPMaxCtrlReceives: %u\n", pAdapter->PortName, pAdapter->MaxCtrlReceives)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPCtrlReceiveSize: %u\n", pAdapter->PortName, pAdapter->CtrlReceiveSize)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPNumClients: %u\n", pAdapter->PortName, pAdapter->NumClients)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPReconfigDelay: %u\n", pAdapter->PortName, pAdapter->ReconfigDelay)
+        );
+#ifdef QCMP_TEST_MODE
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPTestConnectDelay: %u\n", pAdapter->PortName, pAdapter->TestConnectDelay)
+        );
+#endif // QCMP_TEST_MODE
 
-      #ifdef QCMP_UL_TLP
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> UplinkTLPSize: %d\n", pAdapter->PortName, pAdapter->UplinkTLPSize)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> MPEnableTLP: %d\n", pAdapter->PortName, pAdapter->MPEnableTLP)
-      );
-      /*****************
-      if (pAdapter->MPEnableTLP == 0)
-      {
-         // quick TX is enabled for TLP
-         pAdapter->TLPEnabled = FALSE;
-         pAdapter->MPQuickTx = 0;
-      }
-      else
-      {
-         pAdapter->TLPEnabled = TRUE;
-         pAdapter->MPQuickTx = 1;  // force quick TX, remove this for reg config to take effect
-      }
-      *********************/
-      #endif // QCMP_UL_TLP
+#ifdef QCMP_UL_TLP
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> UplinkTLPSize: %d\n", pAdapter->PortName, pAdapter->UplinkTLPSize)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableTLP: %d\n", pAdapter->PortName, pAdapter->MPEnableTLP)
+        );
+        /*****************
+        if (pAdapter->MPEnableTLP == 0)
+        {
+           // quick TX is enabled for TLP
+           pAdapter->TLPEnabled = FALSE;
+           pAdapter->MPQuickTx = 0;
+        }
+        else
+        {
+           pAdapter->TLPEnabled = TRUE;
+           pAdapter->MPQuickTx = 1;  // force quick TX, remove this for reg config to take effect
+        }
+        *********************/
+#endif // QCMP_UL_TLP
 
 #ifdef QCMP_DL_TLP
-    QCNET_DbgPrint
-    (
-       MP_DBG_MASK_CONTROL,
-       MP_DBG_LEVEL_DETAIL,
-       ("<%s> MPEnableDLTLP: %d\n", pAdapter->PortName, pAdapter->MPEnableDLTLP)
-    );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableDLTLP: %d\n", pAdapter->PortName, pAdapter->MPEnableDLTLP)
+        );
 #endif // QCMP_DL_TLP
-  
+
 #if defined(QCMP_MBIM_UL_SUPPORT)
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> MPEnableMBIMUL: %d\n", pAdapter->PortName, pAdapter->MPEnableMBIMUL)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableMBIMUL: %d\n", pAdapter->PortName, pAdapter->MPEnableMBIMUL)
+        );
 #endif
 #if defined(QCMP_MBIM_DL_SUPPORT)
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> MPEnableMBIMDL: %d\n", pAdapter->PortName, pAdapter->MPEnableMBIMDL)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableMBIMDL: %d\n", pAdapter->PortName, pAdapter->MPEnableMBIMDL)
+        );
 #endif
 
 #ifdef QCUSB_MUX_PROTOCOL
 #if defined(QCMP_QMAP_V2_SUPPORT)
-            QCNET_DbgPrint
-            (
-               MP_DBG_MASK_CONTROL,
-               MP_DBG_LEVEL_DETAIL,
-               ("<%s> MPEnableQMAPV2: %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV2)
-            );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableQMAPV2: %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV2)
+        );
 
-            QCNET_DbgPrint
-            (
-               MP_DBG_MASK_CONTROL,
-               MP_DBG_LEVEL_DETAIL,
-               ("<%s> MPEnableQMAPV3: %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV3)
-            );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableQMAPV3: %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV3)
+        );
 #endif
 #endif
 
 #if defined(QCMP_QMAP_V1_SUPPORT)
-             QCNET_DbgPrint
-             (
-                 MP_DBG_MASK_CONTROL,
-                 MP_DBG_LEVEL_DETAIL,
-                 ("<%s> MPEnableQMAPV1: %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV1)
-              );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableQMAPV1: %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV1)
+        );
 
-              QCNET_DbgPrint
-              (
-                  MP_DBG_MASK_CONTROL,
-                  MP_DBG_LEVEL_DETAIL,
-                  ("<%s> MPEnableQMAPV4: %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV4)
-              );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableQMAPV4: %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV4)
+        );
 #endif
 
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> ndpSignature: 0x%x\n", pAdapter->PortName, pAdapter->ndpSignature)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> ndpSignature: 0x%x\n", pAdapter->PortName, pAdapter->ndpSignature)
+        );
 
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> MuxId: 0x%x\n", pAdapter->PortName, pAdapter->MuxId)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MuxId: 0x%x\n", pAdapter->PortName, pAdapter->MuxId)
+        );
 
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> QCDriverMTUSize: %d\n", pAdapter->PortName, pAdapter->MTUSize)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> QCDriverMTUSize: %d\n", pAdapter->PortName, pAdapter->MTUSize)
+        );
 
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> QCDriverTransmitTimer: %d\n", pAdapter->PortName, pAdapter->TransmitTimerValue)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> QCDriverTransmitTimer: %d\n", pAdapter->PortName, pAdapter->TransmitTimerValue)
+        );
 
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> MPDisableQoS: %d\n", pAdapter->PortName, pAdapter->MPDisableQoS)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPDisableQoS: %d\n", pAdapter->PortName, pAdapter->MPDisableQoS)
+        );
 
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> MPMaxPendingQMIReqs: %d\n", pAdapter->PortName, pAdapter->MaxPendingQMIReqs)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPMaxPendingQMIReqs: %d\n", pAdapter->PortName, pAdapter->MaxPendingQMIReqs)
+        );
 
 #ifdef QCUSB_MUX_PROTOCOL
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> FakeIMSI : %d and FakeICCID : %d\n", pAdapter->PortName, pAdapter->FakeIMSI, pAdapter->FakeICCID)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> FakeIMSI : %d and FakeICCID : %d\n", pAdapter->PortName, pAdapter->FakeIMSI, pAdapter->FakeICCID)
+        );
 #endif
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> IndClusterSize : %lu\n", pAdapter->PortName, pAdapter->RxIndClusterSize)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> RxStreams : %lu\n", pAdapter->PortName, pAdapter->RxStreams)
-      );
-      // We can't call alloc buffers until after the parse registry because some of
-      // the buffer counts are setup from registry values.
-      Status = MPINI_AllocAdapterBuffers(pAdapter);
-      if ( Status != NDIS_STATUS_SUCCESS )
-      {
-         break;
-      }
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> IndClusterSize : %lu\n", pAdapter->PortName, pAdapter->RxIndClusterSize)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> RxStreams : %lu\n", pAdapter->PortName, pAdapter->RxStreams)
+        );
+        // We can't call alloc buffers until after the parse registry because some of
+        // the buffer counts are setup from registry values.
+        Status = MPINI_AllocAdapterBuffers(pAdapter);
+        if (Status != NDIS_STATUS_SUCCESS)
+        {
+            break;
+        }
 
 #ifndef NDIS60_MINIPORT
-      // Set miniport attributes
-      NdisMSetAttributesEx
-      (
-         MiniportAdapterHandle,
-         (NDIS_HANDLE) pAdapter,
-         4,
+        // Set miniport attributes
+        NdisMSetAttributesEx
+        (
+            MiniportAdapterHandle,
+            (NDIS_HANDLE)pAdapter,
+            4,
 #ifdef NDIS51_MINIPORT            
-         NDIS_ATTRIBUTE_DESERIALIZE |      // NDIS does not maintain a send-packet
-         NDIS_ATTRIBUTE_SURPRISE_REMOVE_OK,
-         NdisInterfaceInternal);
+            NDIS_ATTRIBUTE_DESERIALIZE |      // NDIS does not maintain a send-packet
+            NDIS_ATTRIBUTE_SURPRISE_REMOVE_OK,
+            NdisInterfaceInternal);
 #else
-         NDIS_ATTRIBUTE_DESERIALIZE|
-         NDIS_ATTRIBUTE_USES_SAFE_BUFFER_APIS, 
-         NdisInterfacePci
-      );
+            NDIS_ATTRIBUTE_DESERIALIZE |
+            NDIS_ATTRIBUTE_USES_SAFE_BUFFER_APIS,
+            NdisInterfacePci
+            );
 #endif               
 #endif
-      // 
-      // Get the Adapter Resources & Initialize the hardware.
-      //
-      Status = MPINI_InitializeAdapter(pAdapter, WrapperConfigurationContext);
-      if ( Status != NDIS_STATUS_SUCCESS )
-      {
-         Status = NDIS_STATUS_FAILURE;
-         break;
-      }
-
-      // Set Device Instance
-      Status = MPMAIN_SetDeviceId(pAdapter, TRUE);
-
-      // Get device friendly name
-      Status = MPMAIN_GetDeviceFriendlyName( pAdapter );
-
-   } while ( FALSE );
-
-   if ( Status == NDIS_STATUS_SUCCESS )
-   {
-      // Initialize USB component
-      pAdapter->UsbRemoved = FALSE;
-      pAdapter->USBDo = USBIF_InitializeUSB
-                        (
-                           (PVOID)pAdapter,
-                           gDriverObject,
-                           pAdapter->Pdo,
-                           pAdapter->Fdo,
-                           pAdapter->NextDeviceObject,
-                           WrapperConfigurationContext,
-                           pAdapter->PortName
-                        );
-      if ( pAdapter->USBDo != NULL )
-      {
-         USBIF_AddFdoMap(pAdapter->Fdo, (PVOID)pAdapter);
-         #ifdef QCUSB_MUX_PROTOCOL
-         USBIF_SetDLCI(pAdapter->USBDo);
-         #endif // QCUSB_MUX_PROTOCOL
-
-         //
-         // Attach this Adapter to the global list of adapters managed by
-         // this driver.
-         //
-         MPINI_Attach(pAdapter);
-
-         //
-         // Create an IOCTL interface
-         //
-         MPIOC_RegisterDevice(pAdapter, WrapperConfigurationContext);
-
-         // Indicate initial media ststus
-         QCNET_DbgPrint
-         (
-            MP_DBG_MASK_CONTROL,
-            MP_DBG_LEVEL_INFO,
-            ("<%s> MPINI_MiniportInitialize: Indicate initial Status (DISCONNECT)\n", gDeviceName)
-         );
-
-         MPMAIN_MediaDisconnect(pAdapter, TRUE);
-
-         MPMAIN_StartMPThread(pAdapter);
-
-         // KeClearEvent(&pAdapter->ControlReadPostedEvent);
-
-         MPWork_ScheduleWorkItem( pAdapter );
-
-#ifdef QCMP_DISABLE_QMI
-         if (pAdapter->DisableQMI == 0)
-         {
-#endif
-         KeWaitForSingleObject
-         (
-            &pAdapter->ControlReadPostedEvent,
-            Executive,
-            KernelMode,
-            FALSE,
-            NULL
-         );
-#ifdef QCMP_DISABLE_QMI
-         }
-#endif         
-         KeClearEvent(&pAdapter->ControlReadPostedEvent);
-
-         // In order to receive the response, this is issued only after the
-         // control reads are posted
-
-         MPMAIN_InitializeQMI(pAdapter, 1);
-
-
-         // Init again if the above fails
-         KeSetEvent(&pAdapter->MPThreadInitQmiEvent, IO_NO_INCREMENT, FALSE);
-         // if (FALSE == MPMAIN_InitializeQMI(pAdapter, 1))
-         // {
-         //    MPMAIN_MiniportHalt(pAdapter);
-         //    Status = NDIS_STATUS_FAILURE;
-         // }
-
-         // Not a good idea to call Halt here. Not sure if
-         // at this point the MP is fully initialized yet, so there
-         // is a good chance to get a dead lock by calling Halt
-         // within the Init function.
-         if (Status != NDIS_STATUS_SUCCESS)
-         {
-            MPMAIN_MiniportHalt(pAdapter);
+        // 
+        // Get the Adapter Resources & Initialize the hardware.
+        //
+        Status = MPINI_InitializeAdapter(pAdapter, WrapperConfigurationContext);
+        if (Status != NDIS_STATUS_SUCCESS)
+        {
             Status = NDIS_STATUS_FAILURE;
-         }
-         else
-         {
-            pAdapter->Flags |= fMP_STATE_INITIALIZED;
-         }
-      }
-      else
-      {
-         NdisInterlockedDecrement( &pAdapter->RefCount );
-         if ( pAdapter->RefCount == 0 )
-         {
-            NdisSetEvent( &pAdapter->RemoveEvent );
-         }
-         MPINI_FreeAdapter(pAdapter);
-         Status = NDIS_STATUS_FAILURE;
-      }
-   }
-   else
-   {
-      if ( pAdapter )
-      {
-         NdisInterlockedDecrement( &pAdapter->RefCount );
-         if ( pAdapter->RefCount == 0 )
-         {
-            NdisSetEvent( &pAdapter->RemoveEvent );
-         }
-         MPINI_FreeAdapter(pAdapter);
-      }
-   }
+            break;
+        }
 
-   QCNET_DbgPrintG( ("<%s> <--- MPINI_MiniportInitialize Status = 0x%x\n", gDeviceName, Status) );
+        // Set Device Instance
+        Status = MPMAIN_SetDeviceId(pAdapter, TRUE);
 
-   return Status;
+        // Get device friendly name
+        Status = MPMAIN_GetDeviceFriendlyName(pAdapter);
+
+    } while (FALSE);
+
+    if (Status == NDIS_STATUS_SUCCESS)
+    {
+        // Initialize USB component
+        pAdapter->UsbRemoved = FALSE;
+        pAdapter->USBDo = USBIF_InitializeUSB
+        (
+            (PVOID)pAdapter,
+            gDriverObject,
+            pAdapter->Pdo,
+            pAdapter->Fdo,
+            pAdapter->NextDeviceObject,
+            WrapperConfigurationContext,
+            pAdapter->PortName
+        );
+        if (pAdapter->USBDo != NULL)
+        {
+            USBIF_AddFdoMap(pAdapter->Fdo, (PVOID)pAdapter);
+#ifdef QCUSB_MUX_PROTOCOL
+            USBIF_SetDLCI(pAdapter->USBDo);
+#endif // QCUSB_MUX_PROTOCOL
+
+            //
+            // Attach this Adapter to the global list of adapters managed by
+            // this driver.
+            //
+            MPINI_Attach(pAdapter);
+
+            //
+            // Create an IOCTL interface
+            //
+            MPIOC_RegisterDevice(pAdapter, WrapperConfigurationContext);
+
+            // Indicate initial media ststus
+            QCNET_DbgPrint
+            (
+                MP_DBG_MASK_CONTROL,
+                MP_DBG_LEVEL_INFO,
+                ("<%s> MPINI_MiniportInitialize: Indicate initial Status (DISCONNECT)\n", gDeviceName)
+            );
+
+            MPMAIN_MediaDisconnect(pAdapter, TRUE);
+
+            MPMAIN_StartMPThread(pAdapter);
+
+            // KeClearEvent(&pAdapter->ControlReadPostedEvent);
+
+            MPWork_ScheduleWorkItem(pAdapter);
+
+#ifdef QCMP_DISABLE_QMI
+            if (pAdapter->DisableQMI == 0)
+            {
+#endif
+                KeWaitForSingleObject
+                (
+                    &pAdapter->ControlReadPostedEvent,
+                    Executive,
+                    KernelMode,
+                    FALSE,
+                    NULL
+                );
+#ifdef QCMP_DISABLE_QMI
+            }
+#endif         
+            KeClearEvent(&pAdapter->ControlReadPostedEvent);
+
+            // In order to receive the response, this is issued only after the
+            // control reads are posted
+
+            MPMAIN_InitializeQMI(pAdapter, 1);
+
+
+            // Init again if the above fails
+            KeSetEvent(&pAdapter->MPThreadInitQmiEvent, IO_NO_INCREMENT, FALSE);
+            // if (FALSE == MPMAIN_InitializeQMI(pAdapter, 1))
+            // {
+            //    MPMAIN_MiniportHalt(pAdapter);
+            //    Status = NDIS_STATUS_FAILURE;
+            // }
+
+            // Not a good idea to call Halt here. Not sure if
+            // at this point the MP is fully initialized yet, so there
+            // is a good chance to get a dead lock by calling Halt
+            // within the Init function.
+            if (Status != NDIS_STATUS_SUCCESS)
+            {
+                MPMAIN_MiniportHalt(pAdapter);
+                Status = NDIS_STATUS_FAILURE;
+            }
+            else
+            {
+                pAdapter->Flags |= fMP_STATE_INITIALIZED;
+            }
+        }
+        else
+        {
+            NdisInterlockedDecrement(&pAdapter->RefCount);
+            if (pAdapter->RefCount == 0)
+            {
+                NdisSetEvent(&pAdapter->RemoveEvent);
+            }
+            MPINI_FreeAdapter(pAdapter);
+            Status = NDIS_STATUS_FAILURE;
+        }
+    }
+    else
+    {
+        if (pAdapter)
+        {
+            NdisInterlockedDecrement(&pAdapter->RefCount);
+            if (pAdapter->RefCount == 0)
+            {
+                NdisSetEvent(&pAdapter->RemoveEvent);
+            }
+            MPINI_FreeAdapter(pAdapter);
+        }
+    }
+
+    QCNET_DbgPrintG(("<%s> <--- MPINI_MiniportInitialize Status = 0x%x\n", gDeviceName, Status));
+
+    return Status;
 
 }  // MPINI_MiniportInitialize
 
@@ -509,492 +509,492 @@ NDIS_STATUS MPINI_MiniportInitialize
 
 NDIS_STATUS MPINI_MiniportInitializeEx
 (
-   NDIS_HANDLE                    MiniportAdapterHandle,
-   NDIS_HANDLE                    MiniportDriverContext,
-   PNDIS_MINIPORT_INIT_PARAMETERS MiniportInitParameters
+    NDIS_HANDLE                    MiniportAdapterHandle,
+    NDIS_HANDLE                    MiniportDriverContext,
+    PNDIS_MINIPORT_INIT_PARAMETERS MiniportInitParameters
 )
 {
-   NDIS_STATUS          Status = NDIS_STATUS_SUCCESS;
-   PMP_ADAPTER          pAdapter=NULL;
-   NDIS_HANDLE          ConfigurationHandle;
-   NDIS_MINIPORT_ADAPTER_REGISTRATION_ATTRIBUTES RegistrationAttributes;
-   NDIS_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES      GeneralAttributes;
+    NDIS_STATUS          Status = NDIS_STATUS_SUCCESS;
+    PMP_ADAPTER          pAdapter = NULL;
+    NDIS_HANDLE          ConfigurationHandle;
+    NDIS_MINIPORT_ADAPTER_REGISTRATION_ATTRIBUTES RegistrationAttributes;
+    NDIS_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES      GeneralAttributes;
 
-   QCNET_DbgPrintG(("<%s> ---> MPINI_MiniportInitializeEx\n", gDeviceName));
+    QCNET_DbgPrintG(("<%s> ---> MPINI_MiniportInitializeEx\n", gDeviceName));
 
-   do
-   {
-      Status = MPINI_AllocAdapter(&pAdapter);
-      if ( Status != NDIS_STATUS_SUCCESS )
-      {
-         break;
-      }
+    do
+    {
+        Status = MPINI_AllocAdapter(&pAdapter);
+        if (Status != NDIS_STATUS_SUCCESS)
+        {
+            break;
+        }
 
-      NdisInterlockedIncrement( &pAdapter->RefCount );  
-      pAdapter->InstanceIdx = NdisInterlockedIncrement(&GlobalData.InstanceIndex);
-      sprintf(pAdapter->PortName, "qnet%04d", pAdapter->InstanceIdx);
+        NdisInterlockedIncrement(&pAdapter->RefCount);
+        pAdapter->InstanceIdx = NdisInterlockedIncrement(&GlobalData.InstanceIndex);
+        sprintf(pAdapter->PortName, "qnet%04d", pAdapter->InstanceIdx);
 
 #ifdef NDIS_WDM
-      KeInitializeEvent(&pAdapter->USBPnpCompletionEvent, NotificationEvent,FALSE);
+        KeInitializeEvent(&pAdapter->USBPnpCompletionEvent, NotificationEvent, FALSE);
 #endif
-      NdisMGetDeviceProperty
-      (
-         MiniportAdapterHandle,
-         &pAdapter->Pdo,
-         &pAdapter->Fdo,
-         &pAdapter->NextDeviceObject,
-         NULL,
-         NULL
-      );
-      pAdapter->AdapterHandle = MiniportAdapterHandle;
+        NdisMGetDeviceProperty
+        (
+            MiniportAdapterHandle,
+            &pAdapter->Pdo,
+            &pAdapter->Fdo,
+            &pAdapter->NextDeviceObject,
+            NULL,
+            NULL
+        );
+        pAdapter->AdapterHandle = MiniportAdapterHandle;
 
-      // QCNET_DbgPrintG( ("<%s> MP: pdo 0x%p fdo 0x%p ndo 0x%p\n", gDeviceName,
-      //             pAdapter->Pdo, pAdapter->Fdo, pAdapter->NextDeviceObject) );
+        // QCNET_DbgPrintG( ("<%s> MP: pdo 0x%p fdo 0x%p ndo 0x%p\n", gDeviceName,
+        //             pAdapter->Pdo, pAdapter->Fdo, pAdapter->NextDeviceObject) );
 
-      //
-      // Initialise the MAC address to a default then attempt
-      // to replace the defalut by reading it from the registry
-      //
-      Status = MPINI_ReadNetworkAddress(pAdapter, 0);
-      if (Status != NDIS_STATUS_SUCCESS)
-      {
-         break;
-      }
-      //
-      // Read Advanced configuration information from the registry
-      // After this MPDebugLevel is set so we can start using it to select
-      // debug output
-      //
-      Status = MPParam_GetConfigValues
-               (
-                  MiniportAdapterHandle, 
-                  0, // WrapperConfigurationContext,
-                  pAdapter
-               );
-      if ( Status != NDIS_STATUS_SUCCESS )
-      {
-         break;
-      }
+        //
+        // Initialise the MAC address to a default then attempt
+        // to replace the defalut by reading it from the registry
+        //
+        Status = MPINI_ReadNetworkAddress(pAdapter, 0);
+        if (Status != NDIS_STATUS_SUCCESS)
+        {
+            break;
+        }
+        //
+        // Read Advanced configuration information from the registry
+        // After this MPDebugLevel is set so we can start using it to select
+        // debug output
+        //
+        Status = MPParam_GetConfigValues
+        (
+            MiniportAdapterHandle,
+            0, // WrapperConfigurationContext,
+            pAdapter
+        );
+        if (Status != NDIS_STATUS_SUCCESS)
+        {
+            break;
+        }
 
 #ifdef NDIS620_MINIPORT
-      pAdapter->NetLuid.Value = MiniportInitParameters->NetLuid.Value;
+        pAdapter->NetLuid.Value = MiniportInitParameters->NetLuid.Value;
 #endif
 
 #ifndef EVENT_TRACING
-      pAdapter->DebugLevel = (pAdapter->DebugMask & MP_DBG_LEVEL_MASK);
-      pAdapter->DebugMask  = (pAdapter->DebugMask & MP_DBG_MASK_MASK);
+        pAdapter->DebugLevel = (pAdapter->DebugMask & MP_DBG_LEVEL_MASK);
+        pAdapter->DebugMask = (pAdapter->DebugMask & MP_DBG_MASK_MASK);
 #endif
 
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPMaxDataSends: %u\n", pAdapter->PortName, pAdapter->MaxDataSends)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPMaxDataReceives: %u\n", pAdapter->PortName, pAdapter->MaxDataReceives)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPMaxCtrlSends: %u\n", pAdapter->PortName, pAdapter->MaxCtrlSends)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPCtrlSendSize: %u\n", pAdapter->PortName, pAdapter->CtrlSendSize)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPMaxCtrlReceives: %u\n", pAdapter->PortName, pAdapter->MaxCtrlReceives)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPCtrlReceiveSize: %u\n", pAdapter->PortName, pAdapter->CtrlReceiveSize)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPNumClients: %u\n", pAdapter->PortName, pAdapter->NumClients)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPReconfigDelay: %u\n", pAdapter->PortName, pAdapter->ReconfigDelay)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPMaxDataSends: %u\n", pAdapter->PortName, pAdapter->MaxDataSends)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPMaxDataReceives: %u\n", pAdapter->PortName, pAdapter->MaxDataReceives)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPMaxCtrlSends: %u\n", pAdapter->PortName, pAdapter->MaxCtrlSends)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPCtrlSendSize: %u\n", pAdapter->PortName, pAdapter->CtrlSendSize)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPMaxCtrlReceives: %u\n", pAdapter->PortName, pAdapter->MaxCtrlReceives)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPCtrlReceiveSize: %u\n", pAdapter->PortName, pAdapter->CtrlReceiveSize)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPNumClients: %u\n", pAdapter->PortName, pAdapter->NumClients)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPReconfigDelay: %u\n", pAdapter->PortName, pAdapter->ReconfigDelay)
+        );
 
-      #ifdef NDIS620_MINIPORT
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPNetLuidIndex: %u\n", pAdapter->PortName, pAdapter->NetLuidIndex)
-      );
-      #endif // NDIS620_MINIPORT
+#ifdef NDIS620_MINIPORT
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPNetLuidIndex: %u\n", pAdapter->PortName, pAdapter->NetLuidIndex)
+        );
+#endif // NDIS620_MINIPORT
 
-      #ifdef QCMP_TEST_MODE
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_TRACE,
-         ("<%s> MPTestConnectDelay: %u\n", pAdapter->PortName, pAdapter->TestConnectDelay)
-      );
-      #endif // QCMP_TEST_MODE
-      
-      #ifdef QCMP_UL_TLP
-            QCNET_DbgPrint
-            (
-               MP_DBG_MASK_CONTROL,
-               MP_DBG_LEVEL_DETAIL,
-               ("<%s> UplinkTLPSize: %d\n", pAdapter->PortName, pAdapter->UplinkTLPSize)
-            );
-            QCNET_DbgPrint
-            (
-               MP_DBG_MASK_CONTROL,
-               MP_DBG_LEVEL_DETAIL,
-               ("<%s> MPEnableTLP: %d\n", pAdapter->PortName, pAdapter->MPEnableTLP)
-            );
-      #endif // QCMP_UL_TLP
+#ifdef QCMP_TEST_MODE
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_TRACE,
+            ("<%s> MPTestConnectDelay: %u\n", pAdapter->PortName, pAdapter->TestConnectDelay)
+        );
+#endif // QCMP_TEST_MODE
+
+#ifdef QCMP_UL_TLP
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> UplinkTLPSize: %d\n", pAdapter->PortName, pAdapter->UplinkTLPSize)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableTLP: %d\n", pAdapter->PortName, pAdapter->MPEnableTLP)
+        );
+#endif // QCMP_UL_TLP
 #ifdef QCMP_DL_TLP
-            QCNET_DbgPrint
-            (
-               MP_DBG_MASK_CONTROL,
-               MP_DBG_LEVEL_DETAIL,
-               ("<%s> MPEnableDLTLP: %d\n", pAdapter->PortName, pAdapter->MPEnableDLTLP)
-            );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableDLTLP: %d\n", pAdapter->PortName, pAdapter->MPEnableDLTLP)
+        );
 #endif // QCMP_DL_TLP
-            
+
 #if defined(QCMP_MBIM_UL_SUPPORT)
-            QCNET_DbgPrint
-            (
-               MP_DBG_MASK_CONTROL,
-               MP_DBG_LEVEL_DETAIL,
-               ("<%s> MPEnableMBIMUL: %d\n", pAdapter->PortName, pAdapter->MPEnableMBIMUL)
-            );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableMBIMUL: %d\n", pAdapter->PortName, pAdapter->MPEnableMBIMUL)
+        );
 #endif
 #if defined(QCMP_MBIM_DL_SUPPORT)
-            QCNET_DbgPrint
-            (
-               MP_DBG_MASK_CONTROL,
-               MP_DBG_LEVEL_DETAIL,
-               ("<%s> MPEnableMBIMDL: %d\n", pAdapter->PortName, pAdapter->MPEnableMBIMDL)
-            );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableMBIMDL: %d\n", pAdapter->PortName, pAdapter->MPEnableMBIMDL)
+        );
 #endif
 
 #ifdef QCUSB_MUX_PROTOCOL
 #if defined(QCMP_QMAP_V2_SUPPORT)
-            QCNET_DbgPrint
-            (
-               MP_DBG_MASK_CONTROL,
-               MP_DBG_LEVEL_DETAIL,
-               ("<%s> MPEnableQMAPV2 : %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV2)
-            );
-            QCNET_DbgPrint
-            (
-               MP_DBG_MASK_CONTROL,
-               MP_DBG_LEVEL_DETAIL,
-               ("<%s> MPEnableQMAPV3 : %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV3)
-            );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableQMAPV2 : %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV2)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableQMAPV3 : %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV3)
+        );
 #endif
 #endif
 
 #if defined(QCMP_QMAP_V1_SUPPORT)
-            QCNET_DbgPrint
-            (
-               MP_DBG_MASK_CONTROL,
-               MP_DBG_LEVEL_DETAIL,
-               ("<%s> MPEnableQMAPV1 : %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV1)
-            );
-            QCNET_DbgPrint
-            (
-               MP_DBG_MASK_CONTROL,
-               MP_DBG_LEVEL_DETAIL,
-               ("<%s> MPEnableQMAPV4 : %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV4)
-            );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableQMAPV1 : %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV1)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MPEnableQMAPV4 : %d\n", pAdapter->PortName, pAdapter->MPEnableQMAPV4)
+        );
 #endif
 
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> QCDriverMTUSize: %d\n", pAdapter->PortName, pAdapter->MTUSize)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> QCDriverMTUSize: %d\n", pAdapter->PortName, pAdapter->MTUSize)
+        );
 
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> QCDriverTransmitTimer: %d\n", pAdapter->PortName, pAdapter->TransmitTimerValue)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> QCDriverTransmitTimer: %d\n", pAdapter->PortName, pAdapter->TransmitTimerValue)
+        );
 
 
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> Deregister: %d\n", pAdapter->PortName, pAdapter->Deregister)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> Deregister: %d\n", pAdapter->PortName, pAdapter->Deregister)
+        );
 
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> ndpSignature: 0x%x\n", pAdapter->PortName, pAdapter->ndpSignature)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> ndpSignature: 0x%x\n", pAdapter->PortName, pAdapter->ndpSignature)
+        );
 
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> MuxId: 0x%x\n", pAdapter->PortName, pAdapter->MuxId)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> MuxId: 0x%x\n", pAdapter->PortName, pAdapter->MuxId)
+        );
 
 #ifdef QCUSB_MUX_PROTOCOL
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> FakeIMSI : %d and FakeICCID : %d\n", pAdapter->PortName, pAdapter->FakeIMSI, pAdapter->FakeICCID)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> FakeIMSI : %d and FakeICCID : %d\n", pAdapter->PortName, pAdapter->FakeIMSI, pAdapter->FakeICCID)
+        );
 #endif
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> IndClusterSize : %lu\n", pAdapter->PortName, pAdapter->RxIndClusterSize)
-      );
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_DETAIL,
-         ("<%s> RxStreams : %lu\n", pAdapter->PortName, pAdapter->RxStreams)
-      );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> IndClusterSize : %lu\n", pAdapter->PortName, pAdapter->RxIndClusterSize)
+        );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_DETAIL,
+            ("<%s> RxStreams : %lu\n", pAdapter->PortName, pAdapter->RxStreams)
+        );
 
-      // We can't call alloc buffers until after the parse registry because some of
-      // the buffer counts are setup from registry values.
-      Status = MPINI_AllocAdapterBuffers(pAdapter);
-      if ( Status != NDIS_STATUS_SUCCESS )
-      {
-         break;
-      }
+        // We can't call alloc buffers until after the parse registry because some of
+        // the buffer counts are setup from registry values.
+        Status = MPINI_AllocAdapterBuffers(pAdapter);
+        if (Status != NDIS_STATUS_SUCCESS)
+        {
+            break;
+        }
 
-      NdisZeroMemory
-      (
-         &RegistrationAttributes,
-         sizeof(NDIS_MINIPORT_ADAPTER_REGISTRATION_ATTRIBUTES)
-      );
-      NdisZeroMemory
-      (
-         &GeneralAttributes,
-         sizeof(NDIS_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES)
-      );
+        NdisZeroMemory
+        (
+            &RegistrationAttributes,
+            sizeof(NDIS_MINIPORT_ADAPTER_REGISTRATION_ATTRIBUTES)
+        );
+        NdisZeroMemory
+        (
+            &GeneralAttributes,
+            sizeof(NDIS_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES)
+        );
 
-      // set REGISTRATION_ATTRIBUTES
-      RegistrationAttributes.Header.Type = NDIS_OBJECT_TYPE_MINIPORT_ADAPTER_REGISTRATION_ATTRIBUTES;
-      RegistrationAttributes.Header.Revision = NDIS_MINIPORT_ADAPTER_REGISTRATION_ATTRIBUTES_REVISION_1;
-      RegistrationAttributes.Header.Size = sizeof(NDIS_MINIPORT_ADAPTER_REGISTRATION_ATTRIBUTES);
-      RegistrationAttributes.MiniportAdapterContext = (NDIS_HANDLE)pAdapter;
-      RegistrationAttributes.AttributeFlags = (NDIS_MINIPORT_ATTRIBUTES_NDIS_WDM |
-                                               NDIS_MINIPORT_ATTRIBUTES_NO_HALT_ON_SUSPEND |
-                                               NDIS_MINIPORT_ATTRIBUTES_SURPRISE_REMOVE_OK);
-      RegistrationAttributes.CheckForHangTimeInSeconds = 4;
-      RegistrationAttributes.InterfaceType = NdisInterfacePci;
+        // set REGISTRATION_ATTRIBUTES
+        RegistrationAttributes.Header.Type = NDIS_OBJECT_TYPE_MINIPORT_ADAPTER_REGISTRATION_ATTRIBUTES;
+        RegistrationAttributes.Header.Revision = NDIS_MINIPORT_ADAPTER_REGISTRATION_ATTRIBUTES_REVISION_1;
+        RegistrationAttributes.Header.Size = sizeof(NDIS_MINIPORT_ADAPTER_REGISTRATION_ATTRIBUTES);
+        RegistrationAttributes.MiniportAdapterContext = (NDIS_HANDLE)pAdapter;
+        RegistrationAttributes.AttributeFlags = (NDIS_MINIPORT_ATTRIBUTES_NDIS_WDM |
+                                                 NDIS_MINIPORT_ATTRIBUTES_NO_HALT_ON_SUSPEND |
+                                                 NDIS_MINIPORT_ATTRIBUTES_SURPRISE_REMOVE_OK);
+        RegistrationAttributes.CheckForHangTimeInSeconds = 4;
+        RegistrationAttributes.InterfaceType = NdisInterfacePci;
 
-      Status = NdisMSetMiniportAttributes
-               (
-                  MiniportAdapterHandle,
-                  (PNDIS_MINIPORT_ADAPTER_ATTRIBUTES)&RegistrationAttributes
-               );
+        Status = NdisMSetMiniportAttributes
+        (
+            MiniportAdapterHandle,
+            (PNDIS_MINIPORT_ADAPTER_ATTRIBUTES)&RegistrationAttributes
+        );
 
-      // 
-      // Get the Adapter Resources & Initialize the hardware.
-      //
-      Status = MPINI_InitializeAdapter(pAdapter, 0);
-      if ( Status != NDIS_STATUS_SUCCESS )
-      {
-         Status = NDIS_STATUS_FAILURE;
-         break;
-      }
+        // 
+        // Get the Adapter Resources & Initialize the hardware.
+        //
+        Status = MPINI_InitializeAdapter(pAdapter, 0);
+        if (Status != NDIS_STATUS_SUCCESS)
+        {
+            Status = NDIS_STATUS_FAILURE;
+            break;
+        }
 
-      // Set Device Instance
-      Status = MPMAIN_SetDeviceId(pAdapter, TRUE);
+        // Set Device Instance
+        Status = MPMAIN_SetDeviceId(pAdapter, TRUE);
 
-      // Get device friendly name
-      Status = MPMAIN_GetDeviceFriendlyName( pAdapter );
+        // Get device friendly name
+        Status = MPMAIN_GetDeviceFriendlyName(pAdapter);
 
-   } while ( FALSE );
+    } while (FALSE);
 
-   if ( Status == NDIS_STATUS_SUCCESS )
-   {
-      // Initialize USB component
-      pAdapter->UsbRemoved = FALSE;
-      pAdapter->USBDo = USBIF_InitializeUSB
-                        (
-                           (PVOID)pAdapter,
-                           gDriverObject,
-                           pAdapter->Pdo,
-                           pAdapter->Fdo,
-                           pAdapter->NextDeviceObject,
-                           0, // WrapperConfigurationContext,
-                           pAdapter->PortName
-                        );
-      if ( pAdapter->USBDo != NULL )
-      {
-         USBIF_AddFdoMap(pAdapter->Fdo, (PVOID)pAdapter);
+    if (Status == NDIS_STATUS_SUCCESS)
+    {
+        // Initialize USB component
+        pAdapter->UsbRemoved = FALSE;
+        pAdapter->USBDo = USBIF_InitializeUSB
+        (
+            (PVOID)pAdapter,
+            gDriverObject,
+            pAdapter->Pdo,
+            pAdapter->Fdo,
+            pAdapter->NextDeviceObject,
+            0, // WrapperConfigurationContext,
+            pAdapter->PortName
+        );
+        if (pAdapter->USBDo != NULL)
+        {
+            USBIF_AddFdoMap(pAdapter->Fdo, (PVOID)pAdapter);
 
-         //
-         // Attach this Adapter to the global list of adapters managed by
-         // this driver.
-         //
-         MPINI_Attach(pAdapter);
+            //
+            // Attach this Adapter to the global list of adapters managed by
+            // this driver.
+            //
+            MPINI_Attach(pAdapter);
 
-         //
-         // Create an IOCTL interface
-         //
-         MPIOC_RegisterDevice(pAdapter, 0);
+            //
+            // Create an IOCTL interface
+            //
+            MPIOC_RegisterDevice(pAdapter, 0);
 
-         // Indicate initial media ststus
-         QCNET_DbgPrint
-         (
-             MP_DBG_MASK_CONTROL,
-             MP_DBG_LEVEL_INFO,
-             ("<%s> MPInit: Indicate initial Status (DISCONNECT)\n", gDeviceName)
-         );
-         pAdapter->ulMediaConnectStatus = NdisMediaStateDisconnected;
-#ifdef NDIS620_MINIPORT
-         {
-            NDIS_LINK_STATE LinkState;
-            
-            pAdapter->DeviceContextState = DeviceWWanContextDetached;
-            NdisZeroMemory( &LinkState, sizeof(NDIS_LINK_STATE) );
-            LinkState.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
-            LinkState.Header.Revision  = NDIS_LINK_STATE_REVISION_1;
-            LinkState.Header.Size  = sizeof(NDIS_LINK_STATE);
-            LinkState.MediaConnectState = MediaConnectStateDisconnected;
-            LinkState.MediaDuplexState = MediaDuplexStateUnknown;
-            LinkState.PauseFunctions = NdisPauseFunctionsUnknown;
-            LinkState.XmitLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
-            LinkState.RcvLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
-            MyNdisMIndicateStatus
+            // Indicate initial media ststus
+            QCNET_DbgPrint
             (
-               pAdapter->AdapterHandle,
-               NDIS_STATUS_LINK_STATE,
-               (PVOID)&LinkState,
-               sizeof(NDIS_LINK_STATE)
+                MP_DBG_MASK_CONTROL,
+                MP_DBG_LEVEL_INFO,
+                ("<%s> MPInit: Indicate initial Status (DISCONNECT)\n", gDeviceName)
             );
-         }
+            pAdapter->ulMediaConnectStatus = NdisMediaStateDisconnected;
+#ifdef NDIS620_MINIPORT
+            {
+                NDIS_LINK_STATE LinkState;
+
+                pAdapter->DeviceContextState = DeviceWWanContextDetached;
+                NdisZeroMemory(&LinkState, sizeof(NDIS_LINK_STATE));
+                LinkState.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
+                LinkState.Header.Revision = NDIS_LINK_STATE_REVISION_1;
+                LinkState.Header.Size = sizeof(NDIS_LINK_STATE);
+                LinkState.MediaConnectState = MediaConnectStateDisconnected;
+                LinkState.MediaDuplexState = MediaDuplexStateUnknown;
+                LinkState.PauseFunctions = NdisPauseFunctionsUnknown;
+                LinkState.XmitLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
+                LinkState.RcvLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
+                MyNdisMIndicateStatus
+                (
+                    pAdapter->AdapterHandle,
+                    NDIS_STATUS_LINK_STATE,
+                    (PVOID)&LinkState,
+                    sizeof(NDIS_LINK_STATE)
+                );
+            }
 #else
 
-         MyNdisMIndicateStatus
-         (
-            pAdapter->AdapterHandle,
-            NDIS_STATUS_MEDIA_DISCONNECT,
-            (PVOID)0,
-            0
-         );
+            MyNdisMIndicateStatus
+            (
+                pAdapter->AdapterHandle,
+                NDIS_STATUS_MEDIA_DISCONNECT,
+                (PVOID)0,
+                0
+            );
 #endif
-         MPMAIN_StartMPThread(pAdapter);
+            MPMAIN_StartMPThread(pAdapter);
 
-         KeClearEvent(&pAdapter->ControlReadPostedEvent);
+            KeClearEvent(&pAdapter->ControlReadPostedEvent);
 
-         MPWork_ScheduleWorkItem( pAdapter );
+            MPWork_ScheduleWorkItem(pAdapter);
 
 #ifdef QCMP_DISABLE_QMI
-         if (pAdapter->DisableQMI == 0)
-         {
+            if (pAdapter->DisableQMI == 0)
+            {
 #endif         
-         KeWaitForSingleObject
-         (
-            &pAdapter->ControlReadPostedEvent,
-            Executive,
-            KernelMode,
-            FALSE,
-            NULL
-         );
+                KeWaitForSingleObject
+                (
+                    &pAdapter->ControlReadPostedEvent,
+                    Executive,
+                    KernelMode,
+                    FALSE,
+                    NULL
+                );
 #ifdef QCMP_DISABLE_QMI
-         }
+            }
 #endif         
-         KeClearEvent(&pAdapter->ControlReadPostedEvent);
+            KeClearEvent(&pAdapter->ControlReadPostedEvent);
 
 #ifdef NDIS620_MINIPORT
             if (QCMP_NDIS620_Ok == TRUE)
             {
 #ifdef QC_IP_MODE      
-               pAdapter->NdisMediumType = NdisMediumWirelessWan;
-               QCNET_DbgPrintG(("<%s setting media type to WWAN, IPMode %d\n", gDeviceName, 
+                pAdapter->NdisMediumType = NdisMediumWirelessWan;
+                QCNET_DbgPrintG(("<%s setting media type to WWAN, IPMode %d\n", gDeviceName,
                                 pAdapter->IPModeEnabled));
 #endif //QC_IP_MODE      
-         
+
             }
 #endif
 
-         // In order to receive the response, this is issued only after the
-         // control reads are posted
-         {
-            PDEVICE_EXTENSION pDevExt = (PDEVICE_EXTENSION)pAdapter->USBDo->DeviceExtension;
-            if(pDevExt->MuxInterface.MuxEnabled == 0)
+            // In order to receive the response, this is issued only after the
+            // control reads are posted
             {
-               MPMAIN_InitializeQMI(pAdapter, 1);
+                PDEVICE_EXTENSION pDevExt = (PDEVICE_EXTENSION)pAdapter->USBDo->DeviceExtension;
+                if (pDevExt->MuxInterface.MuxEnabled == 0)
+                {
+                    MPMAIN_InitializeQMI(pAdapter, 1);
+                }
             }
-         }
 
-         // Init again if the above fails
-         KeSetEvent(&pAdapter->MPThreadInitQmiEvent, IO_NO_INCREMENT, FALSE);
-         
-         // Not a good idea to call Halt here. Not sure if
-         // at this point the MP is fully initialized yet, so there
-         // is a good chance to get a dead lock by calling Halt
-         // within the Init function.
-         // if (Status != NDIS_STATUS_SUCCESS)
-         // {
-         //    MPMAIN_MiniportHalt(pAdapter);
-         //    Status = NDIS_STATUS_FAILURE;
-         // }
-         // else
-         {
-            pAdapter->Flags |= fMP_STATE_INITIALIZED;
+            // Init again if the above fails
+            KeSetEvent(&pAdapter->MPThreadInitQmiEvent, IO_NO_INCREMENT, FALSE);
 
-            MPINI_SetNdisAttributes(MiniportAdapterHandle, pAdapter);
-         }
-      }
-      else
-      {
-         NdisInterlockedDecrement( &pAdapter->RefCount );
-         if ( pAdapter->RefCount == 0 )
-         {
-            NdisSetEvent( &pAdapter->RemoveEvent );
-         }
-         MPINI_FreeAdapter(pAdapter);
-         Status = NDIS_STATUS_FAILURE;
-      }
-   }
-   else
-   {
-      if ( pAdapter )
-      {
-         NdisInterlockedDecrement( &pAdapter->RefCount );
-         if ( pAdapter->RefCount == 0 )
-         {
-            NdisSetEvent( &pAdapter->RemoveEvent );
-         }
-         MPINI_FreeAdapter(pAdapter);
-      }
-   }
+            // Not a good idea to call Halt here. Not sure if
+            // at this point the MP is fully initialized yet, so there
+            // is a good chance to get a dead lock by calling Halt
+            // within the Init function.
+            // if (Status != NDIS_STATUS_SUCCESS)
+            // {
+            //    MPMAIN_MiniportHalt(pAdapter);
+            //    Status = NDIS_STATUS_FAILURE;
+            // }
+            // else
+            {
+                pAdapter->Flags |= fMP_STATE_INITIALIZED;
 
-   QCNET_DbgPrintG( ("<%s> <--- MPINI_MiniportInitializeEx Status = 0x%x\n", gDeviceName, Status) );
+                MPINI_SetNdisAttributes(MiniportAdapterHandle, pAdapter);
+            }
+        }
+        else
+        {
+            NdisInterlockedDecrement(&pAdapter->RefCount);
+            if (pAdapter->RefCount == 0)
+            {
+                NdisSetEvent(&pAdapter->RemoveEvent);
+            }
+            MPINI_FreeAdapter(pAdapter);
+            Status = NDIS_STATUS_FAILURE;
+        }
+    }
+    else
+    {
+        if (pAdapter)
+        {
+            NdisInterlockedDecrement(&pAdapter->RefCount);
+            if (pAdapter->RefCount == 0)
+            {
+                NdisSetEvent(&pAdapter->RemoveEvent);
+            }
+            MPINI_FreeAdapter(pAdapter);
+        }
+    }
 
-   return Status;
+    QCNET_DbgPrintG(("<%s> <--- MPINI_MiniportInitializeEx Status = 0x%x\n", gDeviceName, Status));
+
+    return Status;
 
 }  // MPINI_MiniportInitializeEx
 
@@ -1015,13 +1015,13 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
     // Allocate memory for adapter context
     //
     Status = NdisAllocateMemoryWithTag(
-                                      &Adapter, 
-                                      sizeof(MP_ADAPTER), 
-                                      QUALCOMM_TAG);
-    if( Status != NDIS_STATUS_SUCCESS )
+        &Adapter,
+        sizeof(MP_ADAPTER),
+        QUALCOMM_TAG);
+    if (Status != NDIS_STATUS_SUCCESS)
     {
-       QCNET_DbgPrintG(("<%s> Failed to allocate memory for adapter context\n", gDeviceName));
-       goto allocAFail;
+        QCNET_DbgPrintG(("<%s> Failed to allocate memory for adapter context\n", gDeviceName));
+        goto allocAFail;
     }
     //
     // Zero the memory block
@@ -1034,19 +1034,19 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
     nts = IoAcquireRemoveLock(Adapter->pMPRmLock, NULL);
     if (!NT_SUCCESS(nts))
     {
-       QCNET_DbgPrintG(("<%s> MPInit: rml error 0x%x\n", gDeviceName, nts));
-       NdisFreeMemory(Adapter, sizeof(MP_ADAPTER), 0);
-       Status = NDIS_STATUS_FAILURE;
-       Adapter = NULL;
-       goto allocAFail;
+        QCNET_DbgPrintG(("<%s> MPInit: rml error 0x%x\n", gDeviceName, nts));
+        NdisFreeMemory(Adapter, sizeof(MP_ADAPTER), 0);
+        Status = NDIS_STATUS_FAILURE;
+        Adapter = NULL;
+        goto allocAFail;
     }
     else
     {
-       QcStatsIncrement(Adapter, MP_RML_CTL, 100);
+        QcStatsIncrement(Adapter, MP_RML_CTL, 100);
     }
 
     Adapter->DeviceId = MP_DEVICE_ID_NONE;
-    Adapter->QMI_ID   = MP_INVALID_QMI_ID;
+    Adapter->QMI_ID = MP_INVALID_QMI_ID;
 
     Adapter->QMIInitInProgress = 0;
 
@@ -1067,13 +1067,13 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
 #endif // QCUSB_MUX_PROTOCOL
 
 #if defined(QCMP_QMAP_V2_SUPPORT) || defined(QCMP_QMAP_V1_SUPPORT)
-        NdisInitializeListHead(&Adapter->QMAPFlowControlList);
-        Adapter->QMAPFlowControl = FALSE;
+    NdisInitializeListHead(&Adapter->QMAPFlowControlList);
+    Adapter->QMAPFlowControl = FALSE;
 #endif // defined(QCMP_QMAP_V2_SUPPORT) || defined(QCMP_QMAP_V1_SUPPORT)  
 
-    #ifdef NDIS60_MINIPORT
+#ifdef NDIS60_MINIPORT
     NdisInitializeListHead(&Adapter->OidRequestList);
-    #endif // NDIS60_MINIPORT
+#endif // NDIS60_MINIPORT
 
     NdisInitializeListHead(&Adapter->TxPendingList);
     NdisInitializeListHead(&Adapter->TxBusyList);
@@ -1085,26 +1085,26 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
 
     NdisInitializeListHead(&Adapter->RxFreeList);
     NdisInitializeListHead(&Adapter->RxPendingList);
-    NdisAllocateSpinLock(&Adapter->RxLock);  
+    NdisAllocateSpinLock(&Adapter->RxLock);
 
     NdisInitializeListHead(&Adapter->CtrlReadFreeList);
     NdisInitializeListHead(&Adapter->CtrlReadPendingList);
     NdisInitializeListHead(&Adapter->CtrlReadCompleteList);
-    NdisAllocateSpinLock(&Adapter->CtrlReadLock);  
+    NdisAllocateSpinLock(&Adapter->CtrlReadLock);
 
     NdisInitializeListHead(&Adapter->OIDFreeList);
     NdisInitializeListHead(&Adapter->OIDPendingList);
     NdisInitializeListHead(&Adapter->OIDWaitingList);
     NdisInitializeListHead(&Adapter->OIDAsyncList);
-    NdisAllocateSpinLock(&Adapter->OIDLock);  
+    NdisAllocateSpinLock(&Adapter->OIDLock);
 
     NdisInitializeListHead(&Adapter->CtrlWriteList);
     NdisInitializeListHead(&Adapter->CtrlWritePendingList);
-    NdisAllocateSpinLock(&Adapter->CtrlWriteLock);  
+    NdisAllocateSpinLock(&Adapter->CtrlWriteLock);
 
-    #if defined(QCMP_UL_TLP) || defined(QCMP_MBIM_UL_SUPPORT)
+#if defined(QCMP_UL_TLP) || defined(QCMP_MBIM_UL_SUPPORT)
     NdisInitializeListHead(&Adapter->UplinkFreeBufferQueue);
-    
+
     // Initialize the timer DPC for transmit.
     KeInitializeTimer(&Adapter->TransmitTimer);
     KeInitializeDpc(&Adapter->TransmitTimerDPC, TransmitTimerDpc, Adapter);
@@ -1115,63 +1115,63 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
     // Adapter->ndpSignature = 0x50444E51; //QNDP
     // Adapter->ndpSignature = 0x344D434E; //NCM4
     Adapter->ndpSignature = 0x00535049; //IPS0
-        
-    #endif // QCMP_UL_TLP || QCMP_MBIM_UL_SUPPORT
+
+#endif // QCMP_UL_TLP || QCMP_MBIM_UL_SUPPORT
 
     NdisInitializeTimer
     (
-       &Adapter->ResetTimer,
-       (PNDIS_TIMER_FUNCTION)ResetCompleteTimerDpc,
-       (PVOID)Adapter
+        &Adapter->ResetTimer,
+        (PNDIS_TIMER_FUNCTION)ResetCompleteTimerDpc,
+        (PVOID)Adapter
     );
 
     NdisInitializeTimer
     (
-       &Adapter->ReconfigTimer,
-       (PNDIS_TIMER_FUNCTION)ReconfigTimerDpc,
-       (PVOID)Adapter
+        &Adapter->ReconfigTimer,
+        (PNDIS_TIMER_FUNCTION)ReconfigTimerDpc,
+        (PVOID)Adapter
     );
     Adapter->ReconfigTimerState = RECONF_TIMER_IDLE;
 
-   NdisInitializeTimer
-   (
-      &Adapter->ReconfigTimerIPv6,
-      (PNDIS_TIMER_FUNCTION)ReconfigTimerDpcIPv6,
-      (PVOID)Adapter
-   );
-   Adapter->ReconfigTimerStateIPv6 = RECONF_TIMER_IDLE;
+    NdisInitializeTimer
+    (
+        &Adapter->ReconfigTimerIPv6,
+        (PNDIS_TIMER_FUNCTION)ReconfigTimerDpcIPv6,
+        (PVOID)Adapter
+    );
+    Adapter->ReconfigTimerStateIPv6 = RECONF_TIMER_IDLE;
 
 #ifdef NDIS620_MINIPORT
-   NdisInitializeTimer
-   (
-      &Adapter->SignalStateTimer,
-      (PNDIS_TIMER_FUNCTION)SignalStateTimerDpc,
-      (PVOID)Adapter
-   );
+    NdisInitializeTimer
+    (
+        &Adapter->SignalStateTimer,
+        (PNDIS_TIMER_FUNCTION)SignalStateTimerDpc,
+        (PVOID)Adapter
+    );
 
-   NdisInitializeTimer   
-   (
-      &Adapter->MsisdnTimer,
-      (PNDIS_TIMER_FUNCTION)MsisdnTimerDpc,
-      (PVOID)Adapter
-   );
+    NdisInitializeTimer
+    (
+        &Adapter->MsisdnTimer,
+        (PNDIS_TIMER_FUNCTION)MsisdnTimerDpc,
+        (PVOID)Adapter
+    );
 
-   NdisInitializeTimer
-   (
-      &Adapter->RegisterPacketTimer,
-      (PNDIS_TIMER_FUNCTION)RegisterPacketTimerDpc,
-      (PVOID)Adapter
-   );
+    NdisInitializeTimer
+    (
+        &Adapter->RegisterPacketTimer,
+        (PNDIS_TIMER_FUNCTION)RegisterPacketTimerDpc,
+        (PVOID)Adapter
+    );
 
-   NdisInitializeTimer
-      (
-      &Adapter->SignalStateDisconnectTimer,
-      (PNDIS_TIMER_FUNCTION)SignalStateDisconnectTimerDpc,
-      (PVOID)Adapter
-      );
+    NdisInitializeTimer
+    (
+        &Adapter->SignalStateDisconnectTimer,
+        (PNDIS_TIMER_FUNCTION)SignalStateDisconnectTimerDpc,
+        (PVOID)Adapter
+    );
 
-   // Other initialization //Start the register mode with Automatic always
-   Adapter->RegisterMode = DeviceWWanRegisteredAutomatic;
+    // Other initialization //Start the register mode with Automatic always
+    Adapter->RegisterMode = DeviceWWanRegisteredAutomatic;
 
 #endif
 
@@ -1179,23 +1179,23 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
     // NdisInitializeEvent(&Adapter->RemoveEvent);
 
     // Adapter->ClientId = 0;
-    Adapter->NdisMediumType  = QCMP_MEDIA_TYPE;
+    Adapter->NdisMediumType = QCMP_MEDIA_TYPE;
     Adapter->IsQMIOutOfService = FALSE;
-    Adapter->QMIType  = 0;  // useless
+    Adapter->QMIType = 0;  // useless
     Adapter->ulCurrentRxRate = MP_INVALID_LINK_SPEED;
     Adapter->ulCurrentTxRate = MP_INVALID_LINK_SPEED;
     NdisInitializeListHead(&Adapter->QMICTLTransactionList);
-    NdisAllocateSpinLock(&Adapter->QMICTLLock);  
+    NdisAllocateSpinLock(&Adapter->QMICTLLock);
     Adapter->QMICTLTransactionId = 0;
     Adapter->QMUXTransactionId = 0;
     Adapter->DeviceManufacturer = NULL;
-    Adapter->DeviceModelID      = NULL;
-    Adapter->DeviceRevisionID   = NULL;
+    Adapter->DeviceModelID = NULL;
+    Adapter->DeviceRevisionID = NULL;
     Adapter->HardwareRevisionID = NULL;
-    Adapter->DevicePriID        = NULL;
-    Adapter->DeviceMSISDN       = NULL;
-    Adapter->DeviceMIN          = NULL;
-    Adapter->DeviceIMSI         = NULL;
+    Adapter->DevicePriID = NULL;
+    Adapter->DeviceMSISDN = NULL;
+    Adapter->DeviceMIN = NULL;
+    Adapter->DeviceIMSI = NULL;
     Adapter->ulMediaConnectStatus = NdisMediaStateDisconnected;
     Adapter->PreviousDevicePowerState = NdisDeviceStateD0;
 
@@ -1213,14 +1213,14 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
     KeInitializeEvent(&Adapter->QMICTLSyncReceivedEvent, NotificationEvent, FALSE);
     KeInitializeEvent(&Adapter->MainAdapterQmiInitSuccessful, NotificationEvent, FALSE);
     KeInitializeEvent(&Adapter->MainAdapterSetDataFormatSuccessful, NotificationEvent, FALSE);
-    #ifdef QC_IP_MODE
+#ifdef QC_IP_MODE
     Adapter->IsLinkProtocolSupported = FALSE;
-    Adapter->IPModeEnabled           = FALSE;
-    Adapter->IPV4Address             = 0;
-    Adapter->IPV6Address             = 0;
+    Adapter->IPModeEnabled = FALSE;
+    Adapter->IPV4Address = 0;
+    Adapter->IPV6Address = 0;
     KeInitializeEvent(&Adapter->QMIWDSIPAddrReceivedEvent, NotificationEvent, FALSE);
-    #endif // QC_IP_MODE
-    Adapter->WdsEnableUlParams       = FALSE;
+#endif // QC_IP_MODE
+    Adapter->WdsEnableUlParams = FALSE;
 
     Adapter->IsWdsAdminPresent = FALSE;
 
@@ -1240,7 +1240,7 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
     Adapter->MPThreadEvent[MP_DL_RESUME_EVENT_INDEX] = &Adapter->MPThreadDLResumeEvent;
     KeInitializeEvent(&Adapter->MPThreadDLPauseEvent, NotificationEvent, FALSE);
     KeInitializeEvent(&Adapter->MPThreadDLResumeEvent, NotificationEvent, FALSE);
-    #ifdef QC_DUAL_IP_FC
+#ifdef QC_DUAL_IP_FC
     Adapter->MPThreadEvent[MP_PAUSE_V4_EVENT_INDEX] = &Adapter->MPThreadPauseV4Event;
     Adapter->MPThreadEvent[MP_PAUSE_V6_EVENT_INDEX] = &Adapter->MPThreadPauseV6Event;
     Adapter->MPThreadEvent[MP_RESUME_V4_EVENT_INDEX] = &Adapter->MPThreadResumeV4Event;
@@ -1249,7 +1249,7 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
     KeInitializeEvent(&Adapter->MPThreadPauseV6Event, NotificationEvent, FALSE);
     KeInitializeEvent(&Adapter->MPThreadResumeV4Event, NotificationEvent, FALSE);
     KeInitializeEvent(&Adapter->MPThreadResumeV6Event, NotificationEvent, FALSE);
-    #endif // QC_DUAL_IP_FC    
+#endif // QC_DUAL_IP_FC    
 #endif // #ifdef QCUSB_MUX_PROTOCOL
 #if defined(QCMP_QMAP_V2_SUPPORT) || defined(QCMP_QMAP_V1_SUPPORT)
     NdisInitializeListHead(&Adapter->QMAPControlList);
@@ -1262,10 +1262,10 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
 #endif    
 
     KeInitializeEvent(&Adapter->MPThreadInitQmiEvent, NotificationEvent, FALSE);
-    KeInitializeEvent(&Adapter->MPThreadCancelEvent,  NotificationEvent, FALSE);
-    KeInitializeEvent(&Adapter->MPThreadTxTimerEvent,  NotificationEvent, FALSE);
-    KeInitializeEvent(&Adapter->MPThreadTxEvent,  NotificationEvent, FALSE);
-    KeInitializeEvent(&Adapter->MPThreadClosedEvent,  NotificationEvent, FALSE);
+    KeInitializeEvent(&Adapter->MPThreadCancelEvent, NotificationEvent, FALSE);
+    KeInitializeEvent(&Adapter->MPThreadTxTimerEvent, NotificationEvent, FALSE);
+    KeInitializeEvent(&Adapter->MPThreadTxEvent, NotificationEvent, FALSE);
+    KeInitializeEvent(&Adapter->MPThreadClosedEvent, NotificationEvent, FALSE);
     KeInitializeEvent(&Adapter->MPThreadStartedEvent, NotificationEvent, FALSE);
     KeInitializeEvent(&Adapter->MPThreadMediaConnectEvent, NotificationEvent, FALSE);
     KeInitializeEvent(&Adapter->MPThreadMediaConnectEventIPv6, NotificationEvent, FALSE);
@@ -1291,7 +1291,7 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
     KeInitializeEvent(&Adapter->QosDispThreadTxEvent, NotificationEvent, FALSE);
     KeInitializeEvent(&Adapter->QosDispThreadStartedEvent, NotificationEvent, FALSE);
     KeInitializeEvent(&Adapter->QosDispThreadClosedEvent, NotificationEvent, FALSE);
-    
+
     KeInitializeEvent(&Adapter->QmiQosThreadCancelEvent, NotificationEvent, FALSE);
     KeInitializeEvent(&Adapter->QmiQosThreadStartedEvent, NotificationEvent, FALSE);
     KeInitializeEvent(&Adapter->QmiQosThreadClosedEvent, NotificationEvent, FALSE);
@@ -1299,7 +1299,7 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
     NdisInitializeListHead(&Adapter->FilterPrecedenceList);
     for (i = FLOW_SEND_WITH_DATA; i < FLOW_QUEUE_MAX; i++)
     {
-       NdisInitializeListHead(&Adapter->FlowDataQueue[i]);
+        NdisInitializeListHead(&Adapter->FlowDataQueue[i]);
     }
     NdisInitializeListHead(&(Adapter->DefaultQosFlow.FilterList));
     NdisInitializeListHead(&(Adapter->DefaultQosFlow.Packets));
@@ -1318,24 +1318,24 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
     // RX Thread
     if (1)
     {
-       int i;
+        int i;
 
-       for (i = 0; i < RX_THREAD_COUNT; i++)
-       {
-          #ifdef NDIS60_MINIPORT
-          NdisInitializeListHead(&(Adapter->RxNblChain[i]));
-          #endif
-          KeInitializeEvent(&Adapter->RxThreadStartedEvent[i], NotificationEvent, FALSE);
-          KeInitializeEvent(&Adapter->RxThreadClosedEvent[i], NotificationEvent, FALSE);
-          KeInitializeEvent(&Adapter->RxThreadCancelEvent[i], NotificationEvent, FALSE);
-          KeInitializeEvent(&Adapter->RxThreadProcessEvent[i], NotificationEvent, FALSE);
-          Adapter->RxThreadEvent[i][RX_CANCEL_EVENT_INDEX] = &Adapter->RxThreadCancelEvent[i];
-          Adapter->RxThreadEvent[i][RX_PROCESS_EVENT_INDEX] = &Adapter->RxThreadProcessEvent[i];
-          Adapter->RxThreadContext[i].AdapterContext = (PVOID)Adapter;
-          Adapter->RxThreadContext[i].Index = i;
-          NdisAllocateSpinLock(&Adapter->RxIndLock[i]);  
-          NdisAllocateSpinLock(&Adapter->RxProtocolLock[i]);  
-       }
+        for (i = 0; i < RX_THREAD_COUNT; i++)
+        {
+#ifdef NDIS60_MINIPORT
+            NdisInitializeListHead(&(Adapter->RxNblChain[i]));
+#endif
+            KeInitializeEvent(&Adapter->RxThreadStartedEvent[i], NotificationEvent, FALSE);
+            KeInitializeEvent(&Adapter->RxThreadClosedEvent[i], NotificationEvent, FALSE);
+            KeInitializeEvent(&Adapter->RxThreadCancelEvent[i], NotificationEvent, FALSE);
+            KeInitializeEvent(&Adapter->RxThreadProcessEvent[i], NotificationEvent, FALSE);
+            Adapter->RxThreadEvent[i][RX_CANCEL_EVENT_INDEX] = &Adapter->RxThreadCancelEvent[i];
+            Adapter->RxThreadEvent[i][RX_PROCESS_EVENT_INDEX] = &Adapter->RxThreadProcessEvent[i];
+            Adapter->RxThreadContext[i].AdapterContext = (PVOID)Adapter;
+            Adapter->RxThreadContext[i].Index = i;
+            NdisAllocateSpinLock(&Adapter->RxIndLock[i]);
+            NdisAllocateSpinLock(&Adapter->RxProtocolLock[i]);
+        }
     }
 
     // WDS IP thread
@@ -1357,14 +1357,14 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
 
     // Mux Id
     Adapter->MuxId = 0x00;
-    
-    allocAFail:
+
+allocAFail:
     *pAdapter = Adapter;
     QCNET_DbgPrintG(("<%s> <-- MPINI_AllocAdapter\n", gDeviceName));
     return(Status);
 }  // MPINI_AllocAdapter
 
-NDIS_STATUS MPINI_AllocAdapterBuffers( PMP_ADAPTER pAdapter )
+NDIS_STATUS MPINI_AllocAdapterBuffers(PMP_ADAPTER pAdapter)
 {
     PNDIS_PACKET Packet;
     PNDIS_BUFFER Buffer;
@@ -1377,103 +1377,103 @@ NDIS_STATUS MPINI_AllocAdapterBuffers( PMP_ADAPTER pAdapter )
 
     // Allocate packet pool for receives
     //
-    #ifdef NDIS60_MINIPORT
+#ifdef NDIS60_MINIPORT
     Status = MPINI_AllocateReceiveNBL(pAdapter);
     if (Status != NDIS_STATUS_SUCCESS)
     {
-       return Status;
+        return Status;
     }
     goto InitCtrlAndTx;
-    #else // NDIS60_MINIPORT
+#else // NDIS60_MINIPORT
 
     NdisAllocatePacketPool(
-                          &Status,
-                          &pAdapter->RxPacketPoolHandle,
-                          pAdapter->MaxDataReceives,
-                          PROTOCOL_RESERVED_SIZE_IN_PACKET);
+        &Status,
+        &pAdapter->RxPacketPoolHandle,
+        pAdapter->MaxDataReceives,
+        PROTOCOL_RESERVED_SIZE_IN_PACKET);
 
-    if( Status != NDIS_STATUS_SUCCESS )
+    if (Status != NDIS_STATUS_SUCCESS)
     {
-       QCNET_DbgPrint
-       (
-          MP_DBG_MASK_CONTROL,
-          MP_DBG_LEVEL_ERROR,
-          ("<%s> error: NdisAllocatePacketPool failed\n", pAdapter->PortName)
-       );
-       goto allocFail;
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_ERROR,
+            ("<%s> error: NdisAllocatePacketPool failed\n", pAdapter->PortName)
+        );
+        goto allocFail;
     }
 
     NdisAllocateBufferPool(
-                          &Status,
-                          &pAdapter->RxBufferPool,
-                          pAdapter->MaxDataReceives);
-    if( Status != NDIS_STATUS_SUCCESS )
+        &Status,
+        &pAdapter->RxBufferPool,
+        pAdapter->MaxDataReceives);
+    if (Status != NDIS_STATUS_SUCCESS)
     {
-       QCNET_DbgPrint
-       (
-          MP_DBG_MASK_CONTROL,
-          MP_DBG_LEVEL_ERROR,
-          ("<%s> error: NdisAllocateBufferPool for Recv buffer pool failed\n", pAdapter->PortName)
-       );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_ERROR,
+            ("<%s> error: NdisAllocateBufferPool for Recv buffer pool failed\n", pAdapter->PortName)
+        );
         goto allocFail;
     }
 
     //
     // Initialize receive packets
     //
-    for( index=0; index < pAdapter->MaxDataReceives; index++ )
+    for (index = 0; index < pAdapter->MaxDataReceives; index++)
     {
         //
         // Allocate a packet descriptor for receive packets
         // from a preallocated pool.
         //
         NdisAllocatePacket(
-                          &Status,
-                          &Packet,
-                          pAdapter->RxPacketPoolHandle);
-        if( Status != NDIS_STATUS_SUCCESS )
+            &Status,
+            &Packet,
+            pAdapter->RxPacketPoolHandle);
+        if (Status != NDIS_STATUS_SUCCESS)
         {
-           QCNET_DbgPrint
-           (
-              MP_DBG_MASK_CONTROL,
-              MP_DBG_LEVEL_ERROR,
-              ("<%s> error: NdisAllocatePacket failed\n", pAdapter->PortName)
-           );
+            QCNET_DbgPrint
+            (
+                MP_DBG_MASK_CONTROL,
+                MP_DBG_LEVEL_ERROR,
+                ("<%s> error: NdisAllocatePacket failed\n", pAdapter->PortName)
+            );
 
-           goto allocFail;
+            goto allocFail;
         }
         NDIS_SET_PACKET_HEADER_SIZE(Packet, ETH_HEADER_SIZE);
 
         Status = NdisAllocateMemoryWithTag(
-                                          &pAllocMem, 
-                                          MAX_RX_BUFFER_SIZE,
-                                          QUALCOMM_TAG);
+            &pAllocMem,
+            MAX_RX_BUFFER_SIZE,
+            QUALCOMM_TAG);
 
-        if( Status != NDIS_STATUS_SUCCESS )
+        if (Status != NDIS_STATUS_SUCCESS)
         {
-           QCNET_DbgPrint
-           (
-              MP_DBG_MASK_CONTROL,
-              MP_DBG_LEVEL_ERROR,
-              ("<%s> error: Failed to allocate Recv Buffer[%d]\n", pAdapter->PortName, index)
-           );
-           goto allocFail;
+            QCNET_DbgPrint
+            (
+                MP_DBG_MASK_CONTROL,
+                MP_DBG_LEVEL_ERROR,
+                ("<%s> error: Failed to allocate Recv Buffer[%d]\n", pAdapter->PortName, index)
+            );
+            goto allocFail;
         }
         NdisAllocateBuffer(
-                          &Status,
-                          &Buffer,
-                          pAdapter->RxBufferPool,
-                          (PVOID)pAllocMem,
-                          MAX_RX_BUFFER_SIZE );
-        if( Status != NDIS_STATUS_SUCCESS )
+            &Status,
+            &Buffer,
+            pAdapter->RxBufferPool,
+            (PVOID)pAllocMem,
+            MAX_RX_BUFFER_SIZE);
+        if (Status != NDIS_STATUS_SUCCESS)
         {
-           QCNET_DbgPrint
-           (
-              MP_DBG_MASK_CONTROL,
-              MP_DBG_LEVEL_ERROR,
-              ("<%s> error: NdisAllocateBuffer failed\n", pAdapter->PortName)
-           );
-           goto allocFail;
+            QCNET_DbgPrint
+            (
+                MP_DBG_MASK_CONTROL,
+                MP_DBG_LEVEL_ERROR,
+                ("<%s> error: NdisAllocateBuffer failed\n", pAdapter->PortName)
+            );
+            goto allocFail;
         }
         NdisChainBufferAtBack(Packet, Buffer);
 
@@ -1481,117 +1481,117 @@ NDIS_STATUS MPINI_AllocAdapterBuffers( PMP_ADAPTER pAdapter )
         // Insert it into the list of free receive packets.
         //
         NdisInterlockedInsertTailList(
-                                     &pAdapter->RxFreeList, 
-                                     (PLIST_ENTRY)&(Packet->MiniportReserved[0]), 
-                                     &pAdapter->RxLock);
+            &pAdapter->RxFreeList,
+            (PLIST_ENTRY) & (Packet->MiniportReserved[0]),
+            &pAdapter->RxLock);
         NdisInterlockedIncrement(&pAdapter->nRxFreeInMP);
-        }
+    }
 #endif
-    InitCtrlAndTx:
+InitCtrlAndTx:
 
     // Setup the structures to read data from the control channel of the QC SUB
     // (unsolicited indications and responses to query requests)
     Status = NdisAllocateMemoryWithTag(
-                                      &pAllocMem, 
-                                      ((sizeof(MP_OID_READ)+pAdapter->CtrlReceiveSize) * pAdapter->MaxCtrlReceives), 
-                                      QUALCOMM_TAG);
+        &pAllocMem,
+        ((sizeof(MP_OID_READ) + pAdapter->CtrlReceiveSize) * pAdapter->MaxCtrlReceives),
+        QUALCOMM_TAG);
 
-    if( Status != NDIS_STATUS_SUCCESS )
+    if (Status != NDIS_STATUS_SUCCESS)
     {
-       QCNET_DbgPrint
-       (
-          MP_DBG_MASK_CONTROL,
-          MP_DBG_LEVEL_ERROR,
-          ("<%s> error: Failed to allocate memory for CtrlReads\n", pAdapter->PortName)
-       );
-       goto allocFail;
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_ERROR,
+            ("<%s> error: Failed to allocate memory for CtrlReads\n", pAdapter->PortName)
+        );
+        goto allocFail;
     }
     pAdapter->CtrlReadBufMem = pAllocMem;
 
-    for( index = 0; index < pAdapter->MaxCtrlReceives; index++ )
-        {
+    for (index = 0; index < pAdapter->MaxCtrlReceives; index++)
+    {
 
-        pOID = (pAdapter->CtrlReadBufMem + (index * ((sizeof(MP_OID_READ) + pAdapter->CtrlReceiveSize ))) );
+        pOID = (pAdapter->CtrlReadBufMem + (index * ((sizeof(MP_OID_READ) + pAdapter->CtrlReceiveSize))));
         NdisInterlockedInsertTailList(
-                                     &pAdapter->CtrlReadFreeList, 
-                                     &(((PMP_OID_READ)pOID)->List), 
-                                     &pAdapter->CtrlReadLock);
+            &pAdapter->CtrlReadFreeList,
+            &(((PMP_OID_READ)pOID)->List),
+            &pAdapter->CtrlReadLock);
 
-        }
+    }
 
 
     // Setup the structures to write the control channel of the QC USB
     // (Querys)
     Status = NdisAllocateMemoryWithTag(
-                                      &pAllocMem, 
-                                      ((sizeof(MP_OID_WRITE) + pAdapter->CtrlSendSize) * pAdapter->MaxCtrlSends), 
-                                      QUALCOMM_TAG
-                                      );
+        &pAllocMem,
+        ((sizeof(MP_OID_WRITE) + pAdapter->CtrlSendSize) * pAdapter->MaxCtrlSends),
+        QUALCOMM_TAG
+    );
 
-    if( Status != NDIS_STATUS_SUCCESS )
+    if (Status != NDIS_STATUS_SUCCESS)
     {
-       QCNET_DbgPrint
-       (
-          MP_DBG_MASK_CONTROL,
-          MP_DBG_LEVEL_ERROR,
-          ("<%s> error: Failed to allocate memory for OID Writes\n", pAdapter->PortName)
-       );
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_ERROR,
+            ("<%s> error: Failed to allocate memory for OID Writes\n", pAdapter->PortName)
+        );
         goto allocFail;
     }
     NdisZeroMemory
     (
-       pAllocMem,
-       ((sizeof(MP_OID_WRITE) + pAdapter->CtrlSendSize) * pAdapter->MaxCtrlSends)
+        pAllocMem,
+        ((sizeof(MP_OID_WRITE) + pAdapter->CtrlSendSize) * pAdapter->MaxCtrlSends)
     );
-       
+
     pAdapter->OIDBufMem = pAllocMem;
 
-    for( index = 0; index < pAdapter->MaxCtrlSends; index++ )
-        {
+    for (index = 0; index < pAdapter->MaxCtrlSends; index++)
+    {
 
-        pOID = (pAdapter->OIDBufMem + (index * ((sizeof(MP_OID_WRITE) + pAdapter->CtrlSendSize))) );
+        pOID = (pAdapter->OIDBufMem + (index * ((sizeof(MP_OID_WRITE) + pAdapter->CtrlSendSize))));
         NdisInitializeListHead(&((PMP_OID_WRITE)pOID)->QMIQueue);
 
         NdisInterlockedInsertTailList(
-                                     &pAdapter->OIDFreeList, 
-                                     &(((PMP_OID_WRITE)pOID)->List), 
-                                     &pAdapter->OIDLock);
+            &pAdapter->OIDFreeList,
+            &(((PMP_OID_WRITE)pOID)->List),
+            &pAdapter->OIDLock);
 
-        }
+    }
 
-    if( pAdapter->LLHeaderBytes > 0 )
-        {
+    if (pAdapter->LLHeaderBytes > 0)
+    {
         // Setup the structures to write the control channel of the QC USB
         // (Querys)
         Status = NdisAllocateMemoryWithTag(
-                                          &pAllocMem, 
-                                          ((sizeof(LLHeader) + pAdapter->LLHeaderBytes) * pAdapter->MaxDataSends), 
-                                          QUALCOMM_TAG
-                                          );
-        if( Status != NDIS_STATUS_SUCCESS )
+            &pAllocMem,
+            ((sizeof(LLHeader) + pAdapter->LLHeaderBytes) * pAdapter->MaxDataSends),
+            QUALCOMM_TAG
+        );
+        if (Status != NDIS_STATUS_SUCCESS)
         {
-           QCNET_DbgPrint
-           (
-              MP_DBG_MASK_CONTROL,
-              MP_DBG_LEVEL_ERROR,
-              ("<%s> error: Failed to allocate memory for OID Writes 2\n", pAdapter->PortName)
-           );
-           goto allocFail;
+            QCNET_DbgPrint
+            (
+                MP_DBG_MASK_CONTROL,
+                MP_DBG_LEVEL_ERROR,
+                ("<%s> error: Failed to allocate memory for OID Writes 2\n", pAdapter->PortName)
+            );
+            goto allocFail;
         }
         pAdapter->LLHeaderMem = pAllocMem;
 
-        for( index = 0; index < pAdapter->MaxDataSends; index++ )
-            {
-            pHead = (pLLHeader)(pAdapter->LLHeaderMem + (index * ((sizeof(LLHeader) + pAdapter->LLHeaderBytes ))) );
+        for (index = 0; index < pAdapter->MaxDataSends; index++)
+        {
+            pHead = (pLLHeader)(pAdapter->LLHeaderMem + (index * ((sizeof(LLHeader) + pAdapter->LLHeaderBytes))));
             NdisInterlockedInsertTailList(
-                                         &pAdapter->LHFreeList, 
-                                         &pHead->List, 
-                                         &pAdapter->TxLock);
+                &pAdapter->LHFreeList,
+                &pHead->List,
+                &pAdapter->TxLock);
 
-            }
         }
+    }
 
-    allocFail:
+allocFail:
     return Status;
 }  // MPINI_AllocAdapterBuffers
 
@@ -1611,15 +1611,15 @@ VOID MPINI_FreeAdapter(PMP_ADAPTER pAdapter)
 
     if (pAdapter == NULL)
     {
-       QCNET_DbgPrintG(("<%s> MPINI_FreeAdapter: NULL adapter\n", gDeviceName));
-       return;
+        QCNET_DbgPrintG(("<%s> MPINI_FreeAdapter: NULL adapter\n", gDeviceName));
+        return;
     }
 
     QCNET_DbgPrint
     (
-       MP_DBG_MASK_CONTROL,
-       MP_DBG_LEVEL_TRACE,
-       ("<%s> --> MPINI_FreeAdapter\n", pAdapter->PortName)
+        MP_DBG_MASK_CONTROL,
+        MP_DBG_LEVEL_TRACE,
+        ("<%s> --> MPINI_FreeAdapter\n", pAdapter->PortName)
     );
 
     MPMAIN_SetDeviceId(pAdapter, FALSE);
@@ -1627,122 +1627,122 @@ VOID MPINI_FreeAdapter(PMP_ADAPTER pAdapter)
     NdisFreeSpinLock(&pAdapter->TxLock);
 
     // free RX buffers
-    #ifdef NDIS60_MINIPORT
+#ifdef NDIS60_MINIPORT
     if (QCMP_NDIS6_Ok == TRUE)
     {
-       while (!IsListEmpty(&pAdapter->RxFreeList))
-       {
-          pEntry = (PLIST_ENTRY)NdisInterlockedRemoveHeadList
-                                (
-                                   &pAdapter->RxFreeList, 
-                                   &pAdapter->RxLock
-                                ); 
-          InterlockedDecrement(&pAdapter->nRxFreeInMP);
-       }
+        while (!IsListEmpty(&pAdapter->RxFreeList))
+        {
+            pEntry = (PLIST_ENTRY)NdisInterlockedRemoveHeadList
+            (
+                &pAdapter->RxFreeList,
+                &pAdapter->RxLock
+            );
+            InterlockedDecrement(&pAdapter->nRxFreeInMP);
+        }
 
-       MPINI_FreeReceiveNBL(pAdapter);
+        MPINI_FreeReceiveNBL(pAdapter);
     }
-    #else // NDIS60_MINIPORT
+#else // NDIS60_MINIPORT
     {
-       while( !IsListEmpty(&pAdapter->RxFreeList) )
-       {
-           pEntry = (PLIST_ENTRY) NdisInterlockedRemoveHeadList
-                                  (
-                                     &pAdapter->RxFreeList, 
-                                     &pAdapter->RxLock
-                                  );
-           InterlockedDecrement(&pAdapter->nRxFreeInMP);
+        while (!IsListEmpty(&pAdapter->RxFreeList))
+        {
+            pEntry = (PLIST_ENTRY)NdisInterlockedRemoveHeadList
+            (
+                &pAdapter->RxFreeList,
+                &pAdapter->RxLock
+            );
+            InterlockedDecrement(&pAdapter->nRxFreeInMP);
 
-           if ( pEntry )
-           {
-               pPacket = CONTAINING_RECORD(pEntry, NDIS_PACKET, MiniportReserved);
-   
-               NdisQueryPacket
-               (
-                  pPacket, 
-                  NULL, 
-                  &dwTotalNdisBuffer, 
-                  &pCurrentNdisBuffer, 
-                  &dwTotalPacketLength
-               );
+            if (pEntry)
+            {
+                pPacket = CONTAINING_RECORD(pEntry, NDIS_PACKET, MiniportReserved);
 
-               do
-               {
-                   pPreviousNdisBuffer = pCurrentNdisBuffer;
-                   NdisGetNextBuffer (pPreviousNdisBuffer, &pCurrentNdisBuffer);
-   
-                   NdisQueryBufferSafe
-                   (
-                      pPreviousNdisBuffer, 
-                      &pCurrentBuffer, 
-                      &dwCurrentBufferLength,
-                      NormalPagePriority
-                   );
+                NdisQueryPacket
+                (
+                    pPacket,
+                    NULL,
+                    &dwTotalNdisBuffer,
+                    &pCurrentNdisBuffer,
+                    &dwTotalPacketLength
+                );
 
-                   if( pCurrentBuffer != NULL )
-                   {
-                       NdisFreeMemory(pCurrentBuffer, dwCurrentBufferLength, 0);
-                   }
-                   NdisFreeBuffer( pPreviousNdisBuffer );
+                do
+                {
+                    pPreviousNdisBuffer = pCurrentNdisBuffer;
+                    NdisGetNextBuffer(pPreviousNdisBuffer, &pCurrentNdisBuffer);
 
-               } while( --dwTotalNdisBuffer && (pCurrentNdisBuffer != NULL) );
+                    NdisQueryBufferSafe
+                    (
+                        pPreviousNdisBuffer,
+                        &pCurrentBuffer,
+                        &dwCurrentBufferLength,
+                        NormalPagePriority
+                    );
 
-               NdisFreePacket(pPacket);
-           }  // if
-       }  // while
+                    if (pCurrentBuffer != NULL)
+                    {
+                        NdisFreeMemory(pCurrentBuffer, dwCurrentBufferLength, 0);
+                    }
+                    NdisFreeBuffer(pPreviousNdisBuffer);
 
-       if( pAdapter->RxBufferPool )
-       {
-           NdisFreeBufferPool( pAdapter->RxBufferPool );
-           pAdapter->RxBufferPool = NULL;
-       }
+                } while (--dwTotalNdisBuffer && (pCurrentNdisBuffer != NULL));
 
-       if( pAdapter->RxPacketPoolHandle )
-       {
-           NdisFreePacketPool( pAdapter->RxPacketPoolHandle );
-           pAdapter->RxPacketPoolHandle = NULL;
-       }
+                NdisFreePacket(pPacket);
+            }  // if
+        }  // while
+
+        if (pAdapter->RxBufferPool)
+        {
+            NdisFreeBufferPool(pAdapter->RxBufferPool);
+            pAdapter->RxBufferPool = NULL;
+        }
+
+        if (pAdapter->RxPacketPoolHandle)
+        {
+            NdisFreePacketPool(pAdapter->RxPacketPoolHandle);
+            pAdapter->RxPacketPoolHandle = NULL;
+        }
 
     }
-    #endif
-    ASSERT(IsListEmpty(&pAdapter->RxFreeList));                  
-    NdisFreeSpinLock( &pAdapter->RxLock );
+#endif
+    ASSERT(IsListEmpty(&pAdapter->RxFreeList));
+    NdisFreeSpinLock(&pAdapter->RxLock);
     if (1)
     {
-       INT i;
+        INT i;
 
-       for (i = 0; i < RX_THREAD_COUNT; i++)
-       {
-          NdisFreeSpinLock(&pAdapter->RxIndLock[i]);
-          NdisFreeSpinLock(&pAdapter->RxProtocolLock[i]);
-       }
+        for (i = 0; i < RX_THREAD_COUNT; i++)
+        {
+            NdisFreeSpinLock(&pAdapter->RxIndLock[i]);
+            NdisFreeSpinLock(&pAdapter->RxProtocolLock[i]);
+        }
     }
 
     // Free the memory alloced for the control reads
-    if( pAdapter->CtrlReadBufMem )
+    if (pAdapter->CtrlReadBufMem)
     {
-        NdisFreeMemory( pAdapter->CtrlReadBufMem,
-                        ((sizeof(MP_OID_READ)+pAdapter->CtrlReceiveSize) * pAdapter->MaxCtrlReceives),
-                        0 );
+        NdisFreeMemory(pAdapter->CtrlReadBufMem,
+                       ((sizeof(MP_OID_READ) + pAdapter->CtrlReceiveSize) * pAdapter->MaxCtrlReceives),
+                       0);
         pAdapter->CtrlReadBufMem = NULL;
     }
-    NdisFreeSpinLock( &pAdapter->CtrlReadLock );
+    NdisFreeSpinLock(&pAdapter->CtrlReadLock);
 
     // Free the memory alloced for the OIDs
-    if( pAdapter->OIDBufMem )
+    if (pAdapter->OIDBufMem)
     {
-        NdisFreeMemory( pAdapter->OIDBufMem,
-                        ((sizeof(MP_OID_WRITE) + pAdapter->CtrlSendSize) * pAdapter->MaxCtrlSends),
-                        0 );
+        NdisFreeMemory(pAdapter->OIDBufMem,
+                       ((sizeof(MP_OID_WRITE) + pAdapter->CtrlSendSize) * pAdapter->MaxCtrlSends),
+                       0);
         pAdapter->OIDBufMem = NULL;
     }
-    NdisFreeSpinLock( &pAdapter->OIDLock );
+    NdisFreeSpinLock(&pAdapter->OIDLock);
 
     //Free write lock
-    NdisFreeSpinLock( &pAdapter->CtrlWriteLock );
+    NdisFreeSpinLock(&pAdapter->CtrlWriteLock);
 
     // Lastly, release the USB DO
-    #ifdef NDIS_WDM
+#ifdef NDIS_WDM
     MPMAIN_PnpEventWithRemoval(pAdapter, NdisDevicePnPEventQueryRemoved, TRUE);
     NdisAcquireSpinLock(MP_CtlLock);
     pAdapter->UsbRemoved = TRUE;
@@ -1757,40 +1757,40 @@ VOID MPINI_FreeAdapter(PMP_ADAPTER pAdapter)
     NdisReleaseSpinLock(MP_CtlLock);
 
     NdisFreeSpinLock(&pAdapter->UsbLock);
-    #endif
+#endif
 
     // Free the memory allocated for the device ID
     if (pAdapter->DeviceManufacturer != NULL)
     {
-       ExFreePool(pAdapter->DeviceManufacturer);
+        ExFreePool(pAdapter->DeviceManufacturer);
     }
     if (pAdapter->DeviceModelID != NULL)
     {
-       ExFreePool(pAdapter->DeviceModelID);
+        ExFreePool(pAdapter->DeviceModelID);
     }
     if (pAdapter->DeviceRevisionID != NULL)
     {
-       ExFreePool(pAdapter->DeviceRevisionID);
+        ExFreePool(pAdapter->DeviceRevisionID);
     }
     if (pAdapter->HardwareRevisionID != NULL)
     {
-       ExFreePool(pAdapter->HardwareRevisionID);
+        ExFreePool(pAdapter->HardwareRevisionID);
     }
     if (pAdapter->DevicePriID != NULL)
     {
-       ExFreePool(pAdapter->DevicePriID);
+        ExFreePool(pAdapter->DevicePriID);
     }
     if (pAdapter->DeviceMSISDN != NULL)
     {
-       ExFreePool(pAdapter->DeviceMSISDN);
+        ExFreePool(pAdapter->DeviceMSISDN);
     }
     if (pAdapter->DeviceMIN != NULL)
     {
-       ExFreePool(pAdapter->DeviceMIN);
+        ExFreePool(pAdapter->DeviceMIN);
     }
     if (pAdapter->DeviceIMSI != NULL)
     {
-       ExFreePool(pAdapter->DeviceIMSI);
+        ExFreePool(pAdapter->DeviceIMSI);
     }
 
     // MPQCTL_CleanupQMICTLTransactionList(pAdapter);
@@ -1798,35 +1798,35 @@ VOID MPINI_FreeAdapter(PMP_ADAPTER pAdapter)
 
     if (pAdapter->InterfaceGUID.Buffer != NULL)
     {
-       RtlFreeUnicodeString(&pAdapter->InterfaceGUID);
-       pAdapter->InterfaceGUID.Buffer = NULL;
+        RtlFreeUnicodeString(&pAdapter->InterfaceGUID);
+        pAdapter->InterfaceGUID.Buffer = NULL;
     }
     if (pAdapter->DnsRegPathV4.Buffer != NULL)
     {
-       RtlFreeUnicodeString(&pAdapter->DnsRegPathV4);
-       pAdapter->DnsRegPathV4.Buffer = NULL;
+        RtlFreeUnicodeString(&pAdapter->DnsRegPathV4);
+        pAdapter->DnsRegPathV4.Buffer = NULL;
     }
     if (pAdapter->DnsRegPathV6.Buffer != NULL)
     {
-       RtlFreeUnicodeString(&pAdapter->DnsRegPathV6);
-       pAdapter->DnsRegPathV6.Buffer = NULL;
+        RtlFreeUnicodeString(&pAdapter->DnsRegPathV6);
+        pAdapter->DnsRegPathV6.Buffer = NULL;
     }
     if (pAdapter->NetCfgInstanceId.Buffer != NULL)
     {
-       RtlFreeAnsiString(&pAdapter->NetCfgInstanceId);
+        RtlFreeAnsiString(&pAdapter->NetCfgInstanceId);
     }
 
     if (pAdapter->ICCID != NULL)
     {
-       ExFreePool(pAdapter->ICCID);
+        ExFreePool(pAdapter->ICCID);
     }
 
 #ifdef NDIS620_MINIPORT
 
     if (pAdapter->RegModelId.Buffer != NULL)
     {
-       RtlFreeUnicodeString(&pAdapter->RegModelId);
-       pAdapter->RegModelId.Buffer = NULL;
+        RtlFreeUnicodeString(&pAdapter->RegModelId);
+        pAdapter->RegModelId.Buffer = NULL;
     }
 
 #endif
@@ -1834,23 +1834,23 @@ VOID MPINI_FreeAdapter(PMP_ADAPTER pAdapter)
     // Statistics summary
     QCNET_DbgPrint
     (
-       MP_DBG_MASK_CONTROL,
-       MP_DBG_LEVEL_FORCE,
-       ("<%s> MPINI_FreeAdapter: ST [%d, %d, %d, %d, %d, %d, %d, %d]\n", pAdapter->PortName,
-         pAdapter->Stats[MP_RML_CTL], pAdapter->Stats[MP_RML_RD], pAdapter->Stats[MP_RML_WT],
-         pAdapter->Stats[MP_RML_TH], pAdapter->Stats[MP_CNT_TIMER], pAdapter->Stats[MP_MEM_CTL],
-         pAdapter->Stats[MP_MEM_RD],    pAdapter->Stats[MP_MEM_WT])
+        MP_DBG_MASK_CONTROL,
+        MP_DBG_LEVEL_FORCE,
+        ("<%s> MPINI_FreeAdapter: ST [%d, %d, %d, %d, %d, %d, %d, %d]\n", pAdapter->PortName,
+        pAdapter->Stats[MP_RML_CTL], pAdapter->Stats[MP_RML_RD], pAdapter->Stats[MP_RML_WT],
+        pAdapter->Stats[MP_RML_TH], pAdapter->Stats[MP_CNT_TIMER], pAdapter->Stats[MP_MEM_CTL],
+        pAdapter->Stats[MP_MEM_RD], pAdapter->Stats[MP_MEM_WT])
     );
 
     if (pAdapter->pMPRmLock != NULL)
     {
-       IoReleaseRemoveLockAndWait(pAdapter->pMPRmLock, NULL);
+        IoReleaseRemoveLockAndWait(pAdapter->pMPRmLock, NULL);
     }
 
     //
     // Finally free the memory for pAdapter context.
     //
-    NdisFreeMemory(pAdapter, sizeof(MP_ADAPTER), 0);  
+    NdisFreeMemory(pAdapter, sizeof(MP_ADAPTER), 0);
 
     QCNET_DbgPrintG(("<%s> <-- MPINI_FreeAdapter\n", gDeviceName));
 }  // MPINI_FreeAdapter
@@ -1859,21 +1859,21 @@ VOID MPINI_Attach(PMP_ADAPTER pAdapter)
 {
     QCNET_DbgPrint
     (
-       MP_DBG_MASK_CONTROL,
-       MP_DBG_LEVEL_TRACE,
-       ("<%s> --> MPINI_Attach\n", pAdapter->PortName)
+        MP_DBG_MASK_CONTROL,
+        MP_DBG_LEVEL_TRACE,
+        ("<%s> --> MPINI_Attach\n", pAdapter->PortName)
     );
 
     NdisInterlockedInsertTailList(
-                                 &GlobalData.AdapterList, 
-                                 &pAdapter->List, 
-                                 &GlobalData.Lock);
+        &GlobalData.AdapterList,
+        &pAdapter->List,
+        &GlobalData.Lock);
 
     QCNET_DbgPrint
     (
-       MP_DBG_MASK_CONTROL,
-       MP_DBG_LEVEL_TRACE,
-       ("<%s> <-- MPINI_Attach\n", pAdapter->PortName)
+        MP_DBG_MASK_CONTROL,
+        MP_DBG_LEVEL_TRACE,
+        ("<%s> <-- MPINI_Attach\n", pAdapter->PortName)
     );
 }  // MPINI_Attach
 
@@ -1881,9 +1881,9 @@ VOID MPINI_Detach(PMP_ADAPTER pAdapter)
 {
     QCNET_DbgPrint
     (
-       MP_DBG_MASK_CONTROL,
-       MP_DBG_LEVEL_TRACE,
-       ("<%s> --> MPINI_Detach\n", pAdapter->PortName)
+        MP_DBG_MASK_CONTROL,
+        MP_DBG_LEVEL_TRACE,
+        ("<%s> --> MPINI_Detach\n", pAdapter->PortName)
     );
 
     NdisAcquireSpinLock(&GlobalData.Lock);
@@ -1892,9 +1892,9 @@ VOID MPINI_Detach(PMP_ADAPTER pAdapter)
 
     QCNET_DbgPrint
     (
-       MP_DBG_MASK_CONTROL,
-       MP_DBG_LEVEL_TRACE,
-       ("<%s> <-- MPINI_Detach\n", pAdapter->PortName)
+        MP_DBG_MASK_CONTROL,
+        MP_DBG_LEVEL_TRACE,
+        ("<%s> <-- MPINI_Detach\n", pAdapter->PortName)
     );
 }  // MPINI_Detach
 
@@ -1910,7 +1910,7 @@ NDIS_STATUS MPINI_ReadNetworkAddress
     UINT            Length = 0;
     PUCHAR          pAddr;
 
-    #ifdef NDIS60_MINIPORT
+#ifdef NDIS60_MINIPORT
 
     NDIS_CONFIGURATION_OBJECT ConfigObject;
 
@@ -1920,7 +1920,7 @@ NDIS_STATUS MPINI_ReadNetworkAddress
     ConfigObject.NdisHandle = pAdapter->AdapterHandle;
     ConfigObject.Flags = 0;
 
-    #endif // NDIS60_MINIPORT
+#endif // NDIS60_MINIPORT
 
     QCNET_DbgPrint(MP_DBG_MASK_CONTROL,
                    MP_DBG_LEVEL_TRACE,
@@ -1928,25 +1928,25 @@ NDIS_STATUS MPINI_ReadNetworkAddress
 
     pAdapter->NetworkAddressReadOk = FALSE;
 
-    #ifdef NDIS60_MINIPORT
+#ifdef NDIS60_MINIPORT
     if (QCMP_NDIS6_Ok == TRUE)
     {
-       Status = NdisOpenConfigurationEx
-                (
-                   &ConfigObject,
-                   &ConfigurationHandle
-                );
+        Status = NdisOpenConfigurationEx
+        (
+            &ConfigObject,
+            &ConfigurationHandle
+        );
     }
-    #else
+#else
     NdisOpenConfiguration
     (
-       &Status,
-       &ConfigurationHandle,
-       WrapperConfigurationContext
+        &Status,
+        &ConfigurationHandle,
+        WrapperConfigurationContext
     );
-    #endif // NDIS60_MINIPORT
+#endif // NDIS60_MINIPORT
 
-    if( Status != NDIS_STATUS_SUCCESS )
+    if (Status != NDIS_STATUS_SUCCESS)
     {
         QCNET_DbgPrint(MP_DBG_MASK_CONTROL,
                        MP_DBG_LEVEL_ERROR,
@@ -1955,27 +1955,27 @@ NDIS_STATUS MPINI_ReadNetworkAddress
     }
 
     pAdapter->PermanentAddress[0] = QUALCOMM_MAC_0;
-    pAdapter->PermanentAddress[1] = QUALCOMM_MAC_1;   
-    pAdapter->PermanentAddress[2] = QUALCOMM_MAC_2;   
+    pAdapter->PermanentAddress[1] = QUALCOMM_MAC_1;
+    pAdapter->PermanentAddress[2] = QUALCOMM_MAC_2;
     pAdapter->PermanentAddress[3] = QUALCOMM_MAC_3_HOST_BYTE;
     pAdapter->PermanentAddress[4] = 0x00;
-    pAdapter->PermanentAddress[5] = (UCHAR) GlobalData.MACAddressByte;
+    pAdapter->PermanentAddress[5] = (UCHAR)GlobalData.MACAddressByte;
 
-    NdisInterlockedIncrement( &GlobalData.MACAddressByte );
+    NdisInterlockedIncrement(&GlobalData.MACAddressByte);
 
-    
+
     /* do not read MAC address since it is crashing  in some particular cases on Win 7 */
 #ifdef NDIS51_MINIPORT 
     NdisReadNetworkAddress(
-                          &Status,
-                          &NetworkAddress,
-                          &Length,
-                          ConfigurationHandle);
+        &Status,
+        &NetworkAddress,
+        &Length,
+        ConfigurationHandle);
 #else
     Status = NDIS_STATUS_FAILURE;
 #endif
 
-    if( (Status == NDIS_STATUS_SUCCESS) && (Length == ETH_LENGTH_OF_ADDRESS) )
+    if ((Status == NDIS_STATUS_SUCCESS) && (Length == ETH_LENGTH_OF_ADDRESS))
     {
         pAdapter->NetworkAddressReadOk = TRUE;
         ETH_COPY_NETWORK_ADDRESS(pAdapter->CurrentAddress, NetworkAddress);
@@ -1988,7 +1988,7 @@ NDIS_STATUS MPINI_ReadNetworkAddress
 
     QCNET_DbgPrint(MP_DBG_MASK_CONTROL,
                    MP_DBG_LEVEL_INFO,
-                   ("<%s> Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n", 
+                   ("<%s> Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
                    gDeviceName,
                    pAdapter->PermanentAddress[0],
                    pAdapter->PermanentAddress[1],
@@ -1999,7 +1999,7 @@ NDIS_STATUS MPINI_ReadNetworkAddress
 
     QCNET_DbgPrint(MP_DBG_MASK_CONTROL,
                    MP_DBG_LEVEL_INFO,
-                   ("<%s> Current Address = %02x-%02x-%02x-%02x-%02x-%02x\n", 
+                   ("<%s> Current Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
                    gDeviceName,
                    pAdapter->CurrentAddress[0],
                    pAdapter->CurrentAddress[1],
@@ -2021,428 +2021,428 @@ NDIS_STATUS MPINI_ReadNetworkAddress
 
 NDIS_STATUS MPINI_InitializeAdapter
 (
-   PMP_ADAPTER pAdapter,
-   NDIS_HANDLE WrapperConfigurationContext
+    PMP_ADAPTER pAdapter,
+    NDIS_HANDLE WrapperConfigurationContext
 )
 {
 
 
-   NDIS_STATUS Status = NDIS_STATUS_ADAPTER_NOT_FOUND;      
+    NDIS_STATUS Status = NDIS_STATUS_ADAPTER_NOT_FOUND;
 
-   QCNET_DbgPrint
-   (
-      MP_DBG_MASK_CONTROL,
-      MP_DBG_LEVEL_TRACE,
-      ("<%s> --> MPINI_InitializeAdapter\n", pAdapter->PortName)
-   );
+    QCNET_DbgPrint
+    (
+        MP_DBG_MASK_CONTROL,
+        MP_DBG_LEVEL_TRACE,
+        ("<%s> --> MPINI_InitializeAdapter\n", pAdapter->PortName)
+    );
 
-   Status = NDIS_STATUS_SUCCESS;
+    Status = NDIS_STATUS_SUCCESS;
 
-   #ifdef NDIS50_MINIPORT
-   NdisMRegisterAdapterShutdownHandler
-   (
-      pAdapter->AdapterHandle,
-      (PVOID)pAdapter,
-      (ADAPTER_SHUTDOWN_HANDLER)MPMAIN_MiniportShutdown
-   );
-   #endif         
+#ifdef NDIS50_MINIPORT
+    NdisMRegisterAdapterShutdownHandler
+    (
+        pAdapter->AdapterHandle,
+        (PVOID)pAdapter,
+        (ADAPTER_SHUTDOWN_HANDLER)MPMAIN_MiniportShutdown
+    );
+#endif         
 
-   QCNET_DbgPrint
-   (
-      MP_DBG_MASK_CONTROL,
-      MP_DBG_LEVEL_TRACE,
-      ("<%s> <-- MPINI_InitializeAdapter, Status=%x\n", pAdapter->PortName, Status)
-   );
-   return Status;
+    QCNET_DbgPrint
+    (
+        MP_DBG_MASK_CONTROL,
+        MP_DBG_LEVEL_TRACE,
+        ("<%s> <-- MPINI_InitializeAdapter, Status=%x\n", pAdapter->PortName, Status)
+    );
+    return Status;
 }  // MPINI_InitializeAdapter
 
 #ifdef NDIS60_MINIPORT
 
 NDIS_STATUS MPINI_SetNdisAttributes
 (
-   NDIS_HANDLE MiniportAdapterHandle,
-   PMP_ADAPTER pAdapter
+    NDIS_HANDLE MiniportAdapterHandle,
+    PMP_ADAPTER pAdapter
 )
 {
-   NDIS_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES GeneralAttributes;
-   NDIS_STATUS status;
+    NDIS_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES GeneralAttributes;
+    NDIS_STATUS status;
 #ifdef NDIS620_MINIPORT
-   NDIS_PM_CAPABILITIES                     pmCap;
+    NDIS_PM_CAPABILITIES                     pmCap;
 #endif
 
-   NdisZeroMemory(&GeneralAttributes, sizeof(NDIS_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES));
+    NdisZeroMemory(&GeneralAttributes, sizeof(NDIS_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES));
 
 #ifdef NDIS620_MINIPORT
-   NdisZeroMemory(&pmCap, sizeof(NDIS_PM_CAPABILITIES));
-   pmCap.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
-   pmCap.Header.Revision = NDIS_PM_CAPABILITIES_REVISION_1;
-   pmCap.Header.Size = NDIS_SIZEOF_NDIS_PM_CAPABILITIES_REVISION_1;
-   if (QCMP_NDIS630_Ok == TRUE)
-   {
+    NdisZeroMemory(&pmCap, sizeof(NDIS_PM_CAPABILITIES));
+    pmCap.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
+    pmCap.Header.Revision = NDIS_PM_CAPABILITIES_REVISION_1;
+    pmCap.Header.Size = NDIS_SIZEOF_NDIS_PM_CAPABILITIES_REVISION_1;
+    if (QCMP_NDIS630_Ok == TRUE)
+    {
 #ifdef NDIS630_MINIPORT
-       pmCap.Header.Revision = NDIS_PM_CAPABILITIES_REVISION_2;
-       pmCap.Header.Size = NDIS_SIZEOF_NDIS_PM_CAPABILITIES_REVISION_2;
-       //pmCap.Flags = NDIS_DEVICE_WAKE_UP_ENABLE;
-       //pmCap.Flags = NDIS_PM_SELECTIVE_SUSPEND_SUPPORTED;
+        pmCap.Header.Revision = NDIS_PM_CAPABILITIES_REVISION_2;
+        pmCap.Header.Size = NDIS_SIZEOF_NDIS_PM_CAPABILITIES_REVISION_2;
+        //pmCap.Flags = NDIS_DEVICE_WAKE_UP_ENABLE;
+        //pmCap.Flags = NDIS_PM_SELECTIVE_SUSPEND_SUPPORTED;
 #endif       
-   }    
-   // pmCap.Flags = NDIS_DEVICE_WAKE_UP_ENABLE;
-   pmCap.MinMagicPacketWakeUp = NdisDeviceStateUnspecified;
-   pmCap.MinPatternWakeUp     = NdisDeviceStateUnspecified;
-   pmCap.MinLinkChangeWakeUp  = NdisDeviceStateUnspecified;
-   GeneralAttributes.PowerManagementCapabilitiesEx = &pmCap;
+    }
+    // pmCap.Flags = NDIS_DEVICE_WAKE_UP_ENABLE;
+    pmCap.MinMagicPacketWakeUp = NdisDeviceStateUnspecified;
+    pmCap.MinPatternWakeUp = NdisDeviceStateUnspecified;
+    pmCap.MinLinkChangeWakeUp = NdisDeviceStateUnspecified;
+    GeneralAttributes.PowerManagementCapabilitiesEx = &pmCap;
 
 #else
-   NDIS_PNP_CAPABILITIES                    pmCap;
+    NDIS_PNP_CAPABILITIES                    pmCap;
 
-   NdisZeroMemory(&pmCap, sizeof(NDIS_PNP_CAPABILITIES));
-   // pmCap.Flags = NDIS_DEVICE_WAKE_UP_ENABLE;
-   pmCap.WakeUpCapabilities.MinMagicPacketWakeUp = NdisDeviceStateUnspecified;
-   pmCap.WakeUpCapabilities.MinPatternWakeUp     = NdisDeviceStateUnspecified;
-   pmCap.WakeUpCapabilities.MinLinkChangeWakeUp  = NdisDeviceStateUnspecified;
-   GeneralAttributes.PowerManagementCapabilities = &pmCap;
+    NdisZeroMemory(&pmCap, sizeof(NDIS_PNP_CAPABILITIES));
+    // pmCap.Flags = NDIS_DEVICE_WAKE_UP_ENABLE;
+    pmCap.WakeUpCapabilities.MinMagicPacketWakeUp = NdisDeviceStateUnspecified;
+    pmCap.WakeUpCapabilities.MinPatternWakeUp = NdisDeviceStateUnspecified;
+    pmCap.WakeUpCapabilities.MinLinkChangeWakeUp = NdisDeviceStateUnspecified;
+    GeneralAttributes.PowerManagementCapabilities = &pmCap;
 #endif
 
 
-   GeneralAttributes.Header.Type = NDIS_OBJECT_TYPE_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES;
-   GeneralAttributes.Header.Revision = NDIS_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES_REVISION_1;
-   GeneralAttributes.Header.Size = NDIS_SIZEOF_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES_REVISION_1;
+    GeneralAttributes.Header.Type = NDIS_OBJECT_TYPE_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES;
+    GeneralAttributes.Header.Revision = NDIS_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES_REVISION_1;
+    GeneralAttributes.Header.Size = NDIS_SIZEOF_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES_REVISION_1;
 
 #ifdef NDIS620_MINIPORT
-   if (QCMP_NDIS620_Ok == TRUE)
-   {
-      QCNET_DbgPrintG(("<%s setting attributes for NDIS6.20 and ndis 6.30\n", gDeviceName));
-      GeneralAttributes.Header.Revision = NDIS_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES_REVISION_2;
-      GeneralAttributes.Header.Size = NDIS_SIZEOF_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES_REVISION_2;
-   }
+    if (QCMP_NDIS620_Ok == TRUE)
+    {
+        QCNET_DbgPrintG(("<%s setting attributes for NDIS6.20 and ndis 6.30\n", gDeviceName));
+        GeneralAttributes.Header.Revision = NDIS_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES_REVISION_2;
+        GeneralAttributes.Header.Size = NDIS_SIZEOF_MINIPORT_ADAPTER_GENERAL_ATTRIBUTES_REVISION_2;
+    }
 #endif
-   GeneralAttributes.IfType = IF_TYPE_ETHERNET_CSMACD;
-   GeneralAttributes.MediaType = QCMP_MEDIA_TYPE;
-   GeneralAttributes.PhysicalMediumType = QCMP_PHYSICAL_MEDIUM_TYPE;
+    GeneralAttributes.IfType = IF_TYPE_ETHERNET_CSMACD;
+    GeneralAttributes.MediaType = QCMP_MEDIA_TYPE;
+    GeneralAttributes.PhysicalMediumType = QCMP_PHYSICAL_MEDIUM_TYPE;
 
 #ifdef NDIS620_MINIPORT
-   if (QCMP_NDIS620_Ok == TRUE)
-   {
-      GeneralAttributes.IfType = 243;
-      GeneralAttributes.MediaType = QCMP_MEDIA_TYPE;
-      GeneralAttributes.PhysicalMediumType = QCMP_PHYSICAL_MEDIUM_TYPEWWAN;
-      
+    if (QCMP_NDIS620_Ok == TRUE)
+    {
+        GeneralAttributes.IfType = 243;
+        GeneralAttributes.MediaType = QCMP_MEDIA_TYPE;
+        GeneralAttributes.PhysicalMediumType = QCMP_PHYSICAL_MEDIUM_TYPEWWAN;
+
 #ifdef QC_IP_MODE      
-      GeneralAttributes.MediaType = QCMP_MEDIA_TYPE_WWAN;
-      pAdapter->NdisMediumType = NdisMediumWirelessWan;
-      QCNET_DbgPrintG(("<%s setting media type to WWAN, IPMode %d\n", gDeviceName, 
-                       pAdapter->IPModeEnabled));
+        GeneralAttributes.MediaType = QCMP_MEDIA_TYPE_WWAN;
+        pAdapter->NdisMediumType = NdisMediumWirelessWan;
+        QCNET_DbgPrintG(("<%s setting media type to WWAN, IPMode %d\n", gDeviceName,
+                        pAdapter->IPModeEnabled));
 #endif //QC_IP_MODE      
 
-   }
-   pAdapter->NetIfType = GeneralAttributes.IfType;
+    }
+    pAdapter->NetIfType = GeneralAttributes.IfType;
 #endif
 
-   QCNET_DbgPrintG(("\n<%s Iftype %d MediaType %d PhysicalMediaType %d NdisMT %d \n", gDeviceName,
-                    GeneralAttributes.IfType, GeneralAttributes.MediaType, 
-                    GeneralAttributes.PhysicalMediumType, pAdapter->NdisMediumType ));
+    QCNET_DbgPrintG(("\n<%s Iftype %d MediaType %d PhysicalMediaType %d NdisMT %d \n", gDeviceName,
+                    GeneralAttributes.IfType, GeneralAttributes.MediaType,
+                    GeneralAttributes.PhysicalMediumType, pAdapter->NdisMediumType));
 
-   //GeneralAttributes.MtuSize = ETH_MAX_DATA_SIZE;
-   GeneralAttributes.MtuSize = QC_DATA_MTU_MAX; // pAdapter->MTUSize;
-   GeneralAttributes.MaxXmitLinkSpeed = MP_MEDIA_MAX_SPEED;
-   GeneralAttributes.MaxRcvLinkSpeed = MP_MEDIA_MAX_SPEED;
+    //GeneralAttributes.MtuSize = ETH_MAX_DATA_SIZE;
+    GeneralAttributes.MtuSize = QC_DATA_MTU_MAX; // pAdapter->MTUSize;
+    GeneralAttributes.MaxXmitLinkSpeed = MP_MEDIA_MAX_SPEED;
+    GeneralAttributes.MaxRcvLinkSpeed = MP_MEDIA_MAX_SPEED;
 
-   GeneralAttributes.XmitLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
-   GeneralAttributes.RcvLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
-   GeneralAttributes.MediaConnectState = MediaConnectStateUnknown;
-   GeneralAttributes.MediaDuplexState = MediaDuplexStateUnknown;
-   GeneralAttributes.LookaheadSize = ETH_MAX_DATA_SIZE;
-
-   #ifdef NDIS620_MINIPORT
-   if (pAdapter->NdisMediumType == NdisMediumWirelessWan)
-   {
-      GeneralAttributes.MacOptions = 0;
-   }
-   else
-   #endif // NDIS620_MINIPORT
-   {
-      GeneralAttributes.MacOptions = NDIS_MAC_OPTION_COPY_LOOKAHEAD_DATA |
-                                     NDIS_MAC_OPTION_TRANSFERS_NOT_PEND  |
-                                     NDIS_MAC_OPTION_NO_LOOPBACK         |
-                                     NDIS_MAC_OPTION_8021P_PRIORITY      |
-                                     NDIS_MAC_OPTION_8021Q_VLAN;
-   }
-
-   GeneralAttributes.SupportedPacketFilters = SUPPORTED_PACKET_FILTERS;
-   pAdapter->PacketFilter                   = SUPPORTED_PACKET_FILTERS;
-
-   GeneralAttributes.MaxMulticastListSize = MAX_MCAST_LIST_LEN;
-   GeneralAttributes.MacAddressLength = ETH_LENGTH_OF_ADDRESS;
-   NdisMoveMemory
-   (
-      GeneralAttributes.PermanentMacAddress,
-      pAdapter->PermanentAddress,
-      ETH_LENGTH_OF_ADDRESS
-   );
-
-   NdisMoveMemory
-   (
-      GeneralAttributes.CurrentMacAddress,
-      pAdapter->CurrentAddress,
-      ETH_LENGTH_OF_ADDRESS
-   );
-
-   GeneralAttributes.RecvScaleCapabilities = NULL;
-
-   #ifdef NDIS620_MINIPORT
-   if (pAdapter->NdisMediumType == NdisMediumWirelessWan)
-   {
-      GeneralAttributes.AccessType = NET_IF_ACCESS_POINT_TO_POINT; // for WWAN
-   }
-   else
-   #endif // NDIS620_MINIPORT
-   {
-      GeneralAttributes.AccessType = NET_IF_ACCESS_BROADCAST; // for ETH
-   }
-   GeneralAttributes.DirectionType = NET_IF_DIRECTION_SENDRECEIVE;
-   GeneralAttributes.ConnectionType = NET_IF_CONNECTION_DEDICATED; // for ETH
-   GeneralAttributes.IfConnectorPresent = TRUE;
+    GeneralAttributes.XmitLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
+    GeneralAttributes.RcvLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
+    GeneralAttributes.MediaConnectState = MediaConnectStateUnknown;
+    GeneralAttributes.MediaDuplexState = MediaDuplexStateUnknown;
+    GeneralAttributes.LookaheadSize = ETH_MAX_DATA_SIZE;
 
 #ifdef NDIS620_MINIPORT
-   GeneralAttributes.SupportedStatistics = NDIS_STATISTICS_DIRECTED_FRAMES_RCV_SUPPORTED |
-                                           NDIS_STATISTICS_MULTICAST_FRAMES_RCV_SUPPORTED |
-                                           NDIS_STATISTICS_BROADCAST_FRAMES_RCV_SUPPORTED | 
-                                           NDIS_STATISTICS_BYTES_RCV_SUPPORTED |
-                                           NDIS_STATISTICS_RCV_DISCARDS_SUPPORTED |
-                                           NDIS_STATISTICS_RCV_ERROR_SUPPORTED |
-                                           NDIS_STATISTICS_DIRECTED_FRAMES_XMIT_SUPPORTED |
-                                           NDIS_STATISTICS_MULTICAST_FRAMES_XMIT_SUPPORTED |
-                                           NDIS_STATISTICS_BROADCAST_FRAMES_XMIT_SUPPORTED |
-                                           NDIS_STATISTICS_BYTES_XMIT_SUPPORTED |
-                                           NDIS_STATISTICS_XMIT_ERROR_SUPPORTED |
-                                           NDIS_STATISTICS_XMIT_DISCARDS_SUPPORTED |
-                                           NDIS_STATISTICS_DIRECTED_BYTES_RCV_SUPPORTED |
-                                           NDIS_STATISTICS_MULTICAST_BYTES_RCV_SUPPORTED |
-                                           NDIS_STATISTICS_BROADCAST_BYTES_RCV_SUPPORTED |
-                                           NDIS_STATISTICS_DIRECTED_BYTES_XMIT_SUPPORTED |
-                                           NDIS_STATISTICS_MULTICAST_BYTES_XMIT_SUPPORTED |
-                                           NDIS_STATISTICS_BROADCAST_BYTES_XMIT_SUPPORTED;   
-                                           
+    if (pAdapter->NdisMediumType == NdisMediumWirelessWan)
+    {
+        GeneralAttributes.MacOptions = 0;
+    }
+    else
+#endif // NDIS620_MINIPORT
+    {
+        GeneralAttributes.MacOptions = NDIS_MAC_OPTION_COPY_LOOKAHEAD_DATA |
+            NDIS_MAC_OPTION_TRANSFERS_NOT_PEND |
+            NDIS_MAC_OPTION_NO_LOOPBACK |
+            NDIS_MAC_OPTION_8021P_PRIORITY |
+            NDIS_MAC_OPTION_8021Q_VLAN;
+    }
+
+    GeneralAttributes.SupportedPacketFilters = SUPPORTED_PACKET_FILTERS;
+    pAdapter->PacketFilter = SUPPORTED_PACKET_FILTERS;
+
+    GeneralAttributes.MaxMulticastListSize = MAX_MCAST_LIST_LEN;
+    GeneralAttributes.MacAddressLength = ETH_LENGTH_OF_ADDRESS;
+    NdisMoveMemory
+    (
+        GeneralAttributes.PermanentMacAddress,
+        pAdapter->PermanentAddress,
+        ETH_LENGTH_OF_ADDRESS
+    );
+
+    NdisMoveMemory
+    (
+        GeneralAttributes.CurrentMacAddress,
+        pAdapter->CurrentAddress,
+        ETH_LENGTH_OF_ADDRESS
+    );
+
+    GeneralAttributes.RecvScaleCapabilities = NULL;
+
+#ifdef NDIS620_MINIPORT
+    if (pAdapter->NdisMediumType == NdisMediumWirelessWan)
+    {
+        GeneralAttributes.AccessType = NET_IF_ACCESS_POINT_TO_POINT; // for WWAN
+    }
+    else
+#endif // NDIS620_MINIPORT
+    {
+        GeneralAttributes.AccessType = NET_IF_ACCESS_BROADCAST; // for ETH
+    }
+    GeneralAttributes.DirectionType = NET_IF_DIRECTION_SENDRECEIVE;
+    GeneralAttributes.ConnectionType = NET_IF_CONNECTION_DEDICATED; // for ETH
+    GeneralAttributes.IfConnectorPresent = TRUE;
+
+#ifdef NDIS620_MINIPORT
+    GeneralAttributes.SupportedStatistics = NDIS_STATISTICS_DIRECTED_FRAMES_RCV_SUPPORTED |
+        NDIS_STATISTICS_MULTICAST_FRAMES_RCV_SUPPORTED |
+        NDIS_STATISTICS_BROADCAST_FRAMES_RCV_SUPPORTED |
+        NDIS_STATISTICS_BYTES_RCV_SUPPORTED |
+        NDIS_STATISTICS_RCV_DISCARDS_SUPPORTED |
+        NDIS_STATISTICS_RCV_ERROR_SUPPORTED |
+        NDIS_STATISTICS_DIRECTED_FRAMES_XMIT_SUPPORTED |
+        NDIS_STATISTICS_MULTICAST_FRAMES_XMIT_SUPPORTED |
+        NDIS_STATISTICS_BROADCAST_FRAMES_XMIT_SUPPORTED |
+        NDIS_STATISTICS_BYTES_XMIT_SUPPORTED |
+        NDIS_STATISTICS_XMIT_ERROR_SUPPORTED |
+        NDIS_STATISTICS_XMIT_DISCARDS_SUPPORTED |
+        NDIS_STATISTICS_DIRECTED_BYTES_RCV_SUPPORTED |
+        NDIS_STATISTICS_MULTICAST_BYTES_RCV_SUPPORTED |
+        NDIS_STATISTICS_BROADCAST_BYTES_RCV_SUPPORTED |
+        NDIS_STATISTICS_DIRECTED_BYTES_XMIT_SUPPORTED |
+        NDIS_STATISTICS_MULTICAST_BYTES_XMIT_SUPPORTED |
+        NDIS_STATISTICS_BROADCAST_BYTES_XMIT_SUPPORTED;
+
 #else
-   GeneralAttributes.SupportedStatistics = NDIS_STATISTICS_XMIT_OK_SUPPORTED |
-                                           NDIS_STATISTICS_RCV_OK_SUPPORTED |
-                                           NDIS_STATISTICS_XMIT_ERROR_SUPPORTED |
-                                           NDIS_STATISTICS_RCV_ERROR_SUPPORTED |
-                                           NDIS_STATISTICS_RCV_CRC_ERROR_SUPPORTED |
-                                           NDIS_STATISTICS_RCV_NO_BUFFER_SUPPORTED |
-                                           NDIS_STATISTICS_TRANSMIT_QUEUE_LENGTH_SUPPORTED |
-                                           NDIS_STATISTICS_GEN_STATISTICS_SUPPORTED;
+    GeneralAttributes.SupportedStatistics = NDIS_STATISTICS_XMIT_OK_SUPPORTED |
+        NDIS_STATISTICS_RCV_OK_SUPPORTED |
+        NDIS_STATISTICS_XMIT_ERROR_SUPPORTED |
+        NDIS_STATISTICS_RCV_ERROR_SUPPORTED |
+        NDIS_STATISTICS_RCV_CRC_ERROR_SUPPORTED |
+        NDIS_STATISTICS_RCV_NO_BUFFER_SUPPORTED |
+        NDIS_STATISTICS_TRANSMIT_QUEUE_LENGTH_SUPPORTED |
+        NDIS_STATISTICS_GEN_STATISTICS_SUPPORTED;
 #endif
-   GeneralAttributes.SupportedOidList = QCMPSupportedOidList;
-   GeneralAttributes.SupportedOidListLength = QCMP_SupportedOidListSize;
+    GeneralAttributes.SupportedOidList = QCMPSupportedOidList;
+    GeneralAttributes.SupportedOidListLength = QCMP_SupportedOidListSize;
 
-   status = NdisMSetMiniportAttributes
-            (
-               MiniportAdapterHandle,
-               (PNDIS_MINIPORT_ADAPTER_ATTRIBUTES)&GeneralAttributes
-            );
+    status = NdisMSetMiniportAttributes
+    (
+        MiniportAdapterHandle,
+        (PNDIS_MINIPORT_ADAPTER_ATTRIBUTES)&GeneralAttributes
+    );
 
-   QCNET_DbgPrintG(("<%s> <--- NdisMSetMiniportAttributes Status = 0x%x\n", gDeviceName, status));
+    QCNET_DbgPrintG(("<%s> <--- NdisMSetMiniportAttributes Status = 0x%x\n", gDeviceName, status));
 
-   return status;
+    return status;
 }  // MPINI_SetNdisAttributes
 
 NDIS_STATUS MPINI_AllocateReceiveNBL(PMP_ADAPTER pAdapter)
 {
-   NET_BUFFER_LIST_POOL_PARAMETERS poolParams;
-   PNET_BUFFER                     nb;
-   int i;
+    NET_BUFFER_LIST_POOL_PARAMETERS poolParams;
+    PNET_BUFFER                     nb;
+    int i;
 
-   QCNET_DbgPrint
-   (
-      MP_DBG_MASK_CONTROL,
-      MP_DBG_LEVEL_DETAIL,
-      ("<%s> -->MPINI_AllocateReceiveNBL\n", pAdapter->PortName)
-   );
+    QCNET_DbgPrint
+    (
+        MP_DBG_MASK_CONTROL,
+        MP_DBG_LEVEL_DETAIL,
+        ("<%s> -->MPINI_AllocateReceiveNBL\n", pAdapter->PortName)
+    );
 
-   NdisZeroMemory(&poolParams, sizeof(NET_BUFFER_LIST_POOL_PARAMETERS));
-   poolParams.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
-   poolParams.Header.Revision = NET_BUFFER_LIST_POOL_PARAMETERS_REVISION_1;
-   poolParams.Header.Size = sizeof(NET_BUFFER_LIST_POOL_PARAMETERS);
-   poolParams.ProtocolId = 0;
-   poolParams.ContextSize = 0;
-   poolParams.fAllocateNetBuffer = TRUE;
-   poolParams.DataSize = 0;
-   poolParams.PoolTag = QUALCOMM_TAG;
+    NdisZeroMemory(&poolParams, sizeof(NET_BUFFER_LIST_POOL_PARAMETERS));
+    poolParams.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
+    poolParams.Header.Revision = NET_BUFFER_LIST_POOL_PARAMETERS_REVISION_1;
+    poolParams.Header.Size = sizeof(NET_BUFFER_LIST_POOL_PARAMETERS);
+    poolParams.ProtocolId = 0;
+    poolParams.ContextSize = 0;
+    poolParams.fAllocateNetBuffer = TRUE;
+    poolParams.DataSize = 0;
+    poolParams.PoolTag = QUALCOMM_TAG;
 
-   pAdapter->RxPacketPoolHandle = NdisAllocateNetBufferListPool
-                                  (
-                                     pAdapter->AdapterHandle,
-                                     &poolParams
-                                  );
+    pAdapter->RxPacketPoolHandle = NdisAllocateNetBufferListPool
+    (
+        pAdapter->AdapterHandle,
+        &poolParams
+    );
 
 
-   if (pAdapter->RxPacketPoolHandle == NULL)
-   {
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_ERROR,
-         ("<%s> MPINI_AllocateReceiveNBL: alloc failure-0\n", pAdapter->PortName)
-      );
-      return NDIS_STATUS_FAILURE;
-   }
+    if (pAdapter->RxPacketPoolHandle == NULL)
+    {
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_ERROR,
+            ("<%s> MPINI_AllocateReceiveNBL: alloc failure-0\n", pAdapter->PortName)
+        );
+        return NDIS_STATUS_FAILURE;
+    }
 
-   pAdapter->RxBufferMem = ExAllocatePoolWithTag
-                           (
-                              NonPagedPool,
-                              (pAdapter->MaxDataReceives * sizeof(MPUSB_RX_NBL)),
-                              QUALCOMM_TAG
-                           );
-   if (pAdapter->RxBufferMem == NULL)
-   {
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL,
-         MP_DBG_LEVEL_ERROR,
-         ("<%s> MPINI_AllocateReceiveNBL: alloc failure-1 %dB\n", pAdapter->PortName,
+    pAdapter->RxBufferMem = ExAllocatePoolWithTag
+    (
+        NonPagedPool,
+        (pAdapter->MaxDataReceives * sizeof(MPUSB_RX_NBL)),
+        QUALCOMM_TAG
+    );
+    if (pAdapter->RxBufferMem == NULL)
+    {
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_ERROR,
+            ("<%s> MPINI_AllocateReceiveNBL: alloc failure-1 %dB\n", pAdapter->PortName,
             (pAdapter->MaxDataReceives * sizeof(MPUSB_RX_NBL)))
-      );
-      MPINI_FreeReceiveNBL(pAdapter);
-      return NDIS_STATUS_FAILURE;
-   }
-   NdisZeroMemory(pAdapter->RxBufferMem, (pAdapter->MaxDataReceives * sizeof(MPUSB_RX_NBL)));
+        );
+        MPINI_FreeReceiveNBL(pAdapter);
+        return NDIS_STATUS_FAILURE;
+    }
+    NdisZeroMemory(pAdapter->RxBufferMem, (pAdapter->MaxDataReceives * sizeof(MPUSB_RX_NBL)));
 
-   for (i = 0; i < pAdapter->MaxDataReceives; i++)
-   {
-      pAdapter->RxBufferMem[i].BvaPtr = pAdapter->RxBufferMem[i].BVA;
-      pAdapter->RxBufferMem[i].RxMdl = NdisAllocateMdl
-                                       (
-                                          pAdapter->AdapterHandle,
-                                          pAdapter->RxBufferMem[i].BvaPtr,
-                                          QCMP_MAX_DATA_PKT_SIZE
-                                       );
-      if (pAdapter->RxBufferMem[i].RxMdl == NULL)
-      {
-         if (i == 0)
-         {
-            QCNET_DbgPrint
-            (
-               MP_DBG_MASK_CONTROL,
-               MP_DBG_LEVEL_ERROR,
-               ("<%s> MPINI_AllocateReceiveNBL: alloc failure-2 %dB[%d]\n", pAdapter->PortName,
-                 QCMP_MAX_DATA_PKT_SIZE, i)
-            );
-            MPINI_FreeReceiveNBL(pAdapter);
-            return NDIS_STATUS_FAILURE;
-         }
-         else
-         {
-            pAdapter->MaxDataReceives = i;
-            break;
-         }
-      }
-      else
-      {
-         NDIS_MDL_LINKAGE(pAdapter->RxBufferMem[i].RxMdl) = NULL;
-         pAdapter->RxBufferMem[i].RxNBL = NdisAllocateNetBufferAndNetBufferList
-                                          (
-                                             pAdapter->RxPacketPoolHandle,
-                                             0,           // ContextSize
-                                             0,           // ContextBackFillSize
-                                             pAdapter->RxBufferMem[i].RxMdl, // MdlChain
-                                             0,           // DataOffset
-                                             QCMP_MAX_DATA_PKT_SIZE          // DataLength
-                                          );
-         if (pAdapter->RxBufferMem[i].RxNBL == NULL)
-         {
+    for (i = 0; i < pAdapter->MaxDataReceives; i++)
+    {
+        pAdapter->RxBufferMem[i].BvaPtr = pAdapter->RxBufferMem[i].BVA;
+        pAdapter->RxBufferMem[i].RxMdl = NdisAllocateMdl
+        (
+            pAdapter->AdapterHandle,
+            pAdapter->RxBufferMem[i].BvaPtr,
+            QCMP_MAX_DATA_PKT_SIZE
+        );
+        if (pAdapter->RxBufferMem[i].RxMdl == NULL)
+        {
             if (i == 0)
             {
-               QCNET_DbgPrint
-               (
-                  MP_DBG_MASK_CONTROL,
-                  MP_DBG_LEVEL_ERROR,
-                  ("<%s> MPINI_AllocateReceiveNBL: alloc failure-3 %dB[%d]\n", pAdapter->PortName,
+                QCNET_DbgPrint
+                (
+                    MP_DBG_MASK_CONTROL,
+                    MP_DBG_LEVEL_ERROR,
+                    ("<%s> MPINI_AllocateReceiveNBL: alloc failure-2 %dB[%d]\n", pAdapter->PortName,
                     QCMP_MAX_DATA_PKT_SIZE, i)
-               );
-               MPINI_FreeReceiveNBL(pAdapter);
-               return NDIS_STATUS_FAILURE;
+                );
+                MPINI_FreeReceiveNBL(pAdapter);
+                return NDIS_STATUS_FAILURE;
             }
             else
             {
-               pAdapter->MaxDataReceives = i;
-               break;
+                pAdapter->MaxDataReceives = i;
+                break;
             }
-         }
-         else
-         {
-            nb = NET_BUFFER_LIST_FIRST_NB(pAdapter->RxBufferMem[i].RxNBL);
-
-            ASSERT(NET_BUFFER_FIRST_MDL(nb) == pAdapter->RxBufferMem[i].RxMdl);
-
-            NET_BUFFER_DATA_LENGTH(nb) = 0;
-
-            pAdapter->RxBufferMem[i].RxNBL->MiniportReserved[0] = &(pAdapter->RxBufferMem[i]);
-            pAdapter->RxBufferMem[i].RxNBL->SourceHandle = pAdapter->AdapterHandle;
-            pAdapter->RxBufferMem[i].Irp   = NULL;
-            pAdapter->RxBufferMem[i].Index = i;
-
-            // En-Q receive NBL
-            InterlockedIncrement(&pAdapter->nRxFreeInMP);
-            NdisInterlockedInsertTailList
+        }
+        else
+        {
+            NDIS_MDL_LINKAGE(pAdapter->RxBufferMem[i].RxMdl) = NULL;
+            pAdapter->RxBufferMem[i].RxNBL = NdisAllocateNetBufferAndNetBufferList
             (
-               &pAdapter->RxFreeList, 
-               &(pAdapter->RxBufferMem[i].List),
-               &pAdapter->RxLock
+                pAdapter->RxPacketPoolHandle,
+                0,           // ContextSize
+                0,           // ContextBackFillSize
+                pAdapter->RxBufferMem[i].RxMdl, // MdlChain
+                0,           // DataOffset
+                QCMP_MAX_DATA_PKT_SIZE          // DataLength
             );
+            if (pAdapter->RxBufferMem[i].RxNBL == NULL)
+            {
+                if (i == 0)
+                {
+                    QCNET_DbgPrint
+                    (
+                        MP_DBG_MASK_CONTROL,
+                        MP_DBG_LEVEL_ERROR,
+                        ("<%s> MPINI_AllocateReceiveNBL: alloc failure-3 %dB[%d]\n", pAdapter->PortName,
+                        QCMP_MAX_DATA_PKT_SIZE, i)
+                    );
+                    MPINI_FreeReceiveNBL(pAdapter);
+                    return NDIS_STATUS_FAILURE;
+                }
+                else
+                {
+                    pAdapter->MaxDataReceives = i;
+                    break;
+                }
+            }
+            else
+            {
+                nb = NET_BUFFER_LIST_FIRST_NB(pAdapter->RxBufferMem[i].RxNBL);
 
-            // MPRCV_QnblInfo(pAdapter, &(pAdapter->RxBufferMem[i]), i, "Created:");
-         }
-      }
-   } // for
+                ASSERT(NET_BUFFER_FIRST_MDL(nb) == pAdapter->RxBufferMem[i].RxMdl);
 
-   QCNET_DbgPrint
-   (
-      MP_DBG_MASK_CONTROL,
-      MP_DBG_LEVEL_DETAIL,
-      ("<%s> <--MPINI_AllocateReceiveNBL\n", pAdapter->PortName)
-   );
+                NET_BUFFER_DATA_LENGTH(nb) = 0;
 
-   return NDIS_STATUS_SUCCESS;
+                pAdapter->RxBufferMem[i].RxNBL->MiniportReserved[0] = &(pAdapter->RxBufferMem[i]);
+                pAdapter->RxBufferMem[i].RxNBL->SourceHandle = pAdapter->AdapterHandle;
+                pAdapter->RxBufferMem[i].Irp = NULL;
+                pAdapter->RxBufferMem[i].Index = i;
+
+                // En-Q receive NBL
+                InterlockedIncrement(&pAdapter->nRxFreeInMP);
+                NdisInterlockedInsertTailList
+                (
+                    &pAdapter->RxFreeList,
+                    &(pAdapter->RxBufferMem[i].List),
+                    &pAdapter->RxLock
+                );
+
+                // MPRCV_QnblInfo(pAdapter, &(pAdapter->RxBufferMem[i]), i, "Created:");
+            }
+        }
+    } // for
+
+    QCNET_DbgPrint
+    (
+        MP_DBG_MASK_CONTROL,
+        MP_DBG_LEVEL_DETAIL,
+        ("<%s> <--MPINI_AllocateReceiveNBL\n", pAdapter->PortName)
+    );
+
+    return NDIS_STATUS_SUCCESS;
 
 }  // MPINI_AllocateReceiveNBL  
 
 VOID MPINI_FreeReceiveNBL(PMP_ADAPTER pAdapter)
 {
-   int i;
+    int i;
 
-   if (pAdapter->RxBufferMem == NULL)
-   {
-      return;
-   }
+    if (pAdapter->RxBufferMem == NULL)
+    {
+        return;
+    }
 
-   for (i = 0; i < pAdapter->MaxDataReceives; i++)
-   {
-      if (pAdapter->RxBufferMem[i].RxMdl != NULL)
-      {
-         NdisFreeMdl(pAdapter->RxBufferMem[i].RxMdl);
-         pAdapter->RxBufferMem[i].RxMdl = NULL;
-      }
-      if (pAdapter->RxBufferMem[i].RxNBL != NULL)
-      {
-         NdisFreeNetBufferList(pAdapter->RxBufferMem[i].RxNBL);
-         pAdapter->RxBufferMem[i].RxNBL = NULL;
-      }
-      if (pAdapter->RxBufferMem[i].Irp != NULL)
-      {
-         IoFreeIrp(pAdapter->RxBufferMem[i].Irp);
-         pAdapter->RxBufferMem[i].Irp = NULL;
-      }
-   }
+    for (i = 0; i < pAdapter->MaxDataReceives; i++)
+    {
+        if (pAdapter->RxBufferMem[i].RxMdl != NULL)
+        {
+            NdisFreeMdl(pAdapter->RxBufferMem[i].RxMdl);
+            pAdapter->RxBufferMem[i].RxMdl = NULL;
+        }
+        if (pAdapter->RxBufferMem[i].RxNBL != NULL)
+        {
+            NdisFreeNetBufferList(pAdapter->RxBufferMem[i].RxNBL);
+            pAdapter->RxBufferMem[i].RxNBL = NULL;
+        }
+        if (pAdapter->RxBufferMem[i].Irp != NULL)
+        {
+            IoFreeIrp(pAdapter->RxBufferMem[i].Irp);
+            pAdapter->RxBufferMem[i].Irp = NULL;
+        }
+    }
 
-   ExFreePool(pAdapter->RxBufferMem);
-   pAdapter->RxBufferMem = NULL;
+    ExFreePool(pAdapter->RxBufferMem);
+    pAdapter->RxBufferMem = NULL;
 
-   if (pAdapter->RxPacketPoolHandle != NULL)
-   {
-      NdisFreeNetBufferListPool(pAdapter->RxPacketPoolHandle);
-      pAdapter->RxPacketPoolHandle = NULL;
-   }
+    if (pAdapter->RxPacketPoolHandle != NULL)
+    {
+        NdisFreeNetBufferListPool(pAdapter->RxPacketPoolHandle);
+        pAdapter->RxPacketPoolHandle = NULL;
+    }
 }  // MPINI_FreeReceiveNBL
 
 #endif // NDIS60_MINIPORT

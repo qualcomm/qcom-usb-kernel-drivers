@@ -33,8 +33,8 @@ typedef struct _USB_NOTIFICATION_STATUS
 
 typedef struct _USB_NOTIFICATION_CONNECTION_SPEED
 {
-   ULONG ulUSBitRate;
-   ULONG ulDSBitRate;
+    ULONG ulUSBitRate;
+    ULONG ulDSBitRate;
 } USB_NOTIFICATION_CONNECTION_SPEED, *PUSB_NOTIFICATION_CONNECTION_SPEED;
 
 #pragma pack(pop)
@@ -43,17 +43,17 @@ NTSTATUS USBINT_InitInterruptPipe(IN PDEVICE_OBJECT pDevObj);
 VOID ReadInterruptPipe(IN PVOID pContext);
 NTSTATUS InterruptPipeCompletion
 (
-   IN PDEVICE_OBJECT DeviceObject,
-   IN PIRP           pIrp,
-   IN PVOID          pContext
+    IN PDEVICE_OBJECT DeviceObject,
+    IN PIRP           pIrp,
+    IN PVOID          pContext
 );
 NTSTATUS USBINT_CancelInterruptThread(PDEVICE_EXTENSION pDevExt, UCHAR cookie);
 NTSTATUS USBINT_StopInterruptService
 (
-   PDEVICE_EXTENSION pDevExt,
-   BOOLEAN           bWait,
-   BOOLEAN           CancelWaitWake,
-   UCHAR             cookie
+    PDEVICE_EXTENSION pDevExt,
+    BOOLEAN           bWait,
+    BOOLEAN           CancelWaitWake,
+    UCHAR             cookie
 );
 NTSTATUS USBINT_ResumeInterruptService(PDEVICE_EXTENSION pDevExt, UCHAR cookie);
 

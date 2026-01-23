@@ -89,7 +89,7 @@ NTSTATUS QCUTIL_RingBufferRead
     PRING_BUFFER ringBuffer,
     PUCHAR       destination,
     size_t       readLength,
-    size_t       *bytesRead
+    size_t      *bytesRead
 )
 {
     if (ringBuffer == NULL || destination == NULL)
@@ -173,7 +173,7 @@ VOID QCUTIL_InsertTailList
     PLIST_ENTRY     head,
     PLIST_ENTRY     entry,
     WDFSPINLOCK     lock,
-    size_t*         pListLength
+    size_t         *pListLength
 )
 {
     if (lock != NULL)
@@ -195,7 +195,7 @@ VOID QCUTIL_RemoveEntryList
 (
     PLIST_ENTRY     entry,
     WDFSPINLOCK     lock,
-    size_t*         pListLength
+    size_t         *pListLength
 )
 {
     if (lock != NULL)
@@ -327,7 +327,7 @@ NTSTATUS QCUTIL_RequestCopyFromBufferWithOffset
             QCSER_DBG_MASK_READ,
             QCSER_DBG_LEVEL_ERROR,
             ("<%ws> Copy to output buffer FAILED request: 0x%p, status: 0x%x, min buffer size: %llu, actual buffer size: %llu, offset: %llu\n",
-                pDevContext->PortName, Request, status, NumBytes, bufferSize, RequestMomoryOffset)
+            pDevContext->PortName, Request, status, NumBytes, bufferSize, RequestMomoryOffset)
         );
     }
     return status;
@@ -353,14 +353,14 @@ VOID QCUTIL_PrintBytes
     PVOID Buf,
     ULONG len,
     ULONG PktLen,
-    char* info,
+    char *info,
     ULONG DbgMask,
     ULONG DbgLevel,
     PDEVICE_CONTEXT pDevContext
 )
 {
-    char* buf, *p, *cBuf, *cp;
-    char* buffer;
+    char *buf, *p, *cBuf, *cp;
+    char *buffer;
     ULONG lastCnt = 0, spaceNeeded;
     ULONG i, s;
     PCHAR dbgOutputBuffer;
@@ -390,7 +390,7 @@ VOID QCUTIL_PrintBytes
         myTextSize = len * 5 + 360;
     }
 
-    buffer = (char*)Buf;
+    buffer = (char *)Buf;
 
     dbgOutputBuffer = ExAllocatePoolZero(NonPagedPoolNx, myTextSize, '0gbd');
     if (dbgOutputBuffer == NULL)
@@ -417,7 +417,7 @@ VOID QCUTIL_PrintBytes
     {
         if (i % 16 == 1)
         {
-            RtlStringCchPrintfA(p, myTextSize - steps - 128,"  %04u:  ", i - 1);
+            RtlStringCchPrintfA(p, myTextSize - steps - 128, "  %04u:  ", i - 1);
             p += 9;
             steps += 9;
         }

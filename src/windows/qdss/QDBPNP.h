@@ -24,15 +24,15 @@ GENERAL DESCRIPTION
 
 NTSTATUS QDBPNP_SetStamp
 (
-   PDEVICE_OBJECT PhysicalDeviceObject,
-   HANDLE         hRegKey,
-   BOOLEAN        Startup
+    PDEVICE_OBJECT PhysicalDeviceObject,
+    HANDLE         hRegKey,
+    BOOLEAN        Startup
 );
 
 NTSTATUS QDBPNP_EvtDriverDeviceAdd
 (
-   WDFDRIVER        Driver,
-   PWDFDEVICE_INIT  DeviceInit
+    WDFDRIVER        Driver,
+    PWDFDEVICE_INIT  DeviceInit
 );
 
 VOID QDBPNP_EvtDriverCleanupCallback(WDFOBJECT Object);
@@ -43,9 +43,9 @@ VOID QDBPNP_WaitForDrainToStop(PDEVICE_CONTEXT pDevContext);
 
 NTSTATUS QDBPNP_EvtDevicePrepareHW
 (
-   WDFDEVICE    Device,
-   WDFCMRESLIST ResourceList,
-   WDFCMRESLIST ResourceListTranslated
+    WDFDEVICE    Device,
+    WDFCMRESLIST ResourceList,
+    WDFCMRESLIST ResourceListTranslated
 );
 
 NTSTATUS QDBPNP_EnumerateDevice(IN WDFDEVICE Device);
@@ -62,9 +62,9 @@ NTSTATUS QDBPNP_GetParentDeviceName(WDFDEVICE Device);
 
 VOID QDBPNP_SaveParentDeviceNameToRegistry
 (
-   PDEVICE_CONTEXT pDevContext,
-   PVOID ParentDeviceName,
-   ULONG NameLength
+    PDEVICE_CONTEXT pDevContext,
+    PVOID ParentDeviceName,
+    ULONG NameLength
 );
 
 NTSTATUS QDBPNP_SetFunctionProtocol(IN WDFDEVICE Device, ULONG ProtocolCode);

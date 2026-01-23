@@ -16,18 +16,18 @@ GENERAL DESCRIPTION
 
 NDIS_STATUS MPINI_MiniportInitialize
 (
-   PNDIS_STATUS OpenErrorStatus,
-   PUINT        SelectedMediumIndex,
-   PNDIS_MEDIUM MediumArray,
-   UINT         MediumArraySize,
-   NDIS_HANDLE  MiniportAdapterHandle,
-   NDIS_HANDLE  WrapperConfigurationContext
+    PNDIS_STATUS OpenErrorStatus,
+    PUINT        SelectedMediumIndex,
+    PNDIS_MEDIUM MediumArray,
+    UINT         MediumArraySize,
+    NDIS_HANDLE  MiniportAdapterHandle,
+    NDIS_HANDLE  WrapperConfigurationContext
 );
 
 NDIS_STATUS MPINI_ReadNetworkAddress
 (
-   PMP_ADAPTER Adapter,
-   NDIS_HANDLE WrapperConfigurationContext
+    PMP_ADAPTER Adapter,
+    NDIS_HANDLE WrapperConfigurationContext
 );
 
 VOID MPINI_Attach(PMP_ADAPTER Adapter);
@@ -42,22 +42,22 @@ NDIS_STATUS MPINI_AllocAdapterBuffers(PMP_ADAPTER Adapter);
 
 NDIS_STATUS MPINI_InitializeAdapter
 (
-   PMP_ADAPTER Adapter,
-   NDIS_HANDLE WrapperConfigurationContext
+    PMP_ADAPTER Adapter,
+    NDIS_HANDLE WrapperConfigurationContext
 );
 
 #ifdef NDIS60_MINIPORT
 NDIS_STATUS MPINI_MiniportInitializeEx
 (
-   NDIS_HANDLE                    MiniportAdapterHandle,
-   NDIS_HANDLE                    MiniportDriverContext,
-   PNDIS_MINIPORT_INIT_PARAMETERS MiniportInitParameters
+    NDIS_HANDLE                    MiniportAdapterHandle,
+    NDIS_HANDLE                    MiniportDriverContext,
+    PNDIS_MINIPORT_INIT_PARAMETERS MiniportInitParameters
 );
 
 NDIS_STATUS MPINI_SetNdisAttributes
 (
-   NDIS_HANDLE MiniportAdapterHandle,
-   PMP_ADAPTER pAdapter
+    NDIS_HANDLE MiniportAdapterHandle,
+    PMP_ADAPTER pAdapter
 );
 
 NDIS_STATUS MPINI_AllocateReceiveNBL(PMP_ADAPTER pAdapter);

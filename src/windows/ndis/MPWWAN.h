@@ -19,8 +19,8 @@ GENERAL DESCRIPTION
 
 BOOLEAN MPWWAN_IsWwanOid
 (
-   IN NDIS_HANDLE  MiniportAdapterContext,
-   IN NDIS_OID     Oid
+    IN NDIS_HANDLE  MiniportAdapterContext,
+    IN NDIS_OID     Oid
 );
 
 #ifdef NDIS620_MINIPORT

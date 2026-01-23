@@ -18,30 +18,30 @@ GENERAL DESCRIPTION
 
 NTSTATUS USBENC_Enqueue
 (
-   PDEVICE_OBJECT DeviceObject,
-   PIRP Irp,
-   KIRQL Irql
+    PDEVICE_OBJECT DeviceObject,
+    PIRP           Irp,
+    KIRQL          Irql
 );
 
 NTSTATUS USBENC_CDC_SendEncapsulatedCommand
 (
-   PDEVICE_OBJECT DeviceObject,
-   USHORT Interface,
-   PIRP   pIrp
+    PDEVICE_OBJECT DeviceObject,
+    USHORT         Interface,
+    PIRP           pIrp
 );
 
 NTSTATUS USBENC_CDC_GetEncapsulatedResponse
 (
-   PDEVICE_OBJECT DeviceObject,
-   USHORT         Interface
+    PDEVICE_OBJECT DeviceObject,
+    USHORT         Interface
 );
 
 VOID USBENC_PurgeQueue
 (
-   PDEVICE_EXTENSION pDevExt,
-   PLIST_ENTRY    queue,
-   BOOLEAN        ctlItemOnly,
-   UCHAR          cookie
+    PDEVICE_EXTENSION pDevExt,
+    PLIST_ENTRY       queue,
+    BOOLEAN           ctlItemOnly,
+    UCHAR             cookie
 );
 
 VOID USBENC_CancelQueued(PDEVICE_OBJECT CalledDO, PIRP Irp);

@@ -1956,9 +1956,9 @@ NDIS_STATUS MPIOC_CleanupIOCDeviceList(
 
 NDIS_STATUS MPIOC_DeleteDevice
 (
-   PMP_ADAPTER    pAdapter,
+   PMP_ADAPTER     pAdapter,
    PMPIOC_DEV_INFO IocDevice,
-   PDEVICE_OBJECT ControlDeviceObject
+   PDEVICE_OBJECT  ControlDeviceObject
 )
 {
    PMPIOC_DEV_INFO pIocDev;
@@ -2025,9 +2025,9 @@ NDIS_STATUS MPIOC_DeleteDevice
 
 NDIS_STATUS MPIOC_DeleteFilterDevice
 (
-   PMP_ADAPTER    pAdapter,
+   PMP_ADAPTER     pAdapter,
    PMPIOC_DEV_INFO IocDevice,
-   PDEVICE_OBJECT ControlDeviceObject
+   PDEVICE_OBJECT  ControlDeviceObject
 )
 {
    PMPIOC_DEV_INFO pIocDev;
@@ -2816,7 +2816,7 @@ VOID MPIOC_CancelGetServiceFileIrpRoutine
    PMP_ADAPTER     pAdapter;
    PFILE_OBJECT    fileObj;
    ULONG           QMIType = 0;
-   PIO_STACK_LOCATION  irpStack;
+   PIO_STACK_LOCATION irpStack;
    ANSI_STRING        ansiString;
    
    irpStack = IoGetCurrentIrpStackLocation(pIrp);

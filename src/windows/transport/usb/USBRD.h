@@ -15,13 +15,13 @@ GENERAL DESCRIPTION
 #include "USBMAIN.h"
 
 NTSTATUS USBRD_Read(IN PDEVICE_OBJECT DeviceObject, IN PIRP pIrp);
-NTSTATUS USBRD_CancelReadThread (PDEVICE_EXTENSION pDevExt, UCHAR Cookie);
+NTSTATUS USBRD_CancelReadThread(PDEVICE_EXTENSION pDevExt, UCHAR Cookie);
 NTSTATUS USBRD_Enqueue(PDEVICE_EXTENSION pDevExt, PIRP pIrp, UCHAR Cookie);
 NTSTATUS ReadCompletionRoutine
 (
-   PDEVICE_OBJECT pDO,
-   PIRP           pIrp,
-   PVOID          pContext
+    PDEVICE_OBJECT pDO,
+    PIRP           pIrp,
+    PVOID          pContext
 );
 void USBRD_ReadThread(PVOID pContext);
 void QCUSB_ReadThread(PDEVICE_EXTENSION pDevExt);
@@ -39,9 +39,9 @@ NTSTATUS USBRD_L2Suspend(PDEVICE_EXTENSION pDevExt);
 VOID USBMRD_L1MultiReadThread(PVOID pContext);
 NTSTATUS MultiReadCompletionRoutine
 (
-   PDEVICE_OBJECT DO,
-   PIRP           Irp,
-   PVOID          Context
+    PDEVICE_OBJECT DO,
+    PIRP           Irp,
+    PVOID          Context
 );
 VOID USBMRD_L2MultiReadThread(PDEVICE_EXTENSION pDevExt);
 VOID USBMRD_ResetL2Buffers(PDEVICE_EXTENSION pDevExt);
@@ -54,19 +54,19 @@ NTSTATUS USBMRD_ReadIrpCompletion(PDEVICE_EXTENSION pDevExt, UCHAR Cookie, KIRQL
 BOOLEAN USBRD_InPipeOk(PDEVICE_EXTENSION pDevExt);
 NTSTATUS QCMRD_FillIrpData
 (
-   PDEVICE_EXTENSION pDevExt,
-   PCHAR             IrpBuffer,
-   ULONG             BufferSize,
-   PCHAR             DataBuffer,
-   ULONG             DataLength
+    PDEVICE_EXTENSION pDevExt,
+    PCHAR             IrpBuffer,
+    ULONG             BufferSize,
+    PCHAR             DataBuffer,
+    ULONG             DataLength
 );
 
 #ifdef QC_IP_MODE
 NTSTATUS USBRD_LoopbackPacket
 (
-   PDEVICE_OBJECT DeviceObject,
-   PVOID          DataPacket,
-   ULONG          Length
+    PDEVICE_OBJECT DeviceObject,
+    PVOID          DataPacket,
+    ULONG          Length
 );
 #endif // QC_IP_MODE
 

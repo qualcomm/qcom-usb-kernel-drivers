@@ -22,11 +22,6 @@ GENERAL DESCRIPTION
 #define VEN_DEV_CID         L"QCDeviceCID"
 #define VEN_DEV_PARENT      L"QCDeviceParent"
 
-NTSTATUS USBPNP_AddDevice
-(
-   IN PDRIVER_OBJECT pDriverObject,
-   IN PDEVICE_OBJECT pdo
-);
 NTSTATUS USBPNP_GetDeviceCapabilities
 (
     PDEVICE_EXTENSION pDevExt,
@@ -59,27 +54,27 @@ NTSTATUS USBPNP_StopDevice
 NTSTATUS USBPNP_InitDevExt
 (
 #ifdef NDIS_WDM
-   NDIS_HANDLE     WrapperConfigurationContext,
-   LONG            QosSetting,
+    NDIS_HANDLE     WrapperConfigurationContext,
+    LONG            QosSetting,
 #else
-   PDRIVER_OBJECT  pDriverObject,
-   LONG            Reserved,
+    PDRIVER_OBJECT  pDriverObject,
+    LONG            Reserved,
 #endif
-   PDEVICE_OBJECT  PhysicalDeviceObject,
-   PDEVICE_OBJECT  deviceObject,
-   char*           myPortName
+    PDEVICE_OBJECT  PhysicalDeviceObject,
+    PDEVICE_OBJECT  deviceObject,
+    char           *myPortName
 );
 
 BOOLEAN USBPNP_ValidateConfigDescriptor
 (
-   PDEVICE_EXTENSION pDevExt,
-   PUSB_CONFIGURATION_DESCRIPTOR ConfigDesc
+    PDEVICE_EXTENSION pDevExt,
+    PUSB_CONFIGURATION_DESCRIPTOR ConfigDesc
 );
 
 BOOLEAN USBPNP_ValidateDeviceDescriptor
 (
-   PDEVICE_EXTENSION      pDevExt,
-   PUSB_DEVICE_DESCRIPTOR DevDesc
+    PDEVICE_EXTENSION      pDevExt,
+    PUSB_DEVICE_DESCRIPTOR DevDesc
 );
 
 NTSTATUS QCPNP_GetDeviceCID
@@ -91,10 +86,10 @@ NTSTATUS QCPNP_GetDeviceCID
 
 NTSTATUS QCPNP_GetStringDescriptor
 (
-   PDEVICE_OBJECT DeviceObject,
-   UCHAR          Index,
-   USHORT         LanguageId,
-   BOOLEAN        MatchPrefix
+    PDEVICE_OBJECT DeviceObject,
+    UCHAR          Index,
+    USHORT         LanguageId,
+    BOOLEAN        MatchPrefix
 );
 
 #endif // USBPNP_H

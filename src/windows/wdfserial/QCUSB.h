@@ -9,14 +9,15 @@
 #include "QCMAIN.h"
 
 #pragma pack(push, 1)
-typedef struct {
+typedef struct
+{
     UCHAR  bmRequestType;
     UCHAR  bRequest;
     USHORT wValue;
     USHORT wIndex;
     USHORT wLength;
     char   Data[1];
-}  USB_DEFAULT_PIPE_REQUEST, * PUSB_DEFAULT_PIPE_REQUEST;
+}  USB_DEFAULT_PIPE_REQUEST, *PUSB_DEFAULT_PIPE_REQUEST;
 #pragma pack(pop)
 
 #ifdef QCUSB_MUX_PROTOCOL

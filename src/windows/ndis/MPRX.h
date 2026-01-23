@@ -16,17 +16,17 @@ GENERAL DESCRIPTION
 
 VOID MPRX_MiniportReturnPacket
 (
-   NDIS_HANDLE  MiniportAdapterContext,
-   PNDIS_PACKET Packet
+    NDIS_HANDLE  MiniportAdapterContext,
+    PNDIS_PACKET Packet
 );
 
 #ifdef NDIS60_MINIPORT
 
 VOID MPRX_MiniportReturnNetBufferLists
 (
-   IN NDIS_HANDLE       MiniportAdapterContext,
-   IN PNET_BUFFER_LIST  NetBufferLists,
-   IN ULONG             ReturnFlags
+    IN NDIS_HANDLE       MiniportAdapterContext,
+    IN PNET_BUFFER_LIST  NetBufferLists,
+    IN ULONG             ReturnFlags
 );
 
 NTSTATUS MPRX_StartRxThread(PMP_ADAPTER pAdapter, INT Index);

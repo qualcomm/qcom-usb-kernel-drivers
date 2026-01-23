@@ -119,7 +119,7 @@ NTSTATUS QCUSB_VICommand
         QCSER_DBG_MASK_CONTROL,
         QCSER_DBG_LEVEL_TRACE,
         ("<%ws> QCUSB_VICommand address: %lld, datasize: 0x%x, direction: 0x%x\n",
-            pDevContext->PortName, pViConfig->Address, pViConfig->DataSize, pViConfig->Direction)
+        pDevContext->PortName, pViConfig->Address, pViConfig->DataSize, pViConfig->Direction)
     );
 
     if (pUrb != NULL)
@@ -194,15 +194,15 @@ NTSTATUS QCUSB_VICommand
                 // so that a same parameter does not need to be set again in the next round of operation
                 switch (Command)
                 {
-                case VIUSB_CMD_SET_ADDR:
-                    pDevContext->QcStats.ViCurrentAddress = pViConfig->Address;
-                    break;
-                case VIUSB_CMD_SET_SIZE:
-                    pDevContext->QcStats.ViCurrentDataSize = pViConfig->DataSize;
-                    break;
-                case VIUSB_CMD_SET_DIR:
-                    pDevContext->QcStats.ViCurrentDirection = pViConfig->Direction;
-                    break;
+                    case VIUSB_CMD_SET_ADDR:
+                        pDevContext->QcStats.ViCurrentAddress = pViConfig->Address;
+                        break;
+                    case VIUSB_CMD_SET_SIZE:
+                        pDevContext->QcStats.ViCurrentDataSize = pViConfig->DataSize;
+                        break;
+                    case VIUSB_CMD_SET_DIR:
+                        pDevContext->QcStats.ViCurrentDirection = pViConfig->Direction;
+                        break;
                 }
             }
             else

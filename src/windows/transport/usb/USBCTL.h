@@ -23,9 +23,9 @@ GENERAL DESCRIPTION
 
 typedef enum _QC_LINK
 {
-   QC_LINK_DL = 0,
-   QC_LINK_UL = 1,
-   QC_LINK_MAX
+    QC_LINK_DL = 0,
+    QC_LINK_UL = 1,
+    QC_LINK_MAX
 } QC_LINK, *PQC_LINK;
 
 // Definitions for USB CDC
@@ -34,13 +34,14 @@ typedef enum _QC_LINK
 #define USB_CDC_FD_MDLMD     0x13 // MDLM Detail Functional Descriptor
 #define USB_CDC_ACM_FD       0x02 // ACM Functional Descriptor
 
-typedef struct {
-   UCHAR bmRequestType;
-   UCHAR bRequest;
-   USHORT wValue;
-   USHORT wIndex;
-   USHORT wLength;
-   char Data[1];
+typedef struct
+{
+    UCHAR  bmRequestType;
+    UCHAR  bRequest;
+    USHORT wValue;
+    USHORT wIndex;
+    USHORT wLength;
+    char   Data[1];
 }  USB_DEFAULT_PIPE_REQUEST, *PUSB_DEFAULT_PIPE_REQUEST;
 
 // constants that must be found in descriptors in Comm Device Class
@@ -58,7 +59,8 @@ typedef struct {
 #define CDCC_ECM_INTERFACE_CLASS           0x06  // Ethernet networking control model
 
 // Class Specific Functional Descriptor
-typedef struct _CDCC_FUNCTIONAL_DESCRIPTOR {
+typedef struct _CDCC_FUNCTIONAL_DESCRIPTOR
+{
     UCHAR bFunctionLength;
     UCHAR bDescriptorType;   // == CDCC_CS_INTERFACE
     UCHAR bDescriptorSubtype;// == CDCC_CSUB_*
@@ -99,9 +101,9 @@ typedef struct _CDCC_FUNCTIONAL_DESCRIPTOR {
 #define VENDOR_HOST_TO_DEVICE 0x40
 #define VENDOR_DEVICE_TO_HOST 0XC0
 
-// CDC (Communications Device Class) Vendor / Class Specific messages
+ // CDC (Communications Device Class) Vendor / Class Specific messages
 
- /*
+/*
  * Notification
  */
 #define CDC_SERIAL_STATE                0x20 // (CDC spec 6.3.5)
@@ -117,7 +119,7 @@ typedef struct _CDCC_FUNCTIONAL_DESCRIPTOR {
 #define CDC_SERIAL_SIG_DSR              0x02
 #define CDC_SERIAL_SIG_DCD              0x01
 
- /*
+/*
  * bRequest field function codes...
  */
 #define CDC_SEND_ENCAPSULATED_CMD       0x00
@@ -127,13 +129,13 @@ typedef struct _CDCC_FUNCTIONAL_DESCRIPTOR {
 #define CDC_SET_CONTROL_LINE_STATE      0x22
 #define CDC_SEND_BREAK                  0x23
 #define CDC_SET_COMM_FEATURE            0x02
- /*
+/*
  * wValue field definitions.
  */
 #define CDC_CONTROL_LINE_RTS            0x02 // LIMIT: RTS always asserted
 #define CDC_CONTROL_LINE_DTR            0x01
 #define CDC_ABSTRACT_STATE              0x01
- /*
+/*
  * Index fields...
  */
 
@@ -150,7 +152,7 @@ typedef struct _CDCC_FUNCTIONAL_DESCRIPTOR {
 #define BM_REQUEST_DIRECTION_BIT 0x80
 #define bmRequestTypeBits        0x05  //D6..5
 #define bmRequestRecipientMask   0x1F  //D4..0
-    
+
 #define TYPE_STANDARD             0
 #define TYPE_CLASS                1
 #define TYPE_VENDOR               2
@@ -176,9 +178,9 @@ typedef struct _CDCC_FUNCTIONAL_DESCRIPTOR {
 
 typedef enum _QCUSB_RESET_SCOPE
 {
-   QCUSB_RESET_HOST_PIPE = 0,
-   QCUSB_RESET_ENDPOINT,
-   QCUSB_RESET_PIPE_AND_ENDPOINT
+    QCUSB_RESET_HOST_PIPE = 0,
+    QCUSB_RESET_ENDPOINT,
+    QCUSB_RESET_PIPE_AND_ENDPOINT
 } QCUSB_RESET_SCOPE;
 
 // USB 2.0 calls -- this needs fixing: usb.h
@@ -192,40 +194,40 @@ typedef enum _QCUSB_RESET_SCOPE
 // Function Prototypes
 NTSTATUS QCUSB_PassThrough
 (
-   PDEVICE_OBJECT pDevObj,
-   PVOID ioBuffer,
-   ULONG outputBufferLength,
-   ULONG *pRetSize
+    PDEVICE_OBJECT pDevObj,
+    PVOID ioBuffer,
+    ULONG outputBufferLength,
+    ULONG *pRetSize
 );
-NTSTATUS QCUSB_ResetInput(IN PDEVICE_OBJECT pDevObj, QCUSB_RESET_SCOPE Scope);
-NTSTATUS QCUSB_ResetOutput(IN PDEVICE_OBJECT pDevObj, QCUSB_RESET_SCOPE Scope);
-NTSTATUS QCUSB_ResetInt(IN PDEVICE_OBJECT pDevObj, QCUSB_RESET_SCOPE Scope);
-NTSTATUS QCUSB_AbortInterrupt( IN PDEVICE_OBJECT pDevObj);
-NTSTATUS QCUSB_AbortOutput( IN PDEVICE_OBJECT pDevObj);
-NTSTATUS QCUSB_AbortInput( IN PDEVICE_OBJECT pDevObj );
+NTSTATUS QCUSB_ResetInput(IN PDEVICE_OBJECT pDevObj, IN QCUSB_RESET_SCOPE Scope);
+NTSTATUS QCUSB_ResetOutput(IN PDEVICE_OBJECT pDevObj, IN QCUSB_RESET_SCOPE Scope);
+NTSTATUS QCUSB_ResetInt(IN PDEVICE_OBJECT pDevObj, IN QCUSB_RESET_SCOPE Scope);
+NTSTATUS QCUSB_AbortInterrupt(IN PDEVICE_OBJECT pDevObj);
+NTSTATUS QCUSB_AbortOutput(IN PDEVICE_OBJECT pDevObj);
+NTSTATUS QCUSB_AbortInput(IN PDEVICE_OBJECT pDevObj);
 NTSTATUS QCUSB_AbortPipe
 (
-   IN PDEVICE_OBJECT pDevObj,
-   UCHAR             PipeNum,
-   UCHAR             InterfaceNum
+    IN PDEVICE_OBJECT pDevObj,
+    UCHAR             PipeNum,
+    UCHAR             InterfaceNum
 );
 NTSTATUS QCUSB_GetStatus(IN PDEVICE_OBJECT pDevObj, PUCHAR ioBuff);
 NTSTATUS QCUSB_CallUSBD_Completion
 (
-   PDEVICE_OBJECT dummy,
-   PIRP pIrp,
-   PVOID pEvent
+    PDEVICE_OBJECT dummy,
+    PIRP  pIrp,
+    PVOID pEvent
 );
 NTSTATUS QCUSB_CallUSBD
 (
-   IN PDEVICE_OBJECT DeviceObject,
-   IN PURB Urb
+    IN PDEVICE_OBJECT DeviceObject,
+    IN PURB Urb
 );
 
 NTSTATUS QCUSB_CallUSBDIrp
 (
-   IN PDEVICE_OBJECT DeviceObject,
-   IN PIRP Irp
+    IN PDEVICE_OBJECT DeviceObject,
+    IN PIRP Irp
 );
 
 NTSTATUS QCUSB_SetRemoteWakeup(IN PDEVICE_OBJECT pDevObj);
@@ -236,16 +238,16 @@ NTSTATUS USBCTL_SetDtr(PDEVICE_OBJECT DeviceObject);
 NTSTATUS USBCTL_RequestDeviceID(PDEVICE_OBJECT pDevObj, USHORT Interface);
 NTSTATUS USBCTL_EnableDataBundling
 (
-   PDEVICE_OBJECT pDevObj,
-   USHORT         Interface,
-   QC_LINK        Link
+    PDEVICE_OBJECT pDevObj,
+    USHORT         Interface,
+    QC_LINK        Link
 );
 NTSTATUS QCUSB_CDC_SetInterfaceIdle
 (
-   PDEVICE_OBJECT DeviceObject,
-   USHORT         Interface,
-   BOOLEAN        IdleState,
-   UCHAR          Cookie
+    PDEVICE_OBJECT DeviceObject,
+    USHORT         Interface,
+    BOOLEAN        IdleState,
+    UCHAR          Cookie
 );
 
 #endif // QCUSB_H

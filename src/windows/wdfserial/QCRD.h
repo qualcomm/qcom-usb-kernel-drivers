@@ -23,7 +23,7 @@ NTSTATUS QCRD_CreateReadUrb
     PDEVICE_CONTEXT pDevContext,
     size_t          urbBufferSize,
     ULONG           readBufferParamTag,
-    WDFREQUEST*     outRequest
+    WDFREQUEST     *outRequest
 );
 
 NTSTATUS QCRD_ResetReadUrb

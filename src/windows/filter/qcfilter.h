@@ -21,8 +21,8 @@ GENERAL DESCRIPTION
 // error during precompiled headers.
 //
 // {B7D25408-B34A-4f67-BF36-F6182CC0EC48}
-DEFINE_GUID(QMI_DEVICE_INTERFACE_CLASS, 
-0xb7d25408, 0xb34a, 0x4f67, 0xbf, 0x36, 0xf6, 0x18, 0x2c, 0xc0, 0xec, 0x48);
+DEFINE_GUID(QMI_DEVICE_INTERFACE_CLASS,
+    0xb7d25408, 0xb34a, 0x4f67, 0xbf, 0x36, 0xf6, 0x18, 0x2c, 0xc0, 0xec, 0x48);
 
 
 #if !defined(_FILTER_H_)
@@ -34,13 +34,13 @@ DEFINE_GUID(QMI_DEVICE_INTERFACE_CLASS,
 
 #define POOL_TAG   'liFT'
 
-#define NTDEVICE_NAME_STRING      L"\\Device\\QcFilter"
-#define SYMBOLIC_NAME_STRING      L"\\DosDevices\\QcFilter"
+#define NTDEVICE_NAME_STRING        L"\\Device\\QcFilter"
+#define SYMBOLIC_NAME_STRING        L"\\DosDevices\\QcFilter"
 
-#define VEN_DEV_SERNUM            L"QCDeviceSerialNumber"
-#define VEN_DEV_MSM_SERNUM        L"QCDeviceMsmSerialNumber"
+#define VEN_DEV_SERNUM              L"QCDeviceSerialNumber"
+#define VEN_DEV_MSM_SERNUM          L"QCDeviceMsmSerialNumber"
 
-#define VEN_DBG_MASK        L"QCDriverDebugMask"
+#define VEN_DBG_MASK                L"QCDriverDebugMask"
 #define VEN_MUX_ENABLED             L"QCDeviceMuxEnable"
 #define VEN_MUX_STARTRMNETIF        L"QCDeviceStartIf"
 #define VEN_MUX_NUMRMNETIF          L"QCDeviceNumIf"
@@ -73,7 +73,7 @@ DEFINE_GUID(QMI_DEVICE_INTERFACE_CLASS,
 #define DBG_LEVEL_VERBOSE  WPP_LEVEL_VERBOSE
 
 #if DBG
-   #define QCFLT_DbgPrint(level,_x_) \
+#define QCFLT_DbgPrint(level,_x_) \
            { \
               if ((pDevExt->DebugLevel >= level) || \
                    (level == 0) ) \
@@ -81,29 +81,30 @@ DEFINE_GUID(QMI_DEVICE_INTERFACE_CLASS,
                  DbgPrint _x_; \
               } \
            }
-   #define QCFLT_DbgPrintG(_x_) \
+#define QCFLT_DbgPrintG(_x_) \
            { \
               { \
                  DbgPrint _x_; \
               } \
            }
-   #define TRAP() DbgBreakPoint()
-   
+#define TRAP() DbgBreakPoint()
+
 #else 
-   #define QCFLT_DbgPrint(level,_x_)
-   #define QCFLT_DbgPrintG(_x_)
-   #define TRAP()
+#define QCFLT_DbgPrint(level,_x_)
+#define QCFLT_DbgPrintG(_x_)
+#define TRAP()
 #endif
 
 /* PNP State definations */
-typedef enum _QC_DEVICE_PNP_STATE {
-   QC_NOT_STARTED = 0,
-   QC_STARTED,          
-   QC_STOP_PENDING,   
-   QC_STOPPED,        
-   QC_REMOVE_PENDING, 
-   QC_SURPRISE_REMOVE_PENDING,
-   QC_DELETED
+typedef enum _QC_DEVICE_PNP_STATE
+{
+    QC_NOT_STARTED = 0,
+    QC_STARTED,
+    QC_STOP_PENDING,
+    QC_STOPPED,
+    QC_REMOVE_PENDING,
+    QC_SURPRISE_REMOVE_PENDING,
+    QC_DELETED
 } QC_DEVICE_PNP_STATE;
 
 
@@ -194,11 +195,11 @@ typedef enum _QC_DEVICE_PNP_STATE {
 #define _IoMarkIrpPending(_pIrp_) {_pIrp_->IoStatus.Status = STATUS_PENDING; IoMarkIrpPending(_pIrp_);}
 
 // Device Type
-typedef enum _DEVICE_TYPE 
+typedef enum _DEVICE_TYPE
 {
-   DEVICE_TYPE_INVALID = 0,         // Invalid Type;
-   DEVICE_TYPE_QCFIDO,              // Device is a filter device.
-   DEVICE_TYPE_QCCDO,               // Device is a control device.
+    DEVICE_TYPE_INVALID = 0,         // Invalid Type;
+    DEVICE_TYPE_QCFIDO,              // Device is a filter device.
+    DEVICE_TYPE_QCCDO,               // Device is a control device.
 } DEVICE_TYPE;
 
 #define DUMMY_EVENT_INDEX                         0
@@ -211,34 +212,34 @@ typedef enum _DEVICE_TYPE
 
 typedef struct _FILTER_THREAD_CONTEXT
 {
-   // for FILTER thread
-   PKTHREAD       pFilterThread;
-   HANDLE         hFilterThreadHandle;
-   BOOLEAN        bFilterThreadInCreation;
-   KEVENT         FilterThreadStartedEvent;
-   BOOLEAN        bFilterActive;
-   BOOLEAN        bFilterStopped;
-   PIRP           pFilterCurrent;
-   PKEVENT        pFilterEvents[QCFLT_FILTER_EVENT_COUNT];
-   KEVENT         FilterCreateControlDeviceEvent;
-   KEVENT         FilterCloseControlDeviceEvent;
-   KEVENT         FilterStopEvent;
-   KEVENT         FilterThreadExitEvent;
-   ULONG          FilterThreadInCancellation;
-   
+    // for FILTER thread
+    PKTHREAD       pFilterThread;
+    HANDLE         hFilterThreadHandle;
+    BOOLEAN        bFilterThreadInCreation;
+    KEVENT         FilterThreadStartedEvent;
+    BOOLEAN        bFilterActive;
+    BOOLEAN        bFilterStopped;
+    PIRP           pFilterCurrent;
+    PKEVENT        pFilterEvents[QCFLT_FILTER_EVENT_COUNT];
+    KEVENT         FilterCreateControlDeviceEvent;
+    KEVENT         FilterCloseControlDeviceEvent;
+    KEVENT         FilterStopEvent;
+    KEVENT         FilterThreadExitEvent;
+    ULONG          FilterThreadInCancellation;
+
 }FILTER_THREAD_CONTEXT, *PFILTER_THREAD_CONTEXT;
 
 typedef struct _INTERFACE_DETAILS
 {
-   ULONG RmnetInterface;
-   PVOID FilterDevInfo;
-   PVOID pAdapter;
+    ULONG RmnetInterface;
+    PVOID FilterDevInfo;
+    PVOID pAdapter;
 }INTERFACE_DETAILS, *PINTERFACE_DETAILS;
 
 typedef struct _INTERFACE_MUX_LIST
 {
-   INTERFACE_DETAILS PhysicalRmnetInterface;
-   INTERFACE_DETAILS MuxInterfaces[NUM_MUX_INTERFACES_MUX];
+    INTERFACE_DETAILS PhysicalRmnetInterface;
+    INTERFACE_DETAILS MuxInterfaces[NUM_MUX_INTERFACES_MUX];
 }INTERFACE_MUX_LIST, *PINTERFACE_MUX_LIST;
 
 typedef struct _MUX_INTERFACE_INFO
@@ -247,125 +248,125 @@ typedef struct _MUX_INTERFACE_INFO
     UCHAR PhysicalInterfaceNumber;
     ULONG MuxEnabled;
     PVOID FilterDeviceObj;
-}MUX_INTERFACE_INFO,* PMUX_INTERFACE_INFO;
+}MUX_INTERFACE_INFO, *PMUX_INTERFACE_INFO;
 
 typedef struct _DEVICE_EXTENSION
 {
-   DEVICE_TYPE Type;
-   // A back pointer to the device object.
-   PDEVICE_OBJECT Self;
-   // The top of the stack before this filter was added.
-   PDEVICE_OBJECT NextLowerDriver;
-   // A pointer to the PDO.
-   PDEVICE_OBJECT QCPhysicalDeviceObject;
-   // current PnP state of the device
-   QC_DEVICE_PNP_STATE DevicePnPState;
-   // Remembers the previous pnp state
-   QC_DEVICE_PNP_STATE PreviousPnPState;
-   // Removelock to track IRPs so that device can be removed and
-   // the driver can be unloaded safely.
-   IO_REMOVE_LOCK RemoveLock;
-   // The top of the stack before this filter was added.
-   PDEVICE_OBJECT ControlDeviceObject;
-   // Adapter Context
-   PVOID pAdapterContext;
-   // Filter thread IO Lock
-   KSPIN_LOCK FilterSpinLock;
-   // Filter Thread for handeling IRPs
-   FILTER_THREAD_CONTEXT FilterThread;
-   // Dispatch Queue
-   LIST_ENTRY DispatchQueue;
-   // Current IRP Processing
-   PIRP pCurrentDispatch;
+    DEVICE_TYPE Type;
+    // A back pointer to the device object.
+    PDEVICE_OBJECT Self;
+    // The top of the stack before this filter was added.
+    PDEVICE_OBJECT NextLowerDriver;
+    // A pointer to the PDO.
+    PDEVICE_OBJECT QCPhysicalDeviceObject;
+    // current PnP state of the device
+    QC_DEVICE_PNP_STATE DevicePnPState;
+    // Remembers the previous pnp state
+    QC_DEVICE_PNP_STATE PreviousPnPState;
+    // Removelock to track IRPs so that device can be removed and
+    // the driver can be unloaded safely.
+    IO_REMOVE_LOCK RemoveLock;
+    // The top of the stack before this filter was added.
+    PDEVICE_OBJECT ControlDeviceObject;
+    // Adapter Context
+    PVOID pAdapterContext;
+    // Filter thread IO Lock
+    KSPIN_LOCK FilterSpinLock;
+    // Filter Thread for handeling IRPs
+    FILTER_THREAD_CONTEXT FilterThread;
+    // Dispatch Queue
+    LIST_ENTRY DispatchQueue;
+    // Current IRP Processing
+    PIRP pCurrentDispatch;
 
-   KEVENT ForTimeoutEvent;   
-   
-   //Debug Settings
-   CHAR PortName[32];
-   INT DebugLevel;
-   ULONG DebugMask;
+    KEVENT ForTimeoutEvent;
 
-   UCHAR VID;
-   UCHAR PID;
+    //Debug Settings
+    CHAR PortName[32];
+    INT DebugLevel;
+    ULONG DebugMask;
 
-   USB_DEVICE_DESCRIPTOR DeviceDescriptor;
+    UCHAR VID;
+    UCHAR PID;
 
-   CHAR DevSerialNumber[256];  // to hold USB_STRING_DESCRIPTOR of the serial number
+    USB_DEVICE_DESCRIPTOR DeviceDescriptor;
 
-   ULONG MuxSupport;
+    CHAR DevSerialNumber[256];  // to hold USB_STRING_DESCRIPTOR of the serial number
 
-   ULONG StartRmnetIface;
+    ULONG MuxSupport;
 
-   ULONG NumRmnetIface;
+    ULONG StartRmnetIface;
 
-   ULONG NumMuxRmnetIface;
+    ULONG NumRmnetIface;
 
-   ULONG NumRmnetIfaceCount;
+    ULONG NumMuxRmnetIface;
 
-   ULONG NumRmnetIfaceVCount;
+    ULONG NumRmnetIfaceCount;
 
-   INTERFACE_MUX_LIST InterfaceMuxList[NUM_MUX_INTERFACES_MUX];
+    ULONG NumRmnetIfaceVCount;
 
-   CHAR  PeerDevName[4096];
-   ULONG PeerDevNameLength;
+    INTERFACE_MUX_LIST InterfaceMuxList[NUM_MUX_INTERFACES_MUX];
 
-   WCHAR FriendlyNameHolder[MAX_NAME_LEN];
+    CHAR  PeerDevName[4096];
+    ULONG PeerDevNameLength;
+
+    WCHAR FriendlyNameHolder[MAX_NAME_LEN];
 
 } DEVICE_EXTENSION, *PDEVICE_EXTENSION;
 
 typedef struct _FILTER_DEVICE_INFO
 {
-   PVOID pAdapter;
-   PUNICODE_STRING pDeviceName;
-   PUNICODE_STRING pDeviceLinkName;
-   PDRIVER_DISPATCH*  MajorFunctions;
-   PDEVICE_OBJECT pControlDeviceObject;
-   PDEVICE_OBJECT pFilterDeviceObject;
-   PUNICODE_STRING pFileName;
-   ULONG UniqueIdentifier;
+    PVOID pAdapter;
+    PUNICODE_STRING pDeviceName;
+    PUNICODE_STRING pDeviceLinkName;
+    PDRIVER_DISPATCH *MajorFunctions;
+    PDEVICE_OBJECT pControlDeviceObject;
+    PDEVICE_OBJECT pFilterDeviceObject;
+    PUNICODE_STRING pFileName;
+    ULONG UniqueIdentifier;
 }FILTER_DEVICE_INFO, *PFILTER_DEVICE_INFO;
 
 typedef struct _FILTER_DEVICE_LIST
 {
-   LIST_ENTRY  List;
-   PVOID pAdapter;
-   UNICODE_STRING DeviceName;
-   UNICODE_STRING DeviceLinkName;
-   PDRIVER_DISPATCH DispatchTable[IRP_MJ_MAXIMUM_FUNCTION+1];
-   PDEVICE_OBJECT pControlDeviceObject;
-   PDEVICE_OBJECT pFilterDeviceObject;
-   PUNICODE_STRING pFileName;
-   ULONG UniqueIdentifier;
+    LIST_ENTRY  List;
+    PVOID pAdapter;
+    UNICODE_STRING DeviceName;
+    UNICODE_STRING DeviceLinkName;
+    PDRIVER_DISPATCH DispatchTable[IRP_MJ_MAXIMUM_FUNCTION + 1];
+    PDEVICE_OBJECT pControlDeviceObject;
+    PDEVICE_OBJECT pFilterDeviceObject;
+    PUNICODE_STRING pFileName;
+    ULONG UniqueIdentifier;
 }FILTER_DEVICE_LIST, *PFILTER_DEVICE_LIST;
 
-typedef struct _CONTROL_DEVICE_EXTENSION 
+typedef struct _CONTROL_DEVICE_EXTENSION
 {
 
-   DEVICE_TYPE Type;
-   // A back pointer to the device object.
-   PDEVICE_OBJECT Self;
-   // The top of the stack before this filter was added.
-   PDRIVER_OBJECT DriverObject;
-   // The top of the stack before this filter was added.
-   PDEVICE_OBJECT FidoDeviceObject;
-   // Adapter Context
-   PVOID pAdapterContext;
+    DEVICE_TYPE Type;
+    // A back pointer to the device object.
+    PDEVICE_OBJECT Self;
+    // The top of the stack before this filter was added.
+    PDRIVER_OBJECT DriverObject;
+    // The top of the stack before this filter was added.
+    PDEVICE_OBJECT FidoDeviceObject;
+    // Adapter Context
+    PVOID pAdapterContext;
 
-   UNICODE_STRING SymbolicName;
-   UNICODE_STRING DeviceName;
+    UNICODE_STRING SymbolicName;
+    UNICODE_STRING DeviceName;
 
-   ULONG Deleted; // False if the deviceobject is valid, TRUE if it's deleted
+    ULONG Deleted; // False if the deviceobject is valid, TRUE if it's deleted
 
-   BOOLEAN InService;
+    BOOLEAN InService;
 
-   LONG DeviceOpenCount;
-   
-   //Debug Settings
-   CHAR PortName[32];
-   INT DebugLevel;
-   ULONG DebugMask;
+    LONG DeviceOpenCount;
 
-   IO_REMOVE_LOCK RmLock;
+    //Debug Settings
+    CHAR PortName[32];
+    INT DebugLevel;
+    ULONG DebugMask;
+
+    IO_REMOVE_LOCK RmLock;
 
 } CONTROL_DEVICE_EXTENSION, *PCONTROL_DEVICE_EXTENSION;
 
@@ -391,17 +392,17 @@ __drv_dispatchType(IRP_MJ_READ)
 __drv_dispatchType(IRP_MJ_WRITE)
 DRIVER_DISPATCH QCFilterDispatchIo;
 
-PCHAR QCPnPMinorFunctionString ( UCHAR MinorFunction);
+PCHAR QCPnPMinorFunctionString(UCHAR MinorFunction);
 
-NTSTATUS QCFilterStartCompletionRoutine( PDEVICE_OBJECT DeviceObject, PIRP Irp, PVOID Context);
+NTSTATUS QCFilterStartCompletionRoutine(PDEVICE_OBJECT DeviceObject, PIRP Irp, PVOID Context);
 
-NTSTATUS QCFilterQueryCapabilitiesCompletionRoutine ( PDEVICE_OBJECT DeviceObject, PIRP Irp, PVOID Context);
-
-NTSTATUS
-QCFilterCreateControlObject( PDEVICE_OBJECT DeviceObject, PFILTER_DEVICE_INFO pFilterDeviceInfo);
+NTSTATUS QCFilterQueryCapabilitiesCompletionRoutine(PDEVICE_OBJECT DeviceObject, PIRP Irp, PVOID Context);
 
 NTSTATUS
-QCFilterDeleteControlObject( PDEVICE_OBJECT DeviceObject,PFILTER_DEVICE_INFO pFilterDeviceInfo);
+QCFilterCreateControlObject(PDEVICE_OBJECT DeviceObject, PFILTER_DEVICE_INFO pFilterDeviceInfo);
+
+NTSTATUS
+QCFilterDeleteControlObject(PDEVICE_OBJECT DeviceObject, PFILTER_DEVICE_INFO pFilterDeviceInfo);
 
 NTSTATUS QCFilter_StartFilterThread(PDEVICE_OBJECT devObj);
 
@@ -409,95 +410,95 @@ VOID QCFilter_CancelFilterThread(PDEVICE_OBJECT pDevObj);
 
 VOID QCFLT_Wait(PDEVICE_EXTENSION pDevExt, LONGLONG WaitTime);
 
-NTSTATUS QCFilter_InitializeDeviceExt( PDEVICE_OBJECT deviceObject );
+NTSTATUS QCFilter_InitializeDeviceExt(PDEVICE_OBJECT deviceObject);
 
 BOOLEAN QCFLT_IsIrpInQueue
 (
-   PDEVICE_EXTENSION pDevExt,
-   PLIST_ENTRY Queue,
-   PIRP        Irp
+    PDEVICE_EXTENSION pDevExt,
+    PLIST_ENTRY Queue,
+    PIRP        Irp
 );
 
-NTSTATUS QCFLT_AddControlDevice( PFILTER_DEVICE_INFO pFilterDeviceInfo );
+NTSTATUS QCFLT_AddControlDevice(PFILTER_DEVICE_INFO pFilterDeviceInfo);
 
-NTSTATUS QCFLT_DeleteControlDevice( PDEVICE_OBJECT pControlDeviceObject );
+NTSTATUS QCFLT_DeleteControlDevice(PDEVICE_OBJECT pControlDeviceObject);
 
-PFILTER_DEVICE_LIST QCFLT_FindControlDevice( PDEVICE_OBJECT pControlDeviceObject);
+PFILTER_DEVICE_LIST QCFLT_FindControlDevice(PDEVICE_OBJECT pControlDeviceObject);
 
-PDEVICE_OBJECT QCFLT_FindControlDeviceFido( PDEVICE_OBJECT pFido );
+PDEVICE_OBJECT QCFLT_FindControlDeviceFido(PDEVICE_OBJECT pFido);
 
-PFILTER_DEVICE_LIST QCFLT_FindFilterDevice( PDEVICE_OBJECT    DeviceObject, 
-                                                 PFILTER_DEVICE_INFO pFilterDeviceInfo );
+PFILTER_DEVICE_LIST QCFLT_FindFilterDevice(PDEVICE_OBJECT    DeviceObject,
+    PFILTER_DEVICE_INFO pFilterDeviceInfo);
 
 VOID QCFLT_FreeControlDeviceList();
 
 NTSTATUS QCFLT_VendorRegistryProcess
 (
-   IN PDRIVER_OBJECT pDriverObject,
-   IN PDEVICE_OBJECT PhysicalDeviceObject,
-   IN PDEVICE_OBJECT Fido 
+    IN PDRIVER_OBJECT pDriverObject,
+    IN PDEVICE_OBJECT PhysicalDeviceObject,
+    IN PDEVICE_OBJECT Fido
 );
 
 NTSTATUS getRegDwValueEntryData
 (
-   IN HANDLE OpenRegKey, 
-   IN PWSTR ValueEntryName,
-   OUT PULONG pValueEntryData
+    IN HANDLE OpenRegKey,
+    IN PWSTR ValueEntryName,
+    OUT PULONG pValueEntryData
 );
 
 NTSTATUS getRegSzValueEntryData
 (
-   IN HANDLE OpenRegKey, 
-   IN PWSTR ValueEntryName,
-   OUT PCHAR pValueEntryData
+    IN HANDLE OpenRegKey,
+    IN PWSTR ValueEntryName,
+    OUT PCHAR pValueEntryData
 );
 
-NTSTATUS GetValueEntry( HANDLE hKey, PWSTR FieldName, PKEY_VALUE_FULL_INFORMATION  *pKeyValInfo );
+NTSTATUS GetValueEntry(HANDLE hKey, PWSTR FieldName, PKEY_VALUE_FULL_INFORMATION *pKeyValInfo);
 
-ULONG GetDwordField( PKEY_VALUE_FULL_INFORMATION pKvi );
+ULONG GetDwordField(PKEY_VALUE_FULL_INFORMATION pKvi);
 
 VOID GetSzField(PKEY_VALUE_FULL_INFORMATION pKvi, PCHAR ValueEntryDataSz);
 
 BOOLEAN USBPNP_ValidateConfigDescriptor
 (
-   PDEVICE_EXTENSION pDevExt,
-   PUSB_CONFIGURATION_DESCRIPTOR ConfigDesc
+    PDEVICE_EXTENSION pDevExt,
+    PUSB_CONFIGURATION_DESCRIPTOR ConfigDesc
 );
 
 BOOLEAN USBPNP_ValidateDeviceDescriptor
 (
-   PDEVICE_EXTENSION      pDevExt,
-   PUSB_DEVICE_DESCRIPTOR DevDesc
+    PDEVICE_EXTENSION      pDevExt,
+    PUSB_DEVICE_DESCRIPTOR DevDesc
 );
 
 NTSTATUS USBPNP_SelectAndAddInterfaces
 (
-   IN PDEVICE_EXTENSION pDevExt,
-   IN PURB pUrb
+    IN PDEVICE_EXTENSION pDevExt,
+    IN PURB pUrb
 );
 
 VOID QCFLT_PrintBytes
 (
-   PVOID Buf,
-   ULONG len,
-   ULONG PktLen,
-   char *info,
-   PDEVICE_EXTENSION x,
-   ULONG DbgLevel
+    PVOID Buf,
+    ULONG len,
+    ULONG PktLen,
+    char *info,
+    PDEVICE_EXTENSION x,
+    ULONG DbgLevel
 );
 
 NTSTATUS QCFilterCreateFriendlyName
 (
-   PDEVICE_EXTENSION pDevExt,
-   PDEVICE_OBJECT QCPhysicalDeviceObject
+    PDEVICE_EXTENSION pDevExt,
+    PDEVICE_OBJECT QCPhysicalDeviceObject
 );
 
 NTSTATUS QCFilterSetFriendlyName
 (
-   PDEVICE_EXTENSION pDevExt,
-   PDEVICE_OBJECT    QCPhysicalDeviceObject,
-   PUNICODE_STRING   FriendlyName,
-   PWCHAR            TargetDriverKey
+    PDEVICE_EXTENSION pDevExt,
+    PDEVICE_OBJECT    QCPhysicalDeviceObject,
+    PUNICODE_STRING   FriendlyName,
+    PWCHAR            TargetDriverKey
 );
 
 #ifdef EVENT_TRACING

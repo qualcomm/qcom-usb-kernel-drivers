@@ -25,9 +25,9 @@ PUCHAR MPOID_OidToNameStr(ULONG oid)
 {
 
     PCHAR retStr = "";
-    switch( oid )
-        {
-        
+    switch (oid)
+    {
+
         case OID_GEN_SUPPORTED_LIST:
             retStr = "OID_GEN_SUPPORTED_LIST";
             break;
@@ -332,7 +332,7 @@ PUCHAR MPOID_OidToNameStr(ULONG oid)
             retStr = "OID_GEN_VLAN_ID";
             break;
 
-        #ifdef NDIS60_MINIPORT
+#ifdef NDIS60_MINIPORT
 
         case OID_GEN_LINK_PARAMETERS:
             retStr = "OID_GEN_LINK_PARAMETERS";
@@ -346,9 +346,9 @@ PUCHAR MPOID_OidToNameStr(ULONG oid)
             retStr = "OID_GEN_LINK_STATE";
             break;
 
-        #endif // NDIS60_MINIPORT
+#endif // NDIS60_MINIPORT
 
-        #ifdef NDIS620_MINIPORT
+#ifdef NDIS620_MINIPORT
 
         case OID_WWAN_DRIVER_CAPS:
             retStr = "OID_WWAN_DRIVER_CAPS";
@@ -430,15 +430,15 @@ PUCHAR MPOID_OidToNameStr(ULONG oid)
             retStr = "OID_WWAN_SMS_STATUS";
             break;
 
-        #endif // NDIS620_MINIPORT
+#endif // NDIS620_MINIPORT
 
         case OID_GOBI_DEVICE_INFO:
             retStr = "OID_GOBI_DEVICE_INFO";
             break;
 
-        default: 
+        default:
             retStr = "<** UNKNOWN OID **>";
             break;
-        }
+    }
     return retStr;
 }

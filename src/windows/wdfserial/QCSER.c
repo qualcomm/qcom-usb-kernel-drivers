@@ -121,7 +121,7 @@ VOID QCSER_ProcessNewUartState
         QCSER_DBG_MASK_CONTROL,
         QCSER_DBG_LEVEL_TRACE,
         ("<%ws> QCSER_ProcessNewUartState ulNewEvent: 0x%x, WaitMask: 0x%x, CurrUartState:0x%x\n",
-            pDevContext->PortName, ulNewEvent, pDevContext->WaitMask, pDevContext->CurrUartState)
+        pDevContext->PortName, ulNewEvent, pDevContext->WaitMask, pDevContext->CurrUartState)
     );
 
     if (ulNewEvent & pDevContext->WaitMask)
@@ -131,7 +131,7 @@ VOID QCSER_ProcessNewUartState
             QCSER_DBG_MASK_CONTROL,
             QCSER_DBG_LEVEL_TRACE,
             ("<%ws> QCSER_ProcessNewUartState completing WaitOnMaskRequest ulNewEvent: 0x%x, WaitMask: 0x%x\n",
-                pDevContext->PortName, ulNewEvent, pDevContext->WaitMask)
+            pDevContext->PortName, ulNewEvent, pDevContext->WaitMask)
         );
 
         pDevContext->CurrUartState &= US_BITS_MODEM;
@@ -210,7 +210,7 @@ NTSTATUS QCSER_SetModemConfig
             QCSER_DBG_MASK_CONTROL,
             QCSER_DBG_LEVEL_DETAIL,
             ("<%ws> QCSER_SetModemConfig DteRate: %lu, Parity: %u, StopBits: %u, DataBits: %u\n", pDevContext->PortName,
-                newModemInfo->ulDteRate, newModemInfo->ucParityType, newModemInfo->ucStopBit, newModemInfo->ucDataBits)
+            newModemInfo->ulDteRate, newModemInfo->ucParityType, newModemInfo->ucStopBit, newModemInfo->ucDataBits)
         );
     }
     else
@@ -310,7 +310,7 @@ NTSTATUS QCSER_GetModemConfig
             QCSER_DBG_MASK_CONTROL,
             QCSER_DBG_LEVEL_INFO,
             ("<%ws> QCSER_GetModemConfig DteRate: %lu, Parity: %u, StopBits: %u, DataBits: %u\n", pDevContext->PortName,
-                outModemInfo->ulDteRate, outModemInfo->ucParityType, outModemInfo->ucStopBit, outModemInfo->ucDataBits)
+            outModemInfo->ulDteRate, outModemInfo->ucParityType, outModemInfo->ucStopBit, outModemInfo->ucDataBits)
         );
     }
     else
@@ -499,9 +499,9 @@ NTSTATUS QCSER_GetCommStatus
         QCSER_DBG_MASK_CONTROL,
         QCSER_DBG_LEVEL_INFO,
         ("<%ws> QCSER_GetCommStatus completed with status: 0x%x, Error: (%lu), Hold: (%lu), InQ: (%lu), OutQ: (%lu), EofRcvd: (%d), WaitForImm(%d)\n",
-            pDevContext->PortName, status, pDevContext->SerialStatus.Errors, pDevContext->SerialStatus.HoldReasons,
-            pDevContext->SerialStatus.AmountInInQueue, pDevContext->SerialStatus.AmountInOutQueue,
-            pDevContext->SerialStatus.EofReceived, pDevContext->SerialStatus.WaitForImmediate)
+        pDevContext->PortName, status, pDevContext->SerialStatus.Errors, pDevContext->SerialStatus.HoldReasons,
+        pDevContext->SerialStatus.AmountInInQueue, pDevContext->SerialStatus.AmountInOutQueue,
+        pDevContext->SerialStatus.EofReceived, pDevContext->SerialStatus.WaitForImmediate)
     );
 
     return status;
@@ -549,8 +549,8 @@ NTSTATUS QCSER_Purge
                 SERIAL_PURGE_TXABORT |
                 SERIAL_PURGE_RXABORT |
                 SERIAL_PURGE_TXCLEAR |
-                SERIAL_PURGE_RXCLEAR )))
-               )
+                SERIAL_PURGE_RXCLEAR)))
+                )
             {
                 status = STATUS_INVALID_PARAMETER;
             }
@@ -772,7 +772,7 @@ NTSTATUS QCSER_GetLineControl
                     QCSER_DBG_MASK_CONTROL,
                     QCSER_DBG_LEVEL_DETAIL,
                     ("<%ws> QCSER_GetLineControl Parity: %u, StopBits: %u, WordLength: %u\n", pDevContext->PortName,
-                        outputBuffer->Parity, outputBuffer->StopBits, outputBuffer->WordLength)
+                    outputBuffer->Parity, outputBuffer->StopBits, outputBuffer->WordLength)
                 );
             }
         }
@@ -804,7 +804,7 @@ NTSTATUS QCSER_SetLineControl
                 QCSER_DBG_MASK_CONTROL,
                 QCSER_DBG_LEVEL_DETAIL,
                 ("<%ws> QCSER_SetLineControl Parity: %u, Stopbits: %u, Wordlength: %u\n", pDevContext->PortName,
-                    inputBuffer->Parity, inputBuffer->StopBits, inputBuffer->WordLength)
+                inputBuffer->Parity, inputBuffer->StopBits, inputBuffer->WordLength)
             );
             MODEM_INFO modemInfo;
             status = QCSER_GetModemConfig(pDevContext, &modemInfo);
@@ -1070,7 +1070,7 @@ NTSTATUS QCSER_GetHandflow
             QCSER_DBG_MASK_CONTROL,
             QCSER_DBG_LEVEL_DETAIL,
             ("<%ws> QCSER_GetHandflow controlHandShake: 0x%x, flowReplace: 0x%x, XonLimit: 0x%x, XoffLimit: 0x%x\n",
-                pDevContext->PortName, pDevContext->HandFlow.ControlHandShake, pDevContext->HandFlow.FlowReplace, pDevContext->HandFlow.XonLimit, pDevContext->HandFlow.XoffLimit)
+            pDevContext->PortName, pDevContext->HandFlow.ControlHandShake, pDevContext->HandFlow.FlowReplace, pDevContext->HandFlow.XonLimit, pDevContext->HandFlow.XoffLimit)
         );
     }
     return status;
@@ -1099,7 +1099,7 @@ NTSTATUS QCSER_SetHandflow
                 QCSER_DBG_MASK_CONTROL,
                 QCSER_DBG_LEVEL_DETAIL,
                 ("<%ws> QCSER_SetHandflow controlHandShake: 0x%x, flowReplace: 0x%x, XonLimit: 0x%x, XoffLimit: 0x%x\n",
-                    pDevContext->PortName, inputBuffer->ControlHandShake, inputBuffer->FlowReplace, inputBuffer->XonLimit, inputBuffer->XoffLimit)
+                pDevContext->PortName, inputBuffer->ControlHandShake, inputBuffer->FlowReplace, inputBuffer->XonLimit, inputBuffer->XoffLimit)
             );
             if (!(inputBuffer->ControlHandShake & SERIAL_CONTROL_INVALID) && !(inputBuffer->FlowReplace & SERIAL_FLOW_INVALID))
             {
@@ -1181,12 +1181,12 @@ NTSTATUS QCSER_GetTimeout
             QCSER_DBG_MASK_CONTROL,
             QCSER_DBG_LEVEL_DETAIL,
             ("<%ws> QCSER_GetTimeout status: 0x%x, RI=%u RM=%u RC=%u WM=%u WC=%u\n", pDevContext->PortName, status,
-                pDevContext->Timeouts.ReadIntervalTimeout,
-                pDevContext->Timeouts.ReadTotalTimeoutMultiplier,
-                pDevContext->Timeouts.ReadTotalTimeoutConstant,
-                pDevContext->Timeouts.WriteTotalTimeoutMultiplier,
-                pDevContext->Timeouts.WriteTotalTimeoutConstant
-            )
+            pDevContext->Timeouts.ReadIntervalTimeout,
+            pDevContext->Timeouts.ReadTotalTimeoutMultiplier,
+            pDevContext->Timeouts.ReadTotalTimeoutConstant,
+            pDevContext->Timeouts.WriteTotalTimeoutMultiplier,
+            pDevContext->Timeouts.WriteTotalTimeoutConstant
+        )
         );
     }
     return status;
@@ -1305,12 +1305,12 @@ NTSTATUS QCSER_SetTimeout
             QCSER_DBG_MASK_CONTROL,
             QCSER_DBG_LEVEL_DETAIL,
             ("<%ws> QCSER_SetTimeout status: 0x%x, RI=%u RM=%u RC=%u WM=%u WC=%u\n", pDevContext->PortName, status,
-                pDevContext->Timeouts.ReadIntervalTimeout,
-                pDevContext->Timeouts.ReadTotalTimeoutMultiplier,
-                pDevContext->Timeouts.ReadTotalTimeoutConstant,
-                pDevContext->Timeouts.WriteTotalTimeoutMultiplier,
-                pDevContext->Timeouts.WriteTotalTimeoutConstant
-            )
+            pDevContext->Timeouts.ReadIntervalTimeout,
+            pDevContext->Timeouts.ReadTotalTimeoutMultiplier,
+            pDevContext->Timeouts.ReadTotalTimeoutConstant,
+            pDevContext->Timeouts.WriteTotalTimeoutMultiplier,
+            pDevContext->Timeouts.WriteTotalTimeoutConstant
+        )
         );
     }
     return status;
@@ -1816,7 +1816,7 @@ NTSTATUS QCSER_GetDeviceId
 VOID QCSER_CompleteWomRequest(PDEVICE_CONTEXT pDevContext, NTSTATUS outStatus, ULONG outValue)
 {
     WDFREQUEST request = NULL;
-    NTSTATUS   status  = STATUS_INVALID_PARAMETER;
+    NTSTATUS   status = STATUS_INVALID_PARAMETER;
     ULONG      info = 0;
 
     status = WdfIoQueueRetrieveNextRequest(pDevContext->WaitOnMaskQueue, &request);

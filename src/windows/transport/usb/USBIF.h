@@ -22,14 +22,14 @@ GENERAL DESCRIPTION
 
 typedef struct _QC_XFER_STATISTICS
 {
-   ULONG RxPktsLessThan10k;
-   ULONG RxPkts10kTo20k;
-   ULONG RxPkts20kTo30k;
-   ULONG RxPktsMoreThan30k;
-   ULONG TxPktsLessThan10k;
-   ULONG TxPkts10kTo20k;
-   ULONG TxPkts20kTo30k;
-   ULONG TxPktsMoreThan30k;
+    ULONG RxPktsLessThan10k;
+    ULONG RxPkts10kTo20k;
+    ULONG RxPkts20kTo30k;
+    ULONG RxPktsMoreThan30k;
+    ULONG TxPktsLessThan10k;
+    ULONG TxPkts10kTo20k;
+    ULONG TxPkts20kTo30k;
+    ULONG TxPktsMoreThan30k;
 } QC_XFER_STATISTICS, *PQC_XFER_STATISTICS;
 
 #pragma pack(pop)
@@ -42,37 +42,37 @@ typedef struct _QCUSB_ENTRY_POINTS
 
 PDEVICE_OBJECT USBIF_InitializeUSB
 (
-   IN PVOID          MiniportContext,
-   IN PDRIVER_OBJECT DriverObject,
-   IN PDEVICE_OBJECT Pdo,
-   IN PDEVICE_OBJECT Fdo,
-   IN PDEVICE_OBJECT NextDO,
-   IN NDIS_HANDLE    WrapperConfigurationContext,
-   PCHAR             PortName
+    IN PVOID          MiniportContext,
+    IN PDRIVER_OBJECT DriverObject,
+    IN PDEVICE_OBJECT Pdo,
+    IN PDEVICE_OBJECT Fdo,
+    IN PDEVICE_OBJECT NextDO,
+    IN NDIS_HANDLE    WrapperConfigurationContext,
+    PCHAR             PortName
 );
 
 VOID USBIF_ShutdownUSB(PDEVICE_OBJECT DeviceObject);
 
 NTSTATUS QCIoCallDriver
 (
-   IN PDEVICE_OBJECT DeviceObject,
-   IN OUT PIRP       Irp
+    IN PDEVICE_OBJECT DeviceObject,
+    IN OUT PIRP       Irp
 );
 
 NTSTATUS QCDirectIoCallDriver
 (
-   IN PDEVICE_OBJECT DeviceObject,
-   IN OUT PIRP       Irp
+    IN PDEVICE_OBJECT DeviceObject,
+    IN OUT PIRP       Irp
 );
 
 PDEVICE_OBJECT USBIF_CreateUSBComponent
 (
-   IN PVOID          MiniportContext,
-   IN NDIS_HANDLE    WrapperConfigurationContext,
-   IN PDEVICE_OBJECT Pdo,
-   IN PDEVICE_OBJECT Fdo,
-   IN PDEVICE_OBJECT NextDO,
-   IN LONG           QosSetting
+    IN PVOID          MiniportContext,
+    IN NDIS_HANDLE    WrapperConfigurationContext,
+    IN PDEVICE_OBJECT Pdo,
+    IN PDEVICE_OBJECT Fdo,
+    IN PDEVICE_OBJECT NextDO,
+    IN LONG           QosSetting
 );
 
 NTSTATUS USBIF_Open(PDEVICE_OBJECT DeviceObject);
@@ -82,22 +82,22 @@ NTSTATUS USBIF_CancelWriteThread(PDEVICE_OBJECT pDO);
 
 NTSTATUS USBIF_NdisVendorRegistryProcess
 (
-   IN PVOID       MiniportContext,
-   IN NDIS_HANDLE WrapperConfigurationContext
+    IN PVOID       MiniportContext,
+    IN NDIS_HANDLE WrapperConfigurationContext
 );
 NTSTATUS USBIF_NdisPostVendorRegistryProcess
 (
-   IN PVOID          MiniportContext,
-   IN NDIS_HANDLE    WrapperConfigurationContext,
-   IN PDEVICE_OBJECT DeviceObject
+    IN PVOID          MiniportContext,
+    IN NDIS_HANDLE    WrapperConfigurationContext,
+    IN PDEVICE_OBJECT DeviceObject
 );
 
 VOID USBIF_SetDebugMask(PDEVICE_OBJECT DO, char *buffer);
 
 NTSTATUS USBIF_SetPowerState
 (
-   PDEVICE_OBJECT DO,
-   NDIS_DEVICE_POWER_STATE PowerState
+    PDEVICE_OBJECT DO,
+    NDIS_DEVICE_POWER_STATE PowerState
 );
 
 UCHAR USBIF_GetDataInterfaceNumber(PDEVICE_OBJECT DO);
@@ -108,14 +108,14 @@ VOID USBIF_PollDevice(PDEVICE_OBJECT DO, BOOLEAN Active);
 
 VOID USBIF_PowerDownDevice
 (
-   PVOID              DeviceExtension,
-   DEVICE_POWER_STATE DevicePower
+    PVOID              DeviceExtension,
+    DEVICE_POWER_STATE DevicePower
 );
 
 VOID USBIF_SyncPowerDownDevice
 (
-   PVOID              DeviceExtension,
-   DEVICE_POWER_STATE DevicePower
+    PVOID              DeviceExtension,
+    DEVICE_POWER_STATE DevicePower
 );
 
 /******************** Dispatch Filter *********************/
@@ -123,14 +123,14 @@ VOID USBIF_SetupDispatchFilter(PVOID DriverObject);
 
 NTSTATUS USBIF_DispatchFilter
 (
-   IN PDEVICE_OBJECT DO,
-   IN PIRP Irp
+    IN PDEVICE_OBJECT DO,
+    IN PIRP Irp
 );
 
 VOID USBIF_AddFdoMap
 (
-   PDEVICE_OBJECT NdisFdo,
-   PVOID          MiniportContext
+    PDEVICE_OBJECT NdisFdo,
+    PVOID          MiniportContext
 );
 
 VOID USBIF_CleanupFdoMap(PDEVICE_OBJECT NdisFdo);
@@ -139,8 +139,8 @@ PVOID USBIF_FindNdisContext(PDEVICE_OBJECT NdisFdo);
 
 BOOLEAN USBIF_IsPowerIrpOriginatedFromUSB
 (
-   PDEVICE_OBJECT UsbFDO,
-   PIRP           Irp
+    PDEVICE_OBJECT UsbFDO,
+    PIRP           Irp
 );
 
 BOOLEAN USBIF_IsUsbBroken(PDEVICE_OBJECT UsbFDO);
@@ -161,21 +161,21 @@ VOID USBIF_SetDLCI(PDEVICE_OBJECT UsbFDO);
 
 VOID USBIF_EncodeMuxFrame
 (
-   PDEVICE_OBJECT UsbFDO,
-   PCHAR          Payload,
-   ULONG          PayloadLength,
-   PUCHAR         MuxFrameBuffer,
-   PULONG         MuxFrameLength,
-   BOOLEAN        IsDataFrame
+    PDEVICE_OBJECT UsbFDO,
+    PCHAR          Payload,
+    ULONG          PayloadLength,
+    PUCHAR         MuxFrameBuffer,
+    PULONG         MuxFrameLength,
+    BOOLEAN        IsDataFrame
 );
 
 PCHAR USBIF_DecodeMuxFrame
 (
-   PDEVICE_OBJECT UsbFDO,
-   PUCHAR         MuxFrameBuffer,
-   ULONG          MuxFrameLength,
-   PULONG         PayloadLength,
-   BOOLEAN        IsDataFrame
+    PDEVICE_OBJECT UsbFDO,
+    PUCHAR         MuxFrameBuffer,
+    ULONG          MuxFrameLength,
+    PULONG         PayloadLength,
+    BOOLEAN        IsDataFrame
 );
 
 #endif // QCUSB_MUX_PROTOCOL
@@ -186,8 +186,8 @@ PCHAR USBIF_DecodeMuxFrame
 
 typedef struct _QCQMAPCONTROLQUEUE
 {
-   LIST_ENTRY QMAPListEntry;
-   CHAR Buffer[QMAP_CONTROL_MESSAGE_LEN];
+    LIST_ENTRY QMAPListEntry;
+    CHAR Buffer[QMAP_CONTROL_MESSAGE_LEN];
 }QCQMAPCONTROLQUEUE, *PQCQMAPCONTROLQUEUE;
 
 

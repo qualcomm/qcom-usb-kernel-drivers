@@ -23,21 +23,21 @@ NTSTATUS USBDSP_InitDispatchThread(IN PDEVICE_OBJECT pDevObj);
 NTSTATUS USBDSP_CancelDispatchThread(PDEVICE_EXTENSION pDevExt, UCHAR cookie);
 NTSTATUS USBDSP_Dispatch
 (
-   IN PDEVICE_OBJECT DeviceObject,
-   IN PDEVICE_OBJECT FDO,
-   IN PIRP Irp,
-   IN OUT BOOLEAN *Removed
+    IN PDEVICE_OBJECT DeviceObject,
+    IN PDEVICE_OBJECT FDO,
+    IN PIRP           Irp,
+    IN OUT BOOLEAN   *Removed
 );
 NTSTATUS USBDSP_CleanUp
 (
-   IN PDEVICE_OBJECT DeviceObject,
-   PIRP              pIrp,
-   BOOLEAN           bIsCleanupIrp
+    IN PDEVICE_OBJECT DeviceObject,
+    PIRP              pIrp,
+    BOOLEAN           bIsCleanupIrp
 );
 BOOLEAN QCDSP_ToProcessIrp
 (
-   PDEVICE_EXTENSION pDevExt,
-   PIRP              Irp
+    PDEVICE_EXTENSION pDevExt,
+    PIRP              Irp
 );
 void USBDSP_GetMUXInterface(PDEVICE_EXTENSION  pDevExt, UCHAR InterfaceNumber);
 
