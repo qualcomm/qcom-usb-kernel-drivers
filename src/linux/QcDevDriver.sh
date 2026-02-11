@@ -7,19 +7,19 @@ DEST_QUD_PATH=/opt/QTI/QUD
 DEST_INS_RMNET_PATH=/opt/QTI/QUD/rmnet
 DEST_INS_QDSS_PATH=/opt/QTI/QUD/diag
 DEST_INF_PATH=/opt/QTI/QUD/diag/InfParser
-DEST_QDSS_DAIG_PATH=/opt/QTI/QUD/diag/QdssDiag
+DEST_QDSS_DAIG_PATH=/opt/QTI/QUD/diag/qdssdiag
 DEST_SIGN_PATH=/opt/QTI/sign
 QC_MODBIN_DIR=/sbin
 QC_MAKE_DIR=/usr/bin
 QC_MODULE_INF_NAME=qtiDevInf.ko
-QC_MODULE_QDSS_DIAG_NAME=QdssDiag.ko
+QC_MODULE_QDSS_DIAG_NAME=qdssdiag.ko
 QC_MODULE_RMNET_NAME=GobiNet.ko
 QC_DIAG_INF_PATH=/opt/QTI/QUD/diag/qtiser.inf
 QC_QDSS_INF_PATH=/opt/QTI/QUD/diag/qdbusb.inf
 QC_MODEM_INF_PATH=/opt/QTI/QUD/serial/qtimdm.inf
 DEST_INS_SERIAL_PATH=/opt/QTI/QUD/serial
 QC_UDEV_PATH=/etc/udev/rules.d
-QC_MODULE_GOBISERIAL_NAME=GobiSerial.ko
+QC_MODULE_GOBISERIAL_NAME=serial.ko
 QC_SERIAL=/lib/modules/`uname -r`/kernel/drivers/usb/serial
 QC_QMI_WWAN=/lib/modules/`uname -r`/kernel/drivers/net/usb
 QC_NET=/lib/modules/`uname -r`/kernel/drivers/net
@@ -168,17 +168,17 @@ else
       sudo udevadm control --reload-rules
       sudo udevadm trigger
 
-      if [ "`lsmod | grep GobiSerial`" ]; then
-         ($QC_MODBIN_DIR/rmmod $QC_MODULE_GOBISERIAL_NAME && echo -e "$QC_MODULE_GOBISERIAL_NAME removed successfully") || { echo -e "$QC_MODULE_GOBISERIAL_NAME in use"; echo -e "${RED}Note: ${CYAN} Close all applications that make use of the driver, including QUTS clients."; echo -e "${RED}ps -aux | grep QUTS, sudo kill -9 <PID> OR sudo pkill QUTS"; echo -e "${GREEN}Try $1ation again!"; exit 1; }
-      else
-         echo -e "Module $QC_MODULE_GOBISERIAL_NAME is not currently loaded"
-      fi
+      # if [ "`lsmod | grep serial`" ]; then
+      #    ($QC_MODBIN_DIR/rmmod $QC_MODULE_GOBISERIAL_NAME && echo -e "$QC_MODULE_GOBISERIAL_NAME removed successfully") || { echo -e "$QC_MODULE_GOBISERIAL_NAME in use"; echo -e "${RED}Note: ${CYAN} Close all applications that make use of the driver, including QUTS clients."; echo -e "${RED}ps -aux | grep QUTS, sudo kill -9 <PID> OR sudo pkill QUTS"; echo -e "${GREEN}Try $1ation again!"; exit 1; }
+      # else
+      #    echo -e "Module $QC_MODULE_GOBISERIAL_NAME is not currently loaded"
+      # fi
       if [ "`lsmod | grep GobiNet`" ]; then
          ( $QC_MODBIN_DIR/rmmod $QC_MODULE_RMNET_NAME && echo -e "$QC_MODULE_RMNET_NAME removed successfully" ) || { echo -e "$QC_MODULE_RMNET_NAME in use"; echo -e "${RED}Note: ${CYAN} Close all applications that make use of the driver, including QUTS clients."; echo -e "${RED}ps -aux | grep QUTS, sudo kill -9 <PID> OR sudo pkill QUTS"; echo -e "${GREEN}Try $1ation again!"; exit 1; }
       else
          echo -e "Module $QC_MODULE_RMNET_NAME is not currently loaded"
       fi
-      if [ "`lsmod | grep QdssDiag`" ]; then
+      if [ "`lsmod | grep qdssdiag`" ]; then
          ($QC_MODBIN_DIR/rmmod $QC_MODULE_QDSS_DIAG_NAME && echo -e "$QC_MODULE_QDSS_DIAG_NAME removed successfully") || { echo -e "$QC_MODULE_QDSS_DIAG_NAME in use"; echo -e "${RED}Note: ${CYAN} Close all applications that make use of the driver, including QUTS clients."; echo -e "${RED}ps -aux | grep QUTS, sudo kill -9 <PID> OR sudo pkill QUTS"; echo -e "${GREEN}Try $1ation again!"; exit 1; }
       else
          echo -e "Module $QC_MODULE_QDSS_DIAG_NAME is not currently loaded"
@@ -262,7 +262,7 @@ else
 
       if [ "`grep -nr 'Qualcomm clients' /etc/modprobe.d/blacklist.conf`" != "" ]; then
          sed -i '/# Blacklist these module so that Qualcomm clients use only/d' /etc/modprobe.d/blacklist.conf
-         sed -i '/# GobiNet, GobiSerial, QdssDiag, qtiDevInf driver/d' /etc/modprobe.d/blacklist.conf
+         sed -i '/# GobiNet, serial, qdssdiag, qtiDevInf driver/d' /etc/modprobe.d/blacklist.conf
       fi
 
       MOD_EXIST="`grep -nr  'blacklist qcserial' /etc/modprobe.d/blacklist.conf`"
@@ -297,17 +297,17 @@ else
       if [ "$MODUPDATE" == "qtiDevInf" ]; then
 	  sed -i '/qtiDevInf/d' /etc/modules
       fi
-      MODUPDATE="`grep -r QdssDiag /etc/modules`"
-      if [ "$MODUPDATE" == "QdssDiag" ]; then
-	  sed -i '/QdssDiag/d' /etc/modules
+      MODUPDATE="`grep -r qdssdiag /etc/modules`"
+      if [ "$MODUPDATE" == "qdssdiag" ]; then
+	  sed -i '/qdssdiag/d' /etc/modules
       fi
       MODUPDATE="`grep -r GobiNet /etc/modules`"
       if [ "$MODUPDATE" == "GobiNet" ]; then
 	  sed -i '/GobiNet/d' /etc/modules
       fi
-      MODUPDATE="`grep -r GobiSerial /etc/modules`"
-      if [ "$MODUPDATE" == "GobiSerial" ]; then
-	  sed -i '/GobiSerial/d' /etc/modules
+      MODUPDATE="`grep -r serial /etc/modules`"
+      if [ "$MODUPDATE" == "serial" ]; then
+	  sed -i '/serial/d' /etc/modules
       fi
       if [[ $OSName != *"Red Hat Enterprise Linux"* ]]; then
       	MODUPDATE="`grep -nr  'iface usb0 inet static' /etc/network/interfaces`"
@@ -435,36 +435,36 @@ if [ ! -d $DEST_SIGN_PATH ]; then
    exit 1
 fi
 
-# $QC_LN_RM_MK_DIR/cp ./GobiSerial/GobiSerial.c $DEST_INS_SERIAL_PATH
-# if [ ! -f $DEST_INS_SERIAL_PATH/GobiSerial.c ]; then
-#    echo -e "${RED}Error: Failed to copy GobiSerial.c to installation path, installation abort."
-#    rm -r $DEST_INS_SERIAL_PATH
-#    exit 1
-# fi
+$QC_LN_RM_MK_DIR/cp ./serial/serial.c $DEST_INS_SERIAL_PATH
+if [ ! -f $DEST_INS_SERIAL_PATH/serial.c ]; then
+   echo -e "${RED}Error: Failed to copy serial.c to installation path, installation abort."
+   rm -r $DEST_INS_SERIAL_PATH
+   exit 1
+fi
 
-# $QC_LN_RM_MK_DIR/cp ./GobiSerial/GobiSerial.h $DEST_INS_SERIAL_PATH
-# if [ ! -f $DEST_INS_SERIAL_PATH/GobiSerial.h ]; then
-#    echo -e "${RED}Error: Failed to copy GobiSerial.h to installation path, installation abort."
-#    rm -r $DEST_INS_SERIAL_PATH
-#    exit 1
-# fi
+$QC_LN_RM_MK_DIR/cp ./serial/serial.h $DEST_INS_SERIAL_PATH
+if [ ! -f $DEST_INS_SERIAL_PATH/serial.h ]; then
+   echo -e "${RED}Error: Failed to copy serial.h to installation path, installation abort."
+   rm -r $DEST_INS_SERIAL_PATH
+   exit 1
+fi
 
-# $QC_LN_RM_MK_DIR/cp ./GobiSerial/Makefile  $DEST_INS_SERIAL_PATH
-# if [ ! -f $DEST_INS_SERIAL_PATH/Makefile ]; then
-#    echo -e "${RED}Error: Failed to copy Makefile installation path, installation abort."
-#    rm -r $DEST_INS_SERIAL_PATH
-#    exit 1
-# fi
+$QC_LN_RM_MK_DIR/cp ./serial/Makefile  $DEST_INS_SERIAL_PATH
+if [ ! -f $DEST_INS_SERIAL_PATH/Makefile ]; then
+   echo -e "${RED}Error: Failed to copy Makefile installation path, installation abort."
+   rm -r $DEST_INS_SERIAL_PATH
+   exit 1
+fi
 
-# $QC_LN_RM_MK_DIR/cp ./GobiSerial/qtidev.pl  $DEST_INS_SERIAL_PATH
-# if [ ! -f $DEST_INS_SERIAL_PATH/qtidev.pl ]; then
-#    echo -e "${RED}Error: Failed to copy qtidev.pl installation path, installation abort."
-#    rm -r $DEST_INS_SERIAL_PATH
-#    exit 1
-# fi
-# $QC_LN_RM_MK_DIR/chmod 755 $DEST_INS_SERIAL_PATH/qtidev.pl
+$QC_LN_RM_MK_DIR/cp ./serial/qtidev.pl  $DEST_INS_SERIAL_PATH
+if [ ! -f $DEST_INS_SERIAL_PATH/qtidev.pl ]; then
+   echo -e "${RED}Error: Failed to copy qtidev.pl installation path, installation abort."
+   rm -r $DEST_INS_SERIAL_PATH
+   exit 1
+fi
+$QC_LN_RM_MK_DIR/chmod 755 $DEST_INS_SERIAL_PATH/qtidev.pl
 
-$QC_LN_RM_MK_DIR/cp ./GobiSerial/qtiname.inf $DEST_INS_SERIAL_PATH
+$QC_LN_RM_MK_DIR/cp ./serial/qtiname.inf $DEST_INS_SERIAL_PATH
 if [ ! -f $DEST_INS_SERIAL_PATH/qtiname.inf ]; then
    echo -e "${RED}Error: Failed to copy qtiname.inf installation path, installation abort."
    rm -r $DEST_INS_SERIAL_PATH
@@ -472,7 +472,7 @@ if [ ! -f $DEST_INS_SERIAL_PATH/qtiname.inf ]; then
 fi
 $QC_LN_RM_MK_DIR/chmod 644 $DEST_INS_SERIAL_PATH/qtiname.inf
 
-$QC_LN_RM_MK_DIR/cp ./GobiSerial/qtimdm.inf $DEST_INS_SERIAL_PATH
+$QC_LN_RM_MK_DIR/cp ./serial/qtimdm.inf $DEST_INS_SERIAL_PATH
 if [ ! -f $DEST_INS_SERIAL_PATH/qtimdm.inf ]; then
    echo -e "${RED}Error: Failed to copy qtiname.inf installation path, installation abort."
    rm -r $DEST_INS_SERIAL_PATH
@@ -481,7 +481,7 @@ fi
 $QC_LN_RM_MK_DIR/chmod 644 $DEST_INS_SERIAL_PATH/qtimdm.inf
 
 
-$QC_LN_RM_MK_DIR/cp ./GobiSerial/qtiname.inf $DEST_INS_QDSS_PATH/
+$QC_LN_RM_MK_DIR/cp ./serial/qtiname.inf $DEST_INS_QDSS_PATH/
 if [ ! -f $DEST_INS_QDSS_PATH//qtiname.inf ]; then
    echo -e "${RED}Error: Failed to copy qtiname.inf installation path, installation abort."
    rm -r $DEST_INS_QDSS_PATH/
@@ -489,7 +489,7 @@ if [ ! -f $DEST_INS_QDSS_PATH//qtiname.inf ]; then
 fi
 $QC_LN_RM_MK_DIR/chmod 644 $DEST_INS_SERIAL_PATH/qtiname.inf
 
-$QC_LN_RM_MK_DIR/cp ./GobiSerial/qtimdm.inf $DEST_INS_QDSS_PATH/
+$QC_LN_RM_MK_DIR/cp ./serial/qtimdm.inf $DEST_INS_QDSS_PATH/
 if [ ! -f $DEST_INS_QDSS_PATH//qtimdm.inf ]; then
    echo -e "${RED}Error: Failed to copy qtiname.inf installation path, installation abort."
    rm -r $DEST_INS_QDSS_PATH/
@@ -498,14 +498,14 @@ fi
 $QC_LN_RM_MK_DIR/chmod 644 $DEST_INS_QDSS_PATH/qtimdm.inf
 
 
-$QC_LN_RM_MK_DIR/cp ./QdssDiag/qdbusb.inf $DEST_INS_QDSS_PATH/
+$QC_LN_RM_MK_DIR/cp ./qdssdiag/qdbusb.inf $DEST_INS_QDSS_PATH/
 if [ ! -f $DEST_INS_QDSS_PATH/qdbusb.inf ]; then
    echo -e "${RED}Error: Failed to copy 'qdbusb.inf' to installation path, installation abort."
    $QC_LN_RM_MK_DIR/rm -rf $DEST_INS_QDSS_PATH
    exit 1
 fi
 
-$QC_LN_RM_MK_DIR/cp ./QdssDiag/qtiser.inf $DEST_INS_QDSS_PATH/
+$QC_LN_RM_MK_DIR/cp ./qdssdiag/qtiser.inf $DEST_INS_QDSS_PATH/
 if [ ! -f $DEST_INS_QDSS_PATH/qtiser.inf ]; then
    echo -e "${RED}Error: Failed to copy 'qtiser.inf' to installation path, installation abort."
    $QC_LN_RM_MK_DIR/rm -rf $DEST_INS_QDSS_PATH
@@ -536,30 +536,30 @@ if [ ! -f $DEST_INF_PATH/Makefile ]; then
    exit 1
 fi
 
-$QC_LN_RM_MK_DIR/cp ./QdssDiag/qtiDevInf.h $DEST_QDSS_DAIG_PATH/
+$QC_LN_RM_MK_DIR/cp ./qdssdiag/qtiDevInf.h $DEST_QDSS_DAIG_PATH/
 if [ ! -f $DEST_QDSS_DAIG_PATH/qtiDevInf.h ]; then
-   echo -e "${RED}Error: Failed to copy 'QdssDiag/qtiDevInf.h' to installation path, installation abort."
+   echo -e "${RED}Error: Failed to copy 'qdssdiag/qtiDevInf.h' to installation path, installation abort."
    $QC_LN_RM_MK_DIR/rm -rf $DEST_INS_QDSS_PATH
    exit 1
 fi
 
-$QC_LN_RM_MK_DIR/cp ./QdssDiag/qtiDiag.h $DEST_QDSS_DAIG_PATH/
+$QC_LN_RM_MK_DIR/cp ./qdssdiag/qtiDiag.h $DEST_QDSS_DAIG_PATH/
 if [ ! -f $DEST_QDSS_DAIG_PATH/qtiDiag.h ]; then
-   echo -e "${RED}Error: Failed to copy 'QdssDiag/qtiDiag.h' to installation path, installation abort."
+   echo -e "${RED}Error: Failed to copy 'qdssdiag/qtiDiag.h' to installation path, installation abort."
    $QC_LN_RM_MK_DIR/rm -rf $DEST_INS_QDSS_PATH
    exit 1
 fi
 
-$QC_LN_RM_MK_DIR/cp ./QdssDiag/qtiDiag.c $DEST_QDSS_DAIG_PATH/
+$QC_LN_RM_MK_DIR/cp ./qdssdiag/qtiDiag.c $DEST_QDSS_DAIG_PATH/
 if [ ! -f $DEST_QDSS_DAIG_PATH/qtiDiag.c ]; then
-   echo -e "${RED}Error: Failed to copy 'QdssDiag/qtiDiag.c' to installation path, installation abort."
+   echo -e "${RED}Error: Failed to copy 'qdssdiag/qtiDiag.c' to installation path, installation abort."
    $QC_LN_RM_MK_DIR/rm -rf $DEST_INS_QDSS_PATH
    exit 1
 fi
 
 $QC_LN_RM_MK_DIR/cp ./Makefile $DEST_QDSS_DAIG_PATH/
 if [ ! -f $DEST_QDSS_DAIG_PATH/Makefile ]; then
-   echo -e "${RED}Error: Failed to copy 'QdssDiag/Makefile' to installation path, installation abort."
+   echo -e "${RED}Error: Failed to copy 'qdssdiag/Makefile' to installation path, installation abort."
    $QC_LN_RM_MK_DIR/rm -rf $DEST_INS_QDSS_PATH
    exit 1
 fi
@@ -715,7 +715,7 @@ if [ ! -f ./InfParser/$QC_MODULE_INF_NAME ]; then
    $QC_MAKE_DIR/make clean
    exit 1
 fi
-if [ ! -f ./QdssDiag/$QC_MODULE_QDSS_DIAG_NAME ]; then
+if [ ! -f ./qdssdiag/$QC_MODULE_QDSS_DIAG_NAME ]; then
    echo -e "${RED}Error: Failed to generate kernel module $QC_MODULE_QDSS_DIAG_NAME, installation abort.${RESET}"
    $QC_LN_RM_MK_DIR/rm -rf $DEST_INS_QDSS_PATH
    $QC_MAKE_DIR/make clean
@@ -729,7 +729,7 @@ if [ ! -f ./rmnet/$QC_MODULE_RMNET_NAME ]; then
   exit 1
 fi
 
-# if [ ! -f ./GobiSerial/$QC_MODULE_GOBISERIAL_NAME ]; then
+# if [ ! -f ./serial/$QC_MODULE_GOBISERIAL_NAME ]; then
 #    echo -e "${RED}Error: Failed to generate kernel module $QC_MODULE_GOBISERIAL_NAME, installation abort."
 #    $QC_LN_RM_MK_DIR/rm -rf $QC_MODULE_GOBISERIAL_NAME
 #    $QC_MAKE_DIR/make clean
@@ -737,7 +737,7 @@ fi
 # fi
 
 # Copy .ko object to destination folders
-# $QC_LN_RM_MK_DIR/cp ./GobiSerial/$QC_MODULE_GOBISERIAL_NAME $DEST_INS_SERIAL_PATH
+# $QC_LN_RM_MK_DIR/cp ./serial/$QC_MODULE_GOBISERIAL_NAME $DEST_INS_SERIAL_PATH
 # if [ ! -f $DEST_INS_SERIAL_PATH/$QC_MODULE_GOBISERIAL_NAME ]; then
 #    echo -e "${RED}Error: Failed to copy $QC_MODULE_GOBISERIAL_NAME to installation path, installation abort."
 #    $QC_LN_RM_MK_DIR/rm -r $DEST_INS_SERIAL_PATH
@@ -753,7 +753,7 @@ if [ ! -f $DEST_INF_PATH/$QC_MODULE_INF_NAME ]; then
    exit 1
 fi
 
-$QC_LN_RM_MK_DIR/cp ./QdssDiag/$QC_MODULE_QDSS_DIAG_NAME $DEST_QDSS_DAIG_PATH
+$QC_LN_RM_MK_DIR/cp ./qdssdiag/$QC_MODULE_QDSS_DIAG_NAME $DEST_QDSS_DAIG_PATH
 if [ ! -f $DEST_QDSS_DAIG_PATH/$QC_MODULE_QDSS_DIAG_NAME ]; then
    echo -e "${RED}Error: Failed to copy $QC_MODULE_QDSS_DIAG_NAME to installation path, installation abort.${RESET}"
    $QC_LN_RM_MK_DIR/rm -rf $DEST_INS_QDSS_PATH
@@ -840,10 +840,10 @@ $QC_LN_RM_MK_DIR/chmod 777 $MODULE_BLACKLIST/blacklist.conf
 echo -e "Changed Permission of blacklist file"
 if [ "`grep -nr 'Qualcomm clients' /etc/modprobe.d/blacklist.conf`" != "" ]; then
    sed -i '/# Blacklist these module so that Qualcomm clients use only/d' /etc/modprobe.d/blacklist.conf
-   sed -i '/# GobiNet, GobiSerial, QdssDiag, qtiDevInf driver/d' /etc/modprobe.d/blacklist.conf
+   sed -i '/# GobiNet, serial, qdssdiag, qtiDevInf driver/d' /etc/modprobe.d/blacklist.conf
 fi
 echo -e "# Blacklist these module so that Qualcomm clients use only" >> /etc/modprobe.d/blacklist.conf
-echo -e "# GobiNet, GobiSerial, QdssDiag, qtiDevInf driver" >> /etc/modprobe.d/blacklist.conf
+echo -e "# GobiNet, serial, qdssdiag, qtiDevInf driver" >> /etc/modprobe.d/blacklist.conf
 
 MOD_EXIST="`grep -nr  'blacklist qcserial' /etc/modprobe.d/blacklist.conf`"
 if [ "$MOD_EXIST" != "" ]; then
@@ -941,15 +941,15 @@ if [  -f $QC_SERIAL/usb_wwan.ko ]; then
    mv /lib/modules/`uname -r`/kernel/drivers/usb/serial/usb_wwan.ko /lib/modules/`uname -r`/kernel/drivers/usb/serial/usb_wwan_dup
 fi
 
-MODLOADED="`/sbin/lsmod | grep GobiSerial`"
-if [ "$MODLOADED" != "" ]; then
-   ( $QC_MODBIN_DIR/rmmod $QC_MODULE_GOBISERIAL_NAME && echo -e "$QC_MODULE_GOBISERIAL_NAME removed successfully.." ) || { echo -e "$QC_MODULE_GOBISERIAL_NAME in use"; echo -e "${RED}Note: ${CYAN} Close all applications that make use of the driver, including QUTS clients."; echo -e "${RED}ps -aux | grep QUTS, sudo kill -9 <PID> OR sudo pkill QUTS"; echo -e "${GREEN}Try $1ation again!"; exit 1; }
-fi
+# MODLOADED="`/sbin/lsmod | grep serial`"
+# if [ "$MODLOADED" != "" ]; then
+#    ( $QC_MODBIN_DIR/rmmod $QC_MODULE_GOBISERIAL_NAME && echo -e "$QC_MODULE_GOBISERIAL_NAME removed successfully.." ) || { echo -e "$QC_MODULE_GOBISERIAL_NAME in use"; echo -e "${RED}Note: ${CYAN} Close all applications that make use of the driver, including QUTS clients."; echo -e "${RED}ps -aux | grep QUTS, sudo kill -9 <PID> OR sudo pkill QUTS"; echo -e "${GREEN}Try $1ation again!"; exit 1; }
+# fi
 
 # echo -e "Loading module $QC_MODULE_GOBISERIAL_NAME"
 # $QC_MODBIN_DIR/insmod $DEST_INS_SERIAL_PATH/$QC_MODULE_GOBISERIAL_NAME gQTIModemInfFilePath=$QC_MODEM_INF_PATH debug=0
 
-MODLOADED="`/sbin/lsmod | grep QdssDiag`"
+MODLOADED="`/sbin/lsmod | grep qdssdiag`"
 if [ "$MODLOADED" != "" ]; then
    ($QC_MODBIN_DIR/rmmod $QC_MODULE_QDSS_DIAG_NAME && echo -e "$QC_MODULE_QDSS_DIAG_NAME removed successfully..") ||  { echo -e "$QC_MODULE_QDSS_DIAG_NAME in use"; echo -e "${RED}Note: ${CYAN} Close all applications that make use of the driver, including QUTS clients."; echo -e "${RED}ps -aux | grep QUTS, sudo kill -9 <PID> OR sudo pkill QUTS"; echo -e "${GREEN}Try $1ation again!"; exit 1; }
 fi
@@ -1022,7 +1022,7 @@ if [ "$MODLOADED" == "" ]; then
 fi
 echo -e "Loading new module $QC_MODULE_QDSS_DIAG_NAME"
 $QC_MODBIN_DIR/insmod $DEST_QDSS_DAIG_PATH/$QC_MODULE_QDSS_DIAG_NAME gQdssInfFilePath=$QC_QDSS_INF_PATH gDiagInfFilePath=$QC_DIAG_INF_PATH debug_g=0
-MODLOADED="`/sbin/lsmod | grep QdssDiag`"
+MODLOADED="`/sbin/lsmod | grep qdssdiag`"
 if [ "$MODLOADED" == "" ]; then
    echo -e "${RED}Failed to load new $QC_MODULE_INF_NAME module${RESET}"
    exit 1
@@ -1058,9 +1058,9 @@ if [ "$MODUPDATE" == "" ]; then
 	echo -e "qtiDevInf" >> /etc/modules
 fi
 
-MODUPDATE="`grep -nr  QdssDiag /etc/modules`"
+MODUPDATE="`grep -nr  qdssdiag /etc/modules`"
 if [ "$MODUPDATE" == "" ]; then
-	echo -e "QdssDiag" >> /etc/modules
+	echo -e "qdssdiag" >> /etc/modules
 fi
 
 MODUPDATE="`grep -nr  GobiNet /etc/modules`"
@@ -1068,9 +1068,9 @@ if [ "$MODUPDATE" == "" ]; then
 	echo -e "GobiNet" >> /etc/modules
 fi
 
-# MODUPDATE="`grep -nr  GobiSerial /etc/modules`"
+# MODUPDATE="`grep -nr  serial /etc/modules`"
 # if [ "$MODUPDATE" == "" ]; then
-# 	echo -e "GobiSerial" >> /etc/modules
+# 	echo -e "serial" >> /etc/modules
 # fi
 
 if [[ $OSName != *"Red Hat Enterprise Linux"* ]]; then
