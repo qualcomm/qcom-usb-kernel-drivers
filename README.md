@@ -91,12 +91,13 @@ pnputil /add-driver <build_path/driver_name.inf> /install
     
 - Installation
 ```bash
-./driverLoad.sh install
+sudo ./QcDevDriver.sh install
 ```
 - Uninstallation
 ```bash
-./driverLoad.sh uninstall
+sudo ./QcDevDriver.sh uninstall
 ```
+For FAQ's and troubleshooting, please refer to [README](./src/linux/README.md) document. 
 
 ## Contributing
 
