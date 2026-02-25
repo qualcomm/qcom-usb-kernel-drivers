@@ -3,19 +3,18 @@
                           Q C F I L T E R I O C . C
 
 GENERAL DESCRIPTION
+    This file implements the IRP dispatch processing and the filter thread
+    for the Qualcomm USB composite device control object. It handles file
+    requests, manages the IRP queue and worker threads.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
-#include <stdio.h>
-////////////////////////////////////////////////////////////
-// WDK headers defined here
-//
+
 #include "Ntddk.h"
 #include "Usbdi.h"
 #include "Usbdlib.h"
-#include "Usbioctl.h"
 #include "Wdm.h"
 
 #include "qcfilter.h"
@@ -756,4 +755,3 @@ VOID QCFilter_CancelFilterThread
         pDevExt)
     );
 }
-

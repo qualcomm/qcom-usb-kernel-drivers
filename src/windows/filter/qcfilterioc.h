@@ -3,6 +3,11 @@
                           Q C F I L T E R I O C . h
 
 GENERAL DESCRIPTION
+    This header defines the IOCTL codes used to communicate between the
+    Qualcomm USB filter driver and its clients. It includes control codes
+    for creating and closing control device files, requesting device IDs,
+    querying parent and peer device names, and retrieving MUX interface
+    information.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
@@ -13,11 +18,7 @@ GENERAL DESCRIPTION
 #define FILTERIOC_H
 
 // User-defined IOCTL code range: 2048-4095
-#define QCDEV_IOCTL_INDEX                   2048
-
-/*
- * IOCTLS requiring this header file.
- */
+#define QCDEV_IOCTL_INDEX         2048
 
 /* Make the following code as 3346 */
 #define IOCTL_QCDEV_CREATE_CTL_FILE CTL_CODE(FILE_DEVICE_UNKNOWN, \
@@ -59,4 +60,3 @@ GENERAL DESCRIPTION
                                               FILE_ANY_ACCESS)
 
 #endif // FILTERIOC_H
-

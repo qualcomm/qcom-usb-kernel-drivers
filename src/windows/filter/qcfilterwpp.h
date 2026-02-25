@@ -1,8 +1,12 @@
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
 
-                          Q C F I L T E R W P P . C
+                          Q C F I L T E R W P P . H
 
 GENERAL DESCRIPTION
+    This header defines the WPP software tracing control GUID, trace level
+    constants, flag bits, and helper macros for the Qualcomm USB filter
+    driver. It is conditionally compiled when EVENT_TRACING is defined and
+    configures the WPP tracing infrastructure used throughout the driver.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
@@ -13,10 +17,8 @@ GENERAL DESCRIPTION
 #ifndef QCWPP_H
 #define QCWPP_H
 
-
-
 //
-// Software Tracing Definitions 
+// Software Tracing Definitions
 //
 
 // NOTE: these bits are shared amongst all components so must be kept in sync
@@ -80,14 +82,14 @@ GENERAL DESCRIPTION
 //end_wpp
 
 //
-// QCFLT_DbgPrint is a custom macro that adds support for levels to the 
+// QCFLT_DbgPrint is a custom macro that adds support for levels to the
 // default DoTraceMessage, which supports only flags. In this version, both
-// flags and level are conditions for generating the trace message. 
+// flags and level are conditions for generating the trace message.
 // The preprocessor is told to recognize the function by using the -func argument
 // in the RUN_WPP line on the source file. In the source file you will find
-// -func:DoTraceLevelMessage(LEVEL,FLAGS,MSG,...). The conditions for triggering 
-// this event in the macro are the Levels defined above and the flags 
-// defined above and are evaluated by the macro WPP_LEVEL_FLAGS_ENABLED below. 
+// -func:DoTraceLevelMessage(LEVEL,FLAGS,MSG,...). The conditions for triggering
+// this event in the macro are the Levels defined above and the flags
+// defined above and are evaluated by the macro WPP_LEVEL_FLAGS_ENABLED below.
 //
 
 //MACRO: QCFLT_DbgPrint
@@ -108,4 +110,3 @@ GENERAL DESCRIPTION
 #endif // QCWPP_H
 
 #endif //EVENT_TRACING
-

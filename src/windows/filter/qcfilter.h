@@ -3,8 +3,11 @@
                           Q C F I L T E R . H
 
 GENERAL DESCRIPTION
-    This module contains WDS Client functions for IP(V6).
-    requests.
+    This header file defines data structures, constants, macros, and function
+    prototypes for the Qualcomm USB filter driver. It includes the device
+    extension definitions for both the filter device object (FIDO) and the
+    control device object (CDO), PnP state management macros, debug print
+    macros, and declarations for all driver routines and help functions.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
@@ -12,9 +15,8 @@ GENERAL DESCRIPTION
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #include <ntddk.h>
-#include <wdmsec.h> 
+#include <wdmsec.h>
 #include <initguid.h>
-#include <dontuse.h>
 
 //
 // GUID definition are required to be outside of header inclusion pragma to avoid
@@ -28,7 +30,7 @@ DEFINE_GUID(QMI_DEVICE_INTERFACE_CLASS,
 #if !defined(_FILTER_H_)
 #define _FILTER_H_
 
-#ifndef  STATUS_CONTINUE_COMPLETION 
+#ifndef  STATUS_CONTINUE_COMPLETION
 #define STATUS_CONTINUE_COMPLETION      STATUS_SUCCESS
 #endif
 
@@ -89,7 +91,7 @@ DEFINE_GUID(QMI_DEVICE_INTERFACE_CLASS,
            }
 #define TRAP() DbgBreakPoint()
 
-#else 
+#else
 #define QCFLT_DbgPrint(level,_x_)
 #define QCFLT_DbgPrintG(_x_)
 #define TRAP()
@@ -506,4 +508,3 @@ NTSTATUS QCFilterSetFriendlyName
 #endif
 
 #endif
-

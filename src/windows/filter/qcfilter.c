@@ -3,6 +3,11 @@
                           Q C F I L T E R . C
 
 GENERAL DESCRIPTION
+    This file implements the Windows kernel-mode USB filter driver. It provides
+    the DriverEntry point, PnP and Power IRP dispatch routines, device-object
+    management (create/delete control objects), IRP pass-through, USB descriptor
+    interception for MUX interface injection, registry parameter processing,
+    and helper utilities used throughout the filter driver.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
@@ -71,7 +76,7 @@ DriverEntry(PDRIVER_OBJECT  driverObject, PUNICODE_STRING registryPath)
 
     // This macro is required to initialize software tracing.
     WPP_INIT_TRACING(driverObject, registryPath);
-#endif   
+#endif
 
     DbgPrint("Entered the Driver Entry\n");
 
@@ -518,11 +523,11 @@ QCFilterDispatchPnp(PDEVICE_OBJECT DeviceObject, PIRP Irp)
  * purpose:  A completion routine for use when calling the lower device objects to
  *           which our filter deviceobject is attached.
  *
- * arguments: DeviceObject = pointer to the deviceObject.
- *            Irp = pointer to the dispatch IO request packet
- *            Context = NULL
+ * arguments: DeviceObject  = pointer to the deviceObject.
+ *            Irp           = pointer to the dispatch IO request packet
+ *            Context       = the complete event to be triggered
  *
- * returns:  NT status
+ * returns:  STATUS_MORE_PROCESSING_REQUIRED
  *
  ****************************************************************************/
 NTSTATUS
@@ -555,10 +560,10 @@ QCFilterStartCompletionRoutine(PDEVICE_OBJECT DeviceObject, PIRP Irp, PVOID Cont
  *           which our filter deviceobject is attached.
  *
  * arguments: DeviceObject = pointer to the deviceObject.
- *            Irp = pointer to the dispatch IO request packet
- *            Context = NULL
+ *            Irp          = pointer to the dispatch IO request packet
+ *            Context      = Not used
  *
- * returns:  NT status
+ * returns:  STATUS_CONTINUE_COMPLETION
  *
  ****************************************************************************/
 NTSTATUS
@@ -663,8 +668,6 @@ QCFilterUnload(PDRIVER_OBJECT DriverObject)
 #ifdef EVENT_TRACING
     WPP_CLEANUP(DriverObject);
 #endif
-
-    return;
 }
 
 /****************************************************************************
@@ -903,6 +906,21 @@ VOID DispatchCancelQueued(PDEVICE_OBJECT DeviceObject, PIRP Irp)
     QcReleaseSpinLock(&pDevExt->FilterSpinLock, levelOrHandle);
 }  // DispatchCancelQueued
 
+/****************************************************************************
+ *
+ * function: QCFLT_CallUSBD_Completion
+ *
+ * purpose:  IRP completion routine used by QCFLT_CallUSBD to signal that
+ *           the synchronous USB control request has completed.
+ *
+ * arguments:dummy  = unused device object pointer (required by prototype)
+ *           pIrp   = pointer to the completed IRP
+ *           pEvent = pointer to the KEVENT to signal on completion
+ *
+ * returns:  STATUS_MORE_PROCESSING_REQUIRED (prevents the I/O manager from
+ *           completing the IRP so the caller can inspect it)
+ *
+ ****************************************************************************/
 NTSTATUS QCFLT_CallUSBD_Completion
 (
     PDEVICE_OBJECT dummy,
@@ -1064,6 +1082,23 @@ ExitCallUSBD:
 
 }  // QCUSB_CallUSBD
 
+/****************************************************************************
+ *
+ * function: QCFLT_GetStringDescriptor
+ *
+ * purpose:  Retrieves a USB string descriptor from the device by index and
+ *           language ID, optionally searching for the "_SN:" prefix within
+ *           the string, and writes the result to the device registry key.
+ *
+ * arguments:DeviceObject  = pointer to the filter device object
+ *           Index         = string descriptor index to retrieve
+ *           LanguageId    = USB language ID (e.g. 0x0409 for English)
+ *           MatchPrefix   = TRUE to search for "_SN:" prefix in the string;
+ *                           FALSE to store the raw string value
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QCFLT_GetStringDescriptor
 (
     PDEVICE_OBJECT DeviceObject,
@@ -1297,6 +1332,22 @@ UpdateRegistry:
 
 } // QCFLT_GetStringDescriptor
 
+/****************************************************************************
+ *
+ * function: GetConfigurationCompletion
+ *
+ * purpose:  IRP completion routine used when forwarding a
+ *           URB_FUNCTION_GET_CONFIGURATION or GET_DESCRIPTOR request to the
+ *           lower driver synchronously.  Signals the caller's event so it
+ *           can resume processing after the lower driver completes the IRP.
+ *
+ * arguments:pDevObj = pointer to the device object (unused)
+ *           pIrp    = pointer to the completed IRP
+ *           pEvent  = pointer to the KEVENT to signal on completion
+ *
+ * returns:  STATUS_MORE_PROCESSING_REQUIRED
+ *
+ ****************************************************************************/
 NTSTATUS GetConfigurationCompletion(PDEVICE_OBJECT pDevObj, PIRP pIrp, PVOID pEvent)
 {
 
@@ -1473,7 +1524,7 @@ QCFilterDispatchIo(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                         );
                         break;
                     }
-#ifdef QCUSB_SHARE_INTERRUPT  
+#ifdef QCUSB_SHARE_INTERRUPT
                     case IOCTL_QCDEV_REQUEST_DEVICEID:
                     {
                         QCFLT_DbgPrint
@@ -2552,13 +2603,14 @@ QCFLT_FindControlDevice
 
 /****************************************************************************
  *
- * function: QCFLT_FindControlDevice
+ * function: QCFLT_FindControlDeviceFido
  *
- * purpose:  Finds the control device from the global list.
+ * purpose:  Finds the control device object associated with a given filter
+ *           device object (FIDO) from the global control device list.
  *
  * arguments: pFido = pointer to the filter device object
  *
- * returns: control device object
+ * returns: pointer to the associated control device object, or NULL if not found
  *
  ****************************************************************************/
 PDEVICE_OBJECT
@@ -2617,14 +2669,18 @@ QCFLT_FindControlDeviceFido
 
 /****************************************************************************
  *
- * function: QCFLT_FindControlDevice
+ * function: QCFLT_FindFilterDevice
  *
- * purpose:  Finds the control device from the global list.
+ * purpose:  Searches the global control device list for an entry whose device
+ *           name and link name match those in pFilterDeviceInfo.  If found,
+ *           updates the dispatch table and device object pointers in the list
+ *           entry and in pFilterDeviceInfo.
  *
- * arguments: DeviceObject = pointer to the filter device object
- *                   pFilterDeviceInfo= Pointer to filter device info
+ * arguments: DeviceObject      = pointer to the filter device object
+ *            pFilterDeviceInfo = pointer to filter device info containing the
+ *                                names to match and fields to update on match
  *
- * returns: Filter device object item
+ * returns: pointer to the matching FILTER_DEVICE_LIST entry, or NULL
  *
  ****************************************************************************/
 PFILTER_DEVICE_LIST
@@ -3271,17 +3327,19 @@ VOID QCFLT_PrintBytes
 }  //USBUTL_PrintBytes
 
 
-/************************************************************************
-Routine Description:
-   Return a DWORD value from an open registry node
-
-Arguments:
-   pKvi -- node key information
-
-Returns:
-   ULONG value of the value entry
-
-************************************************************************/
+/****************************************************************************
+ *
+ * function: USBPNP_ValidateConfigDescriptor
+ *
+ * purpose:  Validates the basic fields of a USB configuration descriptor to
+ *           ensure it is well-formed before the driver processes it further.
+ *
+ * arguments:pDevExt    = pointer to the filter device extension (for logging)
+ *           ConfigDesc = pointer to the USB configuration descriptor to validate
+ *
+ * returns:  TRUE if the descriptor is valid; FALSE otherwise
+ *
+ ****************************************************************************/
 BOOLEAN USBPNP_ValidateConfigDescriptor
 (
     PDEVICE_EXTENSION pDevExt,
@@ -3318,6 +3376,19 @@ BOOLEAN USBPNP_ValidateConfigDescriptor
 
 }  // USBPNP_ValidateConfigDescriptor
 
+/****************************************************************************
+ *
+ * function: USBPNP_ValidateDeviceDescriptor
+ *
+ * purpose:  Validates the basic fields of a USB device descriptor to ensure
+ *           it is well-formed before the driver processes it further.
+ *
+ * arguments:pDevExt  = pointer to the filter device extension (for logging)
+ *           DevDesc  = pointer to the USB device descriptor to validate
+ *
+ * returns:  TRUE if the descriptor is valid; FALSE otherwise
+ *
+ ****************************************************************************/
 BOOLEAN USBPNP_ValidateDeviceDescriptor
 (
     PDEVICE_EXTENSION      pDevExt,
@@ -3350,6 +3421,22 @@ BOOLEAN USBPNP_ValidateDeviceDescriptor
 
 #define MAX_INTERFACE 64
 
+/****************************************************************************
+ *
+ * function: USBPNP_SelectAndAddInterfaces
+ *
+ * purpose:  Appends virtual MUX interface descriptors to the USB configuration
+ *           descriptor returned to the upper driver. Updates the total length
+ *           and interface count in the configuration descriptor and populates
+ *           the InterfaceMuxList in the device extension.
+ *
+ * arguments:pDevExt = pointer to the filter device extension
+ *           pUrb    = pointer to the URB containing the configuration descriptor
+ *                     transfer buffer to be modified
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS USBPNP_SelectAndAddInterfaces
 (
     IN PDEVICE_EXTENSION pDevExt,
@@ -3398,6 +3485,21 @@ NTSTATUS USBPNP_SelectAndAddInterfaces
     return ntStatus;
 }  // USBPNP_SelectInterfaces
 
+/****************************************************************************
+ *
+ * function: QCFilterCreateFriendlyName
+ *
+ * purpose:  Retrieves or constructs a friendly name for the device and stores
+ *           it in the device extension. If the OS-supplied FriendlyName
+ *           property is not available, the function builds one from the device
+ *           description.
+ *
+ * arguments:pDevExt                = pointer to the filter device extension
+ *           QCPhysicalDeviceObject = pointer to the physical device object
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QCFilterCreateFriendlyName
 (
     PDEVICE_EXTENSION pDevExt,
@@ -3504,6 +3606,23 @@ NTSTATUS QCFilterCreateFriendlyName
     return nts;
 }  // QCFilterCreateFriendlyName
 
+/****************************************************************************
+ *
+ * function: QCFilterSetFriendlyName
+ *
+ * purpose:  Writes a FriendlyName registry value to the hardware key of the
+ *           device whose SW driver key matches TargetDriverKey. Enumerates
+ *           the hardware ID subkeys under HKLM\SYSTEM\...\Enum\<hwid> and
+ *           sets the "FriendlyName" value in the matching subkey.
+ *
+ * arguments:pDevExt                = pointer to the filter device extension
+ *           QCPhysicalDeviceObject = pointer to the physical device object
+ *           FriendlyName           = pointer to the unicode friendly name string
+ *           TargetDriverKey        = driver key name to match (e.g. "{GUID}\nnnn")
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QCFilterSetFriendlyName
 (
     PDEVICE_EXTENSION pDevExt,
@@ -3777,4 +3896,4 @@ NTSTATUS QCFilterSetFriendlyName
     ZwClose(hwKeyHandle);
 
     return nts;
-}  // QCFilterSetFriendlyName 
+}  // QCFilterSetFriendlyName
