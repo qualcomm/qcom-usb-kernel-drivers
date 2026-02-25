@@ -1,7 +1,18 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C R D . C
+
+GENERAL DESCRIPTION
+    This file implements the USB bulk-IN read pipeline for the wdfserial
+    driver. It provides the read handler thread, URB creation and recycling,
+    read request dispatching and completion, ring buffer data flow, read
+    timeout management via a kernel DPC timer, wait-mask scanning, and
+    read queue cleanup on device removal.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #include "QCRD.h"
 #include "QCUTILS.h"
@@ -12,6 +23,21 @@
 #include "QCRD.tmh"
 #endif
 
+/****************************************************************************
+ *
+ * function: QCRD_ScanForWaitMask
+ *
+ * purpose:  Scans the receive ring buffer for characters matching the
+ *           current wait mask (RXCHAR and RXFLAG events) and signals
+ *           the UART state accordingly.
+ *
+ * arguments:pDevContext  = pointer to the device context.
+ *           ucEventChar  = the special event character to watch for.
+ *           ulWaitMask   = bitmask of serial events to monitor.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCRD_ScanForWaitMask
 (
     PDEVICE_CONTEXT pDevContext,
@@ -82,6 +108,20 @@ VOID QCRD_ScanForWaitMask
     }
 }
 
+/****************************************************************************
+ *
+ * function: QCRD_ReadRequestHandlerThread
+ *
+ * purpose:  Kernel thread that manages all read operations. Waits on
+ *           multiple events to handle file open/close, device power
+ *           transitions, URB completions, application read requests,
+ *           read timeouts, and device removal.
+ *
+ * arguments:pContext = pointer to the device context.
+ *
+ * returns:  VOID (thread exits via PsTerminateSystemThread)
+ *
+ ****************************************************************************/
 void QCRD_ReadRequestHandlerThread
 (
     PVOID pContext
@@ -887,6 +927,22 @@ exit:
     PsTerminateSystemThread(status);
 }
 
+/****************************************************************************
+ *
+ * function: QCRD_CreateReadUrb
+ *
+ * purpose:  Allocates and initializes a new WDF read request (URB) with
+ *           an associated data buffer and READ_BUFFER_PARAM structure for
+ *           use on the bulk-IN pipe.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           urbBufferSize      = size in bytes of the read data buffer.
+ *           readBufferParamTag = pool tag for the READ_BUFFER_PARAM allocation.
+ *           outRequest         = receives the newly created WDFREQUEST handle.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCRD_CreateReadUrb
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1002,6 +1058,20 @@ exit:
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCRD_ResetReadUrb
+ *
+ * purpose:  Reuses an existing WDF read request by resetting its buffer
+ *           parameters, re-registering the completion routine, and
+ *           reformatting it for a bulk-IN pipe read.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *           request     = the WDFREQUEST to reset and reformat.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCRD_ResetReadUrb
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1071,6 +1141,20 @@ NTSTATUS QCRD_ResetReadUrb
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCRD_SendReadUrb
+ *
+ * purpose:  Sends a single pre-formatted read URB to the specified I/O
+ *           target (bulk-IN pipe) asynchronously.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *           request     = the WDFREQUEST to send.
+ *           ioTarget    = the WDF I/O target for the bulk-IN pipe.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCRD_SendReadUrb
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1113,6 +1197,19 @@ NTSTATUS QCRD_SendReadUrb
     }
 }
 
+/****************************************************************************
+ *
+ * function: QCRD_SendReadUrbs
+ *
+ * purpose:  Iterates through the URB free list, resets each URB, and
+ *           sends all available read URBs to the bulk-IN pipe I/O target.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *           ioTarget    = the WDF I/O target for the bulk-IN pipe.
+ *
+ * returns:  SIZE_T - number of URBs successfully sent.
+ *
+ ****************************************************************************/
 SIZE_T QCRD_SendReadUrbs
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1184,6 +1281,19 @@ SIZE_T QCRD_SendReadUrbs
     return sentCount;
 }
 
+/****************************************************************************
+ *
+ * function: QCRD_CleanupReadQueues
+ *
+ * purpose:  Cancels all pending read URBs, purges the timeout read queue,
+ *           moves completion-list entries to the free list, and deletes
+ *           all URB objects to fully tear down the read pipeline.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCRD_CleanupReadQueues
 (
     PDEVICE_CONTEXT pDevContext
@@ -1255,6 +1365,19 @@ VOID QCRD_CleanupReadQueues
     );
 }
 
+/****************************************************************************
+ *
+ * function: QCRD_ClearBuffer
+ *
+ * purpose:  Clears the receive ring buffer and moves all entries from the
+ *           URB completion list back to the free list, discarding any
+ *           buffered but unread data.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCRD_ClearBuffer
 (
     PDEVICE_CONTEXT pDevContext
@@ -1298,6 +1421,21 @@ VOID QCRD_ClearBuffer
     );
 }
 
+/****************************************************************************
+ *
+ * function: QCRD_StartReadTimeout
+ *
+ * purpose:  Evaluates the current read timeout configuration and, if a
+ *           non-zero timeout applies, arms the read timer. Returns FALSE
+ *           if the request should complete immediately with no data.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *           readLength  = number of bytes requested by the read operation.
+ *
+ * returns:  BOOLEAN - TRUE if a timer was started, FALSE if the request
+ *           should time out immediately.
+ *
+ ****************************************************************************/
 BOOLEAN QCRD_StartReadTimeout
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1363,6 +1501,21 @@ BOOLEAN QCRD_StartReadTimeout
     return TRUE;
 }
 
+/****************************************************************************
+ *
+ * function: QCRD_ReadTimeoutDpc
+ *
+ * purpose:  DPC routine invoked when the read timer expires. Signals the
+ *           read timeout event to wake the read handler thread.
+ *
+ * arguments:Dpc             = pointer to the DPC object (unused).
+ *           DeferredContext = pointer to the device context.
+ *           SystemArgument1 = system-supplied argument (unused).
+ *           SystemArgument2 = system-supplied argument (unused).
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCRD_ReadTimeoutDpc
 (
     IN PKDPC Dpc,
@@ -1379,6 +1532,23 @@ VOID QCRD_ReadTimeoutDpc
     KeSetEvent(&pDevContext->ReadRequestTimeoutEvent, IO_NO_INCREMENT, FALSE);
 }
 
+/****************************************************************************
+ *
+ * function: QCRD_EvtIoReadCompletionAsync
+ *
+ * purpose:  WDF completion routine called when a bulk-IN read URB finishes.
+ *           Records the number of bytes received, moves the request from
+ *           the pending list to the completion list, and signals the read
+ *           handler thread.
+ *
+ * arguments:Request = the completed WDFREQUEST.
+ *           Target  = the I/O target that completed the request (unused).
+ *           Params  = completion parameters including byte count and status.
+ *           Context = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCRD_EvtIoReadCompletionAsync
 (
     WDFREQUEST  Request,

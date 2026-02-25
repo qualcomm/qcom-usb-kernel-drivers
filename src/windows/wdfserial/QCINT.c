@@ -1,7 +1,18 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C I N T . C
+
+GENERAL DESCRIPTION
+    This file implements the CDC interrupt pipe handler for the wdfserial
+    driver. It manages the interrupt notification kernel thread that
+    receives SERIAL_STATE notifications from the device, decodes modem
+    status bits (DSR, CTS, RI, DCD, break), updates the UART state, and
+    handles D0 entry/exit power transitions for the interrupt pipe.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #include "QCMAIN.h"
 #include "QCPNP.h"
@@ -14,6 +25,18 @@
 #include "QCINT.tmh"
 #endif
 
+/****************************************************************************
+ *
+ * function: QCINT_InitInterruptPipe
+ *
+ * purpose:  Creates the interrupt pipe worker thread and waits for it to
+ *           signal that it has started successfully.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCINT_InitInterruptPipe(PDEVICE_CONTEXT pDevContext)
 {
     NTSTATUS ntStatus = STATUS_SUCCESS;
@@ -49,6 +72,18 @@ NTSTATUS QCINT_InitInterruptPipe(PDEVICE_CONTEXT pDevContext)
 }
 
 
+/****************************************************************************
+ *
+ * function: QCINT_ReadInterruptPipe
+ *
+ * purpose:  Worker thread routine that continuously reads from the USB
+ *           interrupt IN pipe and dispatches CDC notifications.
+ *
+ * arguments:pContext = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCINT_ReadInterruptPipe(PVOID pContext)
 {
     NTSTATUS         status = STATUS_SUCCESS;
@@ -471,6 +506,19 @@ VOID QCINT_ReadInterruptPipe(PVOID pContext)
     PsTerminateSystemThread(status);
 }
 
+/****************************************************************************
+ *
+ * function: StopInterruptService
+ *
+ * purpose:  Signals the interrupt pipe thread to stop and optionally waits
+ *           for the thread to exit before returning.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *           bWait       = if TRUE, blocks until the thread has terminated.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS StopInterruptService
 (
     PDEVICE_CONTEXT pDevContext,
@@ -522,6 +570,18 @@ NTSTATUS StopInterruptService
     return ntStatus;
 }
 
+/****************************************************************************
+ *
+ * function: QCINT_HandleSerialStateNotification
+ *
+ * purpose:  Processes a CDC SERIAL_STATE notification received on the
+ *           interrupt pipe and updates the device UART state accordingly.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCINT_HandleSerialStateNotification(PDEVICE_CONTEXT pDevContext)
 {
     PUSB_NOTIFICATION_STATUS pUartStatus;
@@ -617,6 +677,21 @@ VOID QCINT_HandleSerialStateNotification(PDEVICE_CONTEXT pDevContext)
     );
 }
 
+/****************************************************************************
+ *
+ * function: QCINT_InterruptPipeCompletion
+ *
+ * purpose:  WDF completion routine for interrupt pipe read requests. Sets
+ *           the completion event to wake the interrupt thread.
+ *
+ * arguments:Request = handle to the completed I/O request.
+ *           Target  = handle to the I/O target.
+ *           Params  = pointer to the request completion parameters.
+ *           Context = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 void QCINT_InterruptPipeCompletion
 (
     WDFREQUEST  Request,

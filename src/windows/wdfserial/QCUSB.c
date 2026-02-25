@@ -1,7 +1,15 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C U S B . C
+
+GENERAL DESCRIPTION
+    This file provides the SVE flow entry handler for LPC device,
+    VI device command and configuration.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #include "QCUSB.h"
 
@@ -11,6 +19,18 @@
 #endif
 
 #ifdef QCUSB_MUX_PROTOCOL
+/****************************************************************************
+ *
+ * function: QCUSB_SVEFlowEntry
+ *
+ * purpose:  Sends a vendor-specific USB control transfer to the device's
+ *           default control endpoint to enable SVE flow entry mode.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCUSB_SVEFlowEntry
 (
     PDEVICE_CONTEXT pDevContext
@@ -98,6 +118,24 @@ NTSTATUS QCUSB_SVEFlowEntry
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCUSB_VICommand
+ *
+ * purpose:  Sends a single VI configuration command to the device via
+ *           USB control transfer.
+ *           Supported commands set the DMA address, data size, or transfer
+ *           direction.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *           pViConfig   = pointer to the VI_CONFIG structure containing
+ *                         address, data size, and direction parameters.
+ *           Command     = the VI command code (VIUSB_CMD_SET_ADDR,
+ *                         VIUSB_CMD_SET_SIZE, or VIUSB_CMD_SET_DIR).
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCUSB_VICommand
 (
     PDEVICE_CONTEXT pDevContext,
@@ -235,6 +273,21 @@ NTSTATUS QCUSB_VICommand
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCUSB_VIConfig
+ *
+ * purpose:  Applies a VI configuration to the device by issuing only the
+ *           VI commands whose parameters have changed since the last
+ *           configuration (address, data size, and/or direction).
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *           pViConfig   = pointer to the VI_CONFIG structure with the
+ *                         desired address, data size, and direction.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCUSB_VIConfig
 (
     PDEVICE_CONTEXT pDevContext,

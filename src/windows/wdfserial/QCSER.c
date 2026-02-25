@@ -1,7 +1,20 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C S E R . C
+
+GENERAL DESCRIPTION
+    This file implements all IOCTL_SERIAL_* handler functions for the
+    wdfserial driver. It covers baud rate, line control, handflow, serial
+    timeouts, modem control (DTR/RTS/XON/XOFF), wait mask, purge, serial
+    status and statistics, UART state processing, wait-on-mask and
+    device-removal notification queuing, and vendor-specific IOCTL handlers
+    for debug mask, driver GUID, service key, device ID, and MUX protocol
+    session/VI configuration.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #include "QCSER.h"
 #include "QCUSB.h"
@@ -12,6 +25,19 @@
 #include "QCSER.tmh"
 #endif
 
+/****************************************************************************
+ *
+ * function: QCSER_InitUartStateFromModem
+ *
+ * purpose:  Initializes the UART state from the current modem status bits,
+ *           then processes the new state to trigger any pending wait-mask
+ *           events.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCSER_InitUartStateFromModem
 (
     PDEVICE_CONTEXT pDevContext
@@ -35,6 +61,21 @@ VOID QCSER_InitUartStateFromModem
     QCSER_ProcessNewUartState(pDevContext, newUartState, 0xffff);
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_ProcessNewUartState
+ *
+ * purpose:  Merges a new UART state into the current state, updates the
+ *           modem status register, and completes any pending
+ *           WaitOnMask request if a matching event bit is set.
+ *
+ * arguments:pDevContext    = pointer to the device context.
+ *           usNewUartState = new UART state bits to apply.
+ *           usBitsMask     = mask of bits to update in the current state.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCSER_ProcessNewUartState
 (
     PDEVICE_CONTEXT pDevContext,
@@ -147,6 +188,21 @@ VOID QCSER_ProcessNewUartState
     );
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SetModemConfig
+ *
+ * purpose:  Sends a CDC SET_LINE_CODING control request to configure the
+ *           modem baud rate, parity, stop bits, and data bits, or stores
+ *           the configuration locally for non-CDC serial devices.
+ *
+ * arguments:pDevContext  = pointer to the device context.
+ *           newModemInfo = pointer to the MODEM_INFO structure with new
+ *                          line coding parameters.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SetModemConfig
 (
     PDEVICE_CONTEXT pDevContext,
@@ -226,6 +282,21 @@ NTSTATUS QCSER_SetModemConfig
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_GetModemConfig
+ *
+ * purpose:  Retrieves the current line coding (baud rate, parity, stop
+ *           bits, data bits) via a CDC GET_LINE_CODING control request,
+ *           or reads the locally stored configuration for serial devices.
+ *
+ * arguments:pDevContext  = pointer to the device context.
+ *           outModemInfo = pointer to a MODEM_INFO structure to receive
+ *                          the current line coding parameters.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetModemConfig
 (
     PDEVICE_CONTEXT pDevContext,
@@ -326,6 +397,20 @@ NTSTATUS QCSER_GetModemConfig
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_GetStats
+ *
+ * purpose:  Copies the current SERIALPERF_STATS performance counters into
+ *           the output buffer of the IOCTL request.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetStats
 (
     PDEVICE_CONTEXT pDevContext,
@@ -352,6 +437,17 @@ NTSTATUS QCSER_GetStats
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_ClearStats
+ *
+ * purpose:  Resets all SERIALPERF_STATS performance counters to zero.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_ClearStats
 (
     PDEVICE_CONTEXT pDevContext
@@ -361,6 +457,20 @@ NTSTATUS QCSER_ClearStats
     return STATUS_SUCCESS;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_GetProperties
+ *
+ * purpose:  Fills in a SERIAL_COMMPROP structure with the device's
+ *           communication capabilities and copies it to the output buffer.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetProperties
 (
     PDEVICE_CONTEXT pDevContext,
@@ -430,6 +540,21 @@ NTSTATUS QCSER_GetProperties
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_GetModemStatus
+ *
+ * purpose:  Returns the current modem status register value (CTS, DSR,
+ *           RI, DCD) in the output buffer, initializing UART state on
+ *           first call.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetModemStatus
 (
     PDEVICE_CONTEXT pDevContext,
@@ -465,6 +590,20 @@ NTSTATUS QCSER_GetModemStatus
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_GetCommStatus
+ *
+ * purpose:  Returns the current SERIAL_STATUS including queue depths,
+ *           error flags, and hold reasons in the output buffer.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetCommStatus
 (
     PDEVICE_CONTEXT pDevContext,
@@ -507,6 +646,18 @@ NTSTATUS QCSER_GetCommStatus
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_ResetDevice
+ *
+ * purpose:  Resets the modem configuration to default values (2 Mbps,
+ *           no parity, 1 stop bit, 8 data bits).
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_ResetDevice
 (
     PDEVICE_CONTEXT pDevContext
@@ -520,6 +671,20 @@ NTSTATUS QCSER_ResetDevice
     return STATUS_SUCCESS;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_Purge
+ *
+ * purpose:  Handles IOCTL_SERIAL_PURGE by aborting or clearing the TX
+ *           and/or RX queues according to the supplied purge mask.
+ *
+ * arguments:pDevContext       = pointer to the device context.
+ *           Request           = the WDF I/O request.
+ *           InputBufferLength = length of the input buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_Purge
 (
     PDEVICE_CONTEXT pDevContext,
@@ -626,6 +791,18 @@ NTSTATUS QCSER_Purge
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_LsrMstInsert
+ *
+ * purpose:  Stub handler for LSR/MST insert operations. Currently a
+ *           no-op that returns STATUS_SUCCESS.
+ *
+ * arguments:pDevContext = pointer to the device context (unused).
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_LsrMstInsert
 (
     PDEVICE_CONTEXT pDevContext
@@ -635,6 +812,21 @@ NTSTATUS QCSER_LsrMstInsert
     return STATUS_SUCCESS;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_GetBaudRate
+ *
+ * purpose:  Retrieves the current DTE baud rate from the modem
+ *           configuration and copies it to the output buffer as a
+ *           SERIAL_BAUD_RATE value.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetBaudRate
 (
     PDEVICE_CONTEXT pDevContext,
@@ -678,6 +870,20 @@ NTSTATUS QCSER_GetBaudRate
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SetBaudRate
+ *
+ * purpose:  Updates the DTE baud rate in the modem configuration from
+ *           the SERIAL_BAUD_RATE value supplied in the input buffer.
+ *
+ * arguments:pDevContext       = pointer to the device context.
+ *           Request           = the WDF I/O request.
+ *           InputBufferLength = length of the input buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SetBaudRate
 (
     PDEVICE_CONTEXT pDevContext,
@@ -725,6 +931,21 @@ NTSTATUS QCSER_SetBaudRate
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SetQueueSize
+ *
+ * purpose:  Validates the SERIAL_QUEUE_SIZE input buffer length. The
+ *           driver does not resize queues dynamically; this is a no-op
+ *           that returns STATUS_SUCCESS on valid input.
+ *
+ * arguments:pDevContext       = pointer to the device context (unused).
+ *           Request           = the WDF I/O request (unused).
+ *           InputBufferLength = length of the input buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SetQueueSize
 (
     PDEVICE_CONTEXT pDevContext,
@@ -741,6 +962,21 @@ NTSTATUS QCSER_SetQueueSize
     return STATUS_SUCCESS;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_GetLineControl
+ *
+ * purpose:  Retrieves the current parity, stop bits, and word length from
+ *           the modem configuration and writes them to the output buffer
+ *           as a SERIAL_LINE_CONTROL structure.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetLineControl
 (
     PDEVICE_CONTEXT pDevContext,
@@ -780,6 +1016,20 @@ NTSTATUS QCSER_GetLineControl
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SetLineControl
+ *
+ * purpose:  Applies new parity, stop bits, and word length from the
+ *           SERIAL_LINE_CONTROL input buffer to the modem configuration.
+ *
+ * arguments:pDevContext       = pointer to the device context.
+ *           Request           = the WDF I/O request.
+ *           InputBufferLength = length of the input buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SetLineControl
 (
     PDEVICE_CONTEXT pDevContext,
@@ -836,6 +1086,19 @@ NTSTATUS QCSER_SetLineControl
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_GetWaitMask
+ *
+ * purpose:  Copies the current serial event wait mask to the output buffer.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetWaitMask
 (
     PDEVICE_CONTEXT pDevContext,
@@ -862,6 +1125,20 @@ NTSTATUS QCSER_GetWaitMask
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SetWaitMask
+ *
+ * purpose:  Updates the serial event wait mask from the input buffer and
+ *           completes any outstanding WaitOnMask request with a zero event.
+ *
+ * arguments:pDevContext       = pointer to the device context.
+ *           Request           = the WDF I/O request.
+ *           InputBufferLength = length of the input buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SetWaitMask
 (
     PDEVICE_CONTEXT pDevContext,
@@ -899,6 +1176,22 @@ NTSTATUS QCSER_SetWaitMask
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_WaitOnMask
+ *
+ * purpose:  Queues a WaitOnMask request to the manual WaitOnMaskQueue so
+ *           it can be completed when a matching serial event occurs. If a
+ *           request is already pending, the new request is rejected
+ *           immediately.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS (STATUS_PENDING if successfully queued)
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_WaitOnMask
 (
     PDEVICE_CONTEXT pDevContext,
@@ -980,6 +1273,20 @@ NTSTATUS QCSER_WaitOnMask
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_GetChars
+ *
+ * purpose:  Copies the current SERIAL_CHARS structure (XON, XOFF, event
+ *           character, etc.) to the output buffer.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetChars
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1012,6 +1319,20 @@ NTSTATUS QCSER_GetChars
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SetChars
+ *
+ * purpose:  Updates the SERIAL_CHARS structure (XON, XOFF, event
+ *           character, etc.) from the input buffer.
+ *
+ * arguments:pDevContext       = pointer to the device context.
+ *           Request           = the WDF I/O request.
+ *           InputBufferLength = length of the input buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SetChars
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1044,6 +1365,20 @@ NTSTATUS QCSER_SetChars
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_GetHandflow
+ *
+ * purpose:  Copies the current SERIAL_HANDFLOW structure (control
+ *           handshake, flow replace, XON/XOFF limits) to the output buffer.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetHandflow
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1076,6 +1411,21 @@ NTSTATUS QCSER_GetHandflow
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SetHandflow
+ *
+ * purpose:  Applies new hardware handshake and flow control settings from
+ *           the SERIAL_HANDFLOW input buffer, and asserts RTS/DTR if the
+ *           corresponding handshake flags are set.
+ *
+ * arguments:pDevContext       = pointer to the device context.
+ *           Request           = the WDF I/O request.
+ *           InputBufferLength = length of the input buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SetHandflow
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1122,6 +1472,19 @@ NTSTATUS QCSER_SetHandflow
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SetBreak
+ *
+ * purpose:  Sends a CDC SEND_BREAK control request to assert or deassert
+ *           the serial break condition on CDC devices.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *           SetValue    = break duration in milliseconds (0 = clear break).
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SetBreak
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1154,6 +1517,20 @@ NTSTATUS QCSER_SetBreak
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_GetTimeout
+ *
+ * purpose:  Copies the current SERIAL_TIMEOUTS structure (read/write
+ *           interval and total timeout values) to the output buffer.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetTimeout
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1192,6 +1569,21 @@ NTSTATUS QCSER_GetTimeout
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SetTimeout
+ *
+ * purpose:  Applies new read/write timeout values from the input buffer
+ *           and classifies the read timeout into one of the 11 timeout
+ *           cases used by the read handler thread.
+ *
+ * arguments:pDevContext       = pointer to the device context.
+ *           Request           = the WDF I/O request.
+ *           InputBufferLength = length of the input buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SetTimeout
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1316,6 +1708,20 @@ NTSTATUS QCSER_SetTimeout
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_ImmediateChar
+ *
+ * purpose:  Stub handler for IOCTL_SERIAL_IMMEDIATE_CHAR. Currently not
+ *           supported; returns STATUS_UNSUCCESSFUL.
+ *
+ * arguments:pDevContext       = pointer to the device context (unused).
+ *           Request           = the WDF I/O request (unused).
+ *           InputBufferLength = length of the input buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_ImmediateChar
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1339,6 +1745,18 @@ NTSTATUS QCSER_ImmediateChar
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_XoffCounter
+ *
+ * purpose:  Stub handler for IOCTL_SERIAL_XOFF_COUNTER. Currently a
+ *           no-op that returns STATUS_SUCCESS.
+ *
+ * arguments:pDevContext = pointer to the device context (unused).
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_XoffCounter
 (
     PDEVICE_CONTEXT pDevContext
@@ -1348,6 +1766,19 @@ NTSTATUS QCSER_XoffCounter
     return STATUS_SUCCESS;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SerialSetDtr
+ *
+ * purpose:  Asserts the DTR (Data Terminal Ready) signal. For CDC devices
+ *           this sends a SET_CONTROL_LINE_STATE request; for serial devices
+ *           it updates the modem control register locally.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SerialSetDtr
 (
     PDEVICE_CONTEXT pDevContext
@@ -1414,6 +1845,19 @@ NTSTATUS QCSER_SerialSetDtr
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SerialClrDtr
+ *
+ * purpose:  Deasserts the DTR (Data Terminal Ready) signal. For CDC
+ *           devices this sends a SET_CONTROL_LINE_STATE request; for
+ *           serial devices it clears the DTR bit locally.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SerialClrDtr
 (
     PDEVICE_CONTEXT pDevContext
@@ -1463,6 +1907,19 @@ NTSTATUS QCSER_SerialClrDtr
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SerialSetRts
+ *
+ * purpose:  Asserts the RTS (Request To Send) signal. For CDC devices
+ *           this sends a SET_CONTROL_LINE_STATE request; for serial
+ *           devices it updates the modem control register locally.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SerialSetRts
 (
     PDEVICE_CONTEXT pDevContext
@@ -1529,6 +1986,19 @@ NTSTATUS QCSER_SerialSetRts
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SerialClrRts
+ *
+ * purpose:  Deasserts the RTS (Request To Send) signal. For CDC devices
+ *           this sends a SET_CONTROL_LINE_STATE request; for serial
+ *           devices it clears the RTS bit locally.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SerialClrRts
 (
     PDEVICE_CONTEXT pDevContext
@@ -1578,6 +2048,20 @@ NTSTATUS QCSER_SerialClrRts
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_GetDtrRts
+ *
+ * purpose:  Returns the current DTR and RTS state bits from the modem
+ *           control register in the output buffer.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetDtrRts
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1605,6 +2089,18 @@ NTSTATUS QCSER_GetDtrRts
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SetXon
+ *
+ * purpose:  Stub handler for IOCTL_SERIAL_SET_XON. Software flow control
+ *           is not supported; always returns STATUS_INVALID_PARAMETER.
+ *
+ * arguments:pDevContext = pointer to the device context (unused).
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SetXon
 (
     PDEVICE_CONTEXT pDevContext
@@ -1615,6 +2111,18 @@ NTSTATUS QCSER_SetXon
     return STATUS_INVALID_PARAMETER;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SetXoff
+ *
+ * purpose:  Stub handler for IOCTL_SERIAL_SET_XOFF. Software flow control
+ *           is not supported; always returns STATUS_INVALID_PARAMETER.
+ *
+ * arguments:pDevContext = pointer to the device context (unused).
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SetXoff
 (
     PDEVICE_CONTEXT pDevContext
@@ -1625,6 +2133,20 @@ NTSTATUS QCSER_SetXoff
     return STATUS_INVALID_PARAMETER;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_SetDebugMask
+ *
+ * purpose:  Enables or disables debug output for the device by setting
+ *           the DebugMask field in the device context from the input buffer.
+ *
+ * arguments:pDevContext       = pointer to the device context.
+ *           Request           = the WDF I/O request.
+ *           InputBufferLength = length of the input buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SetDebugMask
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1656,6 +2178,21 @@ NTSTATUS QCSER_SetDebugMask
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_WaitOnDeviceRemoval
+ *
+ * purpose:  Queues a request to the WaitOnDeviceRemovalQueue so the
+ *           caller is notified when the device is removed. Any previously
+ *           queued request is completed immediately as a duplicate.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS (STATUS_PENDING if successfully queued)
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_WaitOnDeviceRemoval
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1702,6 +2239,21 @@ NTSTATUS QCSER_WaitOnDeviceRemoval
 }
 
 
+/****************************************************************************
+ *
+ * function: QCSER_GetDriverGUIDString
+ *
+ * purpose:  Returns the driver GUID string corresponding to the device
+ *           type (CDC data, diagnostic serial, or unknown) in the output
+ *           buffer.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetDriverGUIDString
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1752,6 +2304,20 @@ NTSTATUS QCSER_GetDriverGUIDString
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_GetServiceKey
+ *
+ * purpose:  Copies the driver service registry key path as an ASCII
+ *           string into the output buffer.
+ *
+ * arguments:pDevContext        = pointer to the device context.
+ *           Request            = the WDF I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetServiceKey
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1790,6 +2356,19 @@ NTSTATUS QCSER_GetServiceKey
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_GetDeviceId
+ *
+ * purpose:  Forwards the request to the default device I/O target using
+ *           the current request type to retrieve the device ID.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *           Request     = the WDF I/O request.
+ *
+ * returns:  NTSTATUS (STATUS_PENDING if successfully forwarded)
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_GetDeviceId
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1813,6 +2392,20 @@ NTSTATUS QCSER_GetDeviceId
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_CompleteWomRequest
+ *
+ * purpose:  Dequeues the pending WaitOnMask request and completes it with
+ *           the specified status and event value.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *           outStatus   = NTSTATUS to complete the request with.
+ *           outValue    = event mask value to return to the caller.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCSER_CompleteWomRequest(PDEVICE_CONTEXT pDevContext, NTSTATUS outStatus, ULONG outValue)
 {
     WDFREQUEST request = NULL;
@@ -1845,6 +2438,21 @@ VOID QCSER_CompleteWomRequest(PDEVICE_CONTEXT pDevContext, NTSTATUS outStatus, U
 }
 
 #ifdef QCUSB_MUX_PROTOCOL
+/****************************************************************************
+ *
+ * function: QCSER_SetSessionTotal
+ *
+ * purpose:  Sets the total number of bytes to read for the current MUX
+ *           session and signals the read handler thread to begin issuing
+ *           read URBs. Only supported on SuperSpeed USB devices.
+ *
+ * arguments:pDevContext       = pointer to the device context.
+ *           Request           = the WDF I/O request.
+ *           InputBufferLength = length of the input buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_SetSessionTotal
 (
     PDEVICE_CONTEXT pDevContext,
@@ -1894,6 +2502,21 @@ NTSTATUS QCSER_SetSessionTotal
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCSER_ViUsbConfigDevice
+ *
+ * purpose:  Handles the VI USB device configuration IOCTL by reading a
+ *           VI_CONFIG structure from the input buffer and forwarding it
+ *           to QCUSB_VIConfig for processing.
+ *
+ * arguments:pDevContext       = pointer to the device context.
+ *           Request           = the WDF I/O request.
+ *           InputBufferLength = length of the input buffer in bytes.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCSER_ViUsbConfigDevice
 (
     PDEVICE_CONTEXT pDevContext,

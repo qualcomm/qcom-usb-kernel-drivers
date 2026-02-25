@@ -1,7 +1,15 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C U T I L S . H
+
+GENERAL DESCRIPTION
+    Ring buffer, linked-list, request buffer copy, and debug utility
+    declarations.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #ifndef QCUTILS_H
 #define QCUTILS_H

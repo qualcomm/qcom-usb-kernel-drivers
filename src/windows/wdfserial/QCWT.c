@@ -1,7 +1,17 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C W T . C
+
+GENERAL DESCRIPTION
+    This file implements the USB bulk-OUT write pipeline for the wdfserial
+    driver. It provides the WDF write I/O callback, the write completion
+    routine, the write handler thread, write queue cleanup on device
+    removal, and the USB short-packet transmission helper.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #include "QCWT.h"
 #include "QCUTILS.h"
@@ -11,6 +21,22 @@
 #include "QCWT.tmh"
 #endif
 
+/****************************************************************************
+ *
+ * function: QCWT_EvtIoWrite
+ *
+ * purpose:  Invoked when an application submits a write request.
+ *           Formats the request for the bulk-OUT pipe, applies
+ *           an optional write timeout, and sends it asynchronously.
+ *           Zero-length requests are completed immediately.
+ *
+ * arguments:Queue   = handle to the WDF I/O queue that dispatched the request.
+ *           Request = the WDF write request.
+ *           Length  = number of bytes to write.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 void QCWT_EvtIoWrite
 (
     WDFQUEUE   Queue,
@@ -154,6 +180,24 @@ void QCWT_EvtIoWrite
     }
 }
 
+/****************************************************************************
+ *
+ * function: QCWT_EvtIoWriteCompletion
+ *
+ * purpose:  Called when a bulk-OUT write URB finishes.
+ *           Removes the request from the pending list, updates the
+ *           pending data size counter, prints TX data on success, and
+ *           completes the request back to the caller. Driver-created
+ *           zero-length packet requests are deleted rather than completed.
+ *
+ * arguments:Request = the completed WDFREQUEST.
+ *           Target  = the I/O target that completed the request (unused).
+ *           Params  = completion parameters including byte count and status.
+ *           Context = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCWT_EvtIoWriteCompletion
 (
     WDFREQUEST  Request,
@@ -247,6 +291,20 @@ VOID QCWT_EvtIoWriteCompletion
     }
 }
 
+/****************************************************************************
+ *
+ * function: QCWT_WriteRequestHandlerThread
+ *
+ * purpose:  Kernel thread that manages all write operations. Waits on
+ *           multiple events to handle file close, purge, new write
+ *           requests, and device removal. Dispatches write requests to
+ *           QCWT_EvtIoWrite and sends zero-length packets when required.
+ *
+ * arguments:pContext = pointer to the device context.
+ *
+ * returns:  VOID (thread exits via PsTerminateSystemThread)
+ *
+ ****************************************************************************/
 void QCWT_WriteRequestHandlerThread
 (
     PVOID pContext
@@ -426,6 +484,18 @@ void QCWT_WriteRequestHandlerThread
     PsTerminateSystemThread(status);
 }
 
+/****************************************************************************
+ *
+ * function: QCWT_CleanupWriteQueue
+ *
+ * purpose:  Iterates through the write pending list and cancels all
+ *           outstanding write requests on the bulk-OUT pipe.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCWT_CleanupWriteQueue
 (
     PDEVICE_CONTEXT pDevContext
@@ -467,6 +537,20 @@ VOID QCWT_CleanupWriteQueue
     WdfSpinLockRelease(pDevContext->WriteRequestPendingListLock);
 }
 
+/****************************************************************************
+ *
+ * function: QCWT_SendUsbShortPacket
+ *
+ * purpose:  Creates and sends a zero-length USB write request on the
+ *           bulk-OUT pipe to flush the host controller's internal buffer
+ *           after a transfer whose length is an exact multiple of the
+ *           maximum packet size.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCWT_SendUsbShortPacket
 (
     PDEVICE_CONTEXT pDevContext

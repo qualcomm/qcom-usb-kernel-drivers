@@ -3,7 +3,7 @@
                              Q C I N T . H
 
 GENERAL DESCRIPTION
-    This file contains definitions for USB interrupt operations.
+    CDC interrupt pipe management function and worker thread declarations.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause

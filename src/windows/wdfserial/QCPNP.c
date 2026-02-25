@@ -1,7 +1,19 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C P N P . C
+
+GENERAL DESCRIPTION
+    This file implements all WDF PnP and power management callbacks for
+    the wdfserial driver. It handles device addition, hardware preparation
+    and release, D0 entry/exit power transitions, file create/close
+    lifecycle, USB device and pipe configuration, vendor registry
+    parameter processing, selective suspend, WMI power management
+    registration, device name reporting, and worker thread creation.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #include "QCPNP.h"
 #include "QCDSP.h"
@@ -32,6 +44,20 @@ WMIGUIDREGINFO PMWmiGuidList[] =
     }
 };
 
+/****************************************************************************
+ *
+ * function: QCPNP_EvtDeviceAdd
+ *
+ * purpose:  WDF callback invoked when a new device instance is added.
+ *           Creates the device object, configures it, and processes vendor
+ *           registry settings.
+ *
+ * arguments:Driver     = handle to the WDF driver object.
+ *           DeviceInit = pointer to the device initialization structure.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_EvtDeviceAdd
 (
     WDFDRIVER       Driver,
@@ -86,6 +112,19 @@ exit:
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_GetDeviceType
+ *
+ * purpose:  Queries the device class name from PnP and returns whether the
+ *           device is a serial port, modem, or unknown device type.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  DEVICE_TYPE value (FILE_DEVICE_SERIAL_PORT, FILE_DEVICE_MODEM,
+ *           or FILE_DEVICE_UNKNOWN).
+ *
+ ****************************************************************************/
 //Checks device type Modem or Ports
 DEVICE_TYPE QCPNP_GetDeviceType(PDEVICE_CONTEXT pDevContext)
 {
@@ -167,6 +206,19 @@ DEVICE_TYPE QCPNP_GetDeviceType(PDEVICE_CONTEXT pDevContext)
     return deviceType;
 }  // QCPNP_GetDeviceType ends
 
+/****************************************************************************
+ *
+ * function: QCPNP_SetStamp
+ *
+ * purpose:  Writes a timestamp/presence stamp DWORD to the driver registry
+ *           key to indicate driver startup or shutdown state.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *           Startup     = TRUE to set the stamp on startup, FALSE on removal.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 //Set stamp value in registry
 NTSTATUS QCPNP_SetStamp
 (
@@ -215,6 +267,20 @@ NTSTATUS QCPNP_SetStamp
     return STATUS_SUCCESS;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_DeviceCreate
+ *
+ * purpose:  Creates the WDF device object, registers PnP/power callbacks,
+ *           configures file object and I/O type, and initializes the device
+ *           context.
+ *
+ * arguments:DeviceInit    = pointer to the device initialization structure.
+ *           DeviceContext = output pointer to receive the device context.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 /* Create device object and init device context area */
 NTSTATUS QCPNP_DeviceCreate
 (
@@ -318,6 +384,19 @@ NTSTATUS QCPNP_DeviceCreate
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_DeviceConfig
+ *
+ * purpose:  Initializes kernel events, creates I/O queues, registers the
+ *           device interface and symbolic link, and writes the SERIALCOMM
+ *           registry entry.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 /* Setup device interface, symbolic link, queues and pnp callbacks */
 NTSTATUS QCPNP_DeviceConfig
 (
@@ -930,6 +1009,20 @@ exit:
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_EvtFileCreate
+ *
+ * purpose:  WDF callback for file create requests. Resets the bulk USB
+ *           pipes, clears DTR/RTS, and signals the read thread to start.
+ *
+ * arguments:Device     = handle to the WDF device object.
+ *           Request    = handle to the file create request.
+ *           FileObject = handle to the file object being created.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCPNP_EvtFileCreate
 (
     WDFDEVICE     Device,
@@ -1042,6 +1135,18 @@ VOID QCPNP_EvtFileCreate
     WdfRequestComplete(Request, status);
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_EvtFileClose
+ *
+ * purpose:  WDF callback for file close. Signals the read and write threads
+ *           to flush pending I/O and waits for them to acknowledge closure.
+ *
+ * arguments:FileObject = handle to the file object being closed.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCPNP_EvtFileClose
 (
     WDFFILEOBJECT FileObject
@@ -1088,6 +1193,18 @@ VOID QCPNP_EvtFileClose
     );
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_EvtDriverCleanup
+ *
+ * purpose:  WDF cleanup callback for the driver object. Stops WPP tracing
+ *           and frees the global service path buffer.
+ *
+ * arguments:Object = handle to the WDF driver object being cleaned up.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCPNP_EvtDriverCleanup
 (
     WDFOBJECT Object
@@ -1113,6 +1230,18 @@ VOID QCPNP_EvtDriverCleanup
     }
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_EvtDeviceCleanup
+ *
+ * purpose:  WDF cleanup callback for the device object. Removes the
+ *           SERIALCOMM registry entry and frees device context strings.
+ *
+ * arguments:Object = handle to the WDF device object being cleaned up.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCPNP_EvtDeviceCleanup
 (
     WDFOBJECT Object
@@ -1189,6 +1318,21 @@ exit:
     }
 } // Remove SERIALCOMM registry
 
+/****************************************************************************
+ *
+ * function: QCPNP_EvtDevicePrepareHardware
+ *
+ * purpose:  WDF callback to prepare hardware. Creates the USB target device,
+ *           selects the USB configuration, enumerates pipes, starts the
+ *           interrupt and I/O threads, and enables selective suspend.
+ *
+ * arguments:Device              = handle to the WDF device object.
+ *           ResourcesRaw        = handle to the raw hardware resource list.
+ *           ResourcesTranslated = handle to the translated resource list.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_EvtDevicePrepareHardware
 (
     WDFDEVICE    Device,
@@ -1567,6 +1711,20 @@ exit:
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_EvtDeviceReleaseHardware
+ *
+ * purpose:  WDF callback to release hardware. Stops the interrupt service
+ *           and I/O threads, cleans up read URBs and ring buffer, and
+ *           clears the function protocol registry entry.
+ *
+ * arguments:Device              = handle to the WDF device object.
+ *           ResourcesTranslated = handle to the translated resource list.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_EvtDeviceReleaseHardware
 (
     WDFDEVICE    Device,
@@ -1642,6 +1800,19 @@ NTSTATUS QCPNP_EvtDeviceReleaseHardware
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_ConfigUsbDevice
+ *
+ * purpose:  Retrieves the USB configuration descriptor, selects the device
+ *           configuration, and identifies the bulk IN, bulk OUT, and
+ *           interrupt IN pipe handles.
+ *
+ * arguments:Device = handle to the WDF device object.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_ConfigUsbDevice(WDFDEVICE Device)
 {
     PDEVICE_CONTEXT       pDevContext = QCDevGetContext(Device);
@@ -1870,6 +2041,18 @@ exit:
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_EnableSelectiveSuspend
+ *
+ * purpose:  Configures USB selective suspend idle settings based on the
+ *           registry-specified idle timeout value.
+ *
+ * arguments:Device = handle to the WDF device object.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_EnableSelectiveSuspend
 (
     WDFDEVICE Device
@@ -1948,6 +2131,18 @@ NTSTATUS QCPNP_EnableSelectiveSuspend
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_DisableSelectiveSuspend
+ *
+ * purpose:  Disables USB selective suspend by assigning idle settings that
+ *           prevent the device from entering a low-power idle state.
+ *
+ * arguments:Device = handle to the WDF device object.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_DisableSelectiveSuspend
 (
     WDFDEVICE Device
@@ -1968,6 +2163,19 @@ NTSTATUS QCPNP_DisableSelectiveSuspend
     return WdfDeviceAssignS0IdleSettings(Device, &idleSettings);
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_EvtDeviceD0Entry
+ *
+ * purpose:  WDF power callback invoked when the device enters the D0 (fully
+ *           on) state. Signals the read and interrupt threads to resume I/O.
+ *
+ * arguments:Device        = handle to the WDF device object.
+ *           PreviousState = the power state the device is transitioning from.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_EvtDeviceD0Entry
 (
     WDFDEVICE              Device,
@@ -2021,6 +2229,20 @@ NTSTATUS QCPNP_EvtDeviceD0Entry
     return STATUS_SUCCESS;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_EvtDeviceD0Exit
+ *
+ * purpose:  WDF power callback invoked when the device leaves the D0 state.
+ *           Signals the read and interrupt threads to suspend I/O and waits
+ *           for acknowledgment.
+ *
+ * arguments:Device      = handle to the WDF device object.
+ *           TargetState = the power state the device is transitioning to.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_EvtDeviceD0Exit
 (
     WDFDEVICE              Device,
@@ -2074,6 +2296,18 @@ NTSTATUS QCPNP_EvtDeviceD0Exit
     return STATUS_SUCCESS;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_EvtDeviceQueryRemoval
+ *
+ * purpose:  WDF callback to query whether the device can be removed.
+ *           Notifies pending device-removal requests before removal proceeds.
+ *
+ * arguments:Device = handle to the WDF device object.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_EvtDeviceQueryRemoval
 (
     WDFDEVICE Device
@@ -2094,6 +2328,21 @@ NTSTATUS QCPNP_EvtDeviceQueryRemoval
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_GetParentDevNameCompletion
+ *
+ * purpose:  WDF completion routine for the IOCTL_QCDEV_GET_PARENT_DEV_NAME
+ *           request. Stores the parent device name in the driver registry.
+ *
+ * arguments:Request = handle to the completed I/O request.
+ *           Target  = handle to the I/O target.
+ *           Params  = pointer to the request completion parameters.
+ *           Context = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 void QCPNP_GetParentDevNameCompletion
 (
     WDFREQUEST  Request,
@@ -2139,6 +2388,19 @@ void QCPNP_GetParentDevNameCompletion
 
 #define QCDEV_NAME_LEN_MAX 1024
 
+/****************************************************************************
+ *
+ * function: QCPNP_ReportDeviceName
+ *
+ * purpose:  Queries the device friendly or description name and, if it
+ *           matches the diagnostics class, reports it to the parent driver
+ *           via IOCTL_QCUSB_REPORT_DEV_NAME.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_ReportDeviceName(PDEVICE_CONTEXT pDevContext)
 {
     NTSTATUS          ntStatus;
@@ -2232,6 +2494,21 @@ NTSTATUS QCPNP_ReportDeviceName(PDEVICE_CONTEXT pDevContext)
 
 }  // QCPNP_ReportDeviceName
 
+/****************************************************************************
+ *
+ * function: QCPNP_RegisterDevName
+ *
+ * purpose:  Sends an IOCTL to the parent driver to register the device name
+ *           and symbolic link name as a peer device entry.
+ *
+ * arguments:pDevContext    = pointer to the device context.
+ *           IoControlCode  = IOCTL code to send to the parent driver.
+ *           Buffer         = pointer to the device name buffer.
+ *           BufferLength   = length of the device name buffer in bytes.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_RegisterDevName
 (
     PDEVICE_CONTEXT pDevContext,
@@ -2353,6 +2630,21 @@ NTSTATUS QCPNP_RegisterDevName
 
 } // QCPNP_RegisterDevName
 
+/****************************************************************************
+ *
+ * function: QCPNP_RegisterDevNameCompletion
+ *
+ * purpose:  WDF completion routine for the register device name IOCTL.
+ *           Deletes the request object upon completion.
+ *
+ * arguments:Request = handle to the completed I/O request.
+ *           Target  = handle to the I/O target.
+ *           Params  = pointer to the request completion parameters.
+ *           Context = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 void QCPNP_RegisterDevNameCompletion
 (
     WDFREQUEST  Request,
@@ -2377,6 +2669,18 @@ void QCPNP_RegisterDevNameCompletion
 }  // QCPNP_RegisterDevNameCompletion
 
 
+/****************************************************************************
+ *
+ * function: QCPNP_VendorRegistryProcess
+ *
+ * purpose:  Reads vendor-specific configuration values from the driver
+ *           registry key and populates the global gVendorConfig structure.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_VendorRegistryProcess(PDEVICE_CONTEXT pDevContext)
 {
     NTSTATUS       status = STATUS_SUCCESS;
@@ -2785,6 +3089,20 @@ exit:
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_ResetUsbPipe
+ *
+ * purpose:  Stops the I/O target for the specified USB pipe, issues a
+ *           synchronous pipe reset, and restarts the I/O target.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *           usbPipe     = handle to the USB pipe to reset.
+ *           timeoutMs   = timeout in milliseconds for the reset request.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_ResetUsbPipe
 (
     PDEVICE_CONTEXT pDevContext,
@@ -2833,6 +3151,26 @@ NTSTATUS QCPNP_ResetUsbPipe
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_CreateWorkerThread
+ *
+ * purpose:  Creates a kernel system thread and optionally waits for it to
+ *           signal a started event before returning the thread object.
+ *
+ * arguments:pDevContext           = pointer to the device context passed to
+ *                                   the thread routine.
+ *           startRoutine          = pointer to the thread start routine.
+ *           waitForStartedEvent   = event the thread signals when ready;
+ *                                   NULL to skip waiting.
+ *           waitForStartedTimeout = timeout for the started event wait;
+ *                                   NULL to skip waiting.
+ *           threadObject          = output pointer to receive the thread
+ *                                   object reference.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_CreateWorkerThread
 (
     PDEVICE_CONTEXT pDevContext,
@@ -2900,6 +3238,19 @@ NTSTATUS QCPNP_CreateWorkerThread
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_SetupIoThreadsAndQueues
+ *
+ * purpose:  Initializes all I/O events, lists, and locks; allocates read
+ *           URBs; creates the ring buffer; and starts the read and write
+ *           worker threads.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_SetupIoThreadsAndQueues
 (
     PDEVICE_CONTEXT pDevContext
@@ -3139,6 +3490,18 @@ exit:
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_NotifyDeviceRemoval
+ *
+ * purpose:  Retrieves and completes any pending device-removal notification
+ *           request from the WaitOnDeviceRemoval queue.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCPNP_NotifyDeviceRemoval
 (
     PDEVICE_CONTEXT pDevContext
@@ -3176,6 +3539,19 @@ VOID QCPNP_NotifyDeviceRemoval
     }
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_PostVendorRegistryProcess
+ *
+ * purpose:  Reads post-initialization vendor registry values such as the
+ *           logging directory, device function, MUX DLCI, aggregation
+ *           settings, and resolution time.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_PostVendorRegistryProcess(PDEVICE_CONTEXT pDevContext)
 {
     NTSTATUS       status = STATUS_SUCCESS;
@@ -3372,6 +3748,19 @@ exit:
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_RetrieveServiceConfig
+ *
+ * purpose:  Reads service-level configuration from the driver service
+ *           registry key, including driver residency and selective suspend
+ *           idle timeout settings.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCPNP_RetrieveServiceConfig(PDEVICE_CONTEXT pDevContext)
 {
     NTSTATUS          status = STATUS_SUCCESS;
@@ -3525,6 +3914,18 @@ exit:
     return;
 }  // QCPNP_RetrieveServiceConfig
 
+/****************************************************************************
+ *
+ * function: QCUTIL_IsHighSpeedDevice
+ *
+ * purpose:  Stub function. Returns FALSE to indicate the device is not a
+ *           high-speed USB device in this implementation.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  BOOLEAN (always FALSE)
+ *
+ ****************************************************************************/
 //Empty Functions to support QCPNP_RetrieveServiceConfig
 BOOLEAN QCUTIL_IsHighSpeedDevice(PDEVICE_CONTEXT pDevContext)
 {
@@ -3532,11 +3933,38 @@ BOOLEAN QCUTIL_IsHighSpeedDevice(PDEVICE_CONTEXT pDevContext)
     return 0;
 }  // QCUTIL_IsHighSpeedDevice
 
+/****************************************************************************
+ *
+ * function: QCPWR_SyncUpWaitWake
+ *
+ * purpose:  Stub function. Placeholder for synchronizing wait/wake power
+ *           management state.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCPWR_SyncUpWaitWake(PDEVICE_CONTEXT pDevContext)
 {
     UNREFERENCED_PARAMETER(pDevContext);
 }
 
+/****************************************************************************
+ *
+ * function: QCPWR_SetIdleTimer
+ *
+ * purpose:  Stub function. Placeholder for setting the selective suspend
+ *           idle timer.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *           BusyMask    = bitmask indicating busy state sources.
+ *           NoReset     = if TRUE, do not reset the timer.
+ *           Cookie      = caller identifier for debug purposes.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCPWR_SetIdleTimer(PDEVICE_CONTEXT pDevContext, UCHAR BusyMask, BOOLEAN NoReset, UCHAR Cookie)
 {
     UNREFERENCED_PARAMETER(pDevContext);
@@ -3545,6 +3973,20 @@ VOID QCPWR_SetIdleTimer(PDEVICE_CONTEXT pDevContext, UCHAR BusyMask, BOOLEAN NoR
     UNREFERENCED_PARAMETER(Cookie);
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_GetCID
+ *
+ * purpose:  Parses the USB product string for a "_CID:" field and writes
+ *           the extracted value to the driver registry.
+ *
+ * arguments:pDevContext    = pointer to the device context.
+ *           ProductString  = pointer to the raw product string buffer.
+ *           ProductStrLen  = length of the product string in bytes.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_GetCID
 (
     PDEVICE_CONTEXT pDevContext,
@@ -3658,6 +4100,20 @@ UpdateRegistry:
 
 } // QCPNP_GetCID
 
+/****************************************************************************
+ *
+ * function: QCPNP_GetSocVer
+ *
+ * purpose:  Parses the USB product string for a "_SOCVER:" field and writes
+ *           the extracted value to the driver registry.
+ *
+ * arguments:pDevContext    = pointer to the device context.
+ *           ProductString  = pointer to the raw product string buffer.
+ *           ProductStrLen  = length of the product string in bytes.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_GetSocVer
 (
     PDEVICE_CONTEXT pDevContext,
@@ -3776,6 +4232,24 @@ UpdateRegistry:
 
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_GetStringDescriptor
+ *
+ * purpose:  Queries a USB string descriptor by index, optionally parses a
+ *           "_SN:" prefix to extract the serial number, and stores the
+ *           result in the driver registry. Also invokes CID and SoC version
+ *           extraction when MatchPrefix is TRUE.
+ *
+ * arguments:Device      = handle to the WDF device object.
+ *           Index       = USB string descriptor index to query.
+ *           LanguageId  = language ID for the string descriptor request.
+ *           MatchPrefix = if TRUE, search for the "_SN:" prefix in the
+ *                         string before storing.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_GetStringDescriptor
 (
     WDFDEVICE      Device,
@@ -3975,6 +4449,19 @@ UpdateRegistry:
 
 } // QCPNP_GetStringDescriptor
 
+/****************************************************************************
+ *
+ * function: QCPNP_RegisterWmiPowerGuid
+ *
+ * purpose:  Registers the WMI power management GUID with the WMI subsystem
+ *           to support the "Allow the computer to turn off this device"
+ *           power management option.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NT Status (always STATUS_SUCCESS to avoid failing PrepareHardware)
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_RegisterWmiPowerGuid
 (
     PDEVICE_CONTEXT pDevContext
@@ -4018,6 +4505,19 @@ NTSTATUS QCPNP_RegisterWmiPowerGuid
     return STATUS_SUCCESS;  // DON'T FAIL PREPAREHARDWARE OR DEVICEADD
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_WdmPreprocessSystemControl
+ *
+ * purpose:  WDM IRP_MJ_SYSTEM_CONTROL preprocessor callback. Dispatches
+ *           WMI IRPs through WmiSystemControl and handles each disposition.
+ *
+ * arguments:Device = handle to the WDF device object.
+ *           Irp    = pointer to the WMI IRP to process.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_WdmPreprocessSystemControl
 (
     WDFDEVICE Device,
@@ -4092,6 +4592,25 @@ NTSTATUS QCPNP_WdmPreprocessSystemControl
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_PMQueryWmiDataBlock
+ *
+ * purpose:  WMI callback to query a data block. Returns the current power
+ *           management enabled state for the registered power GUID.
+ *
+ * arguments:DeviceObject        = pointer to the WDM device object.
+ *           Irp                 = pointer to the WMI IRP.
+ *           GuidIndex           = index of the GUID being queried.
+ *           InstanceIndex       = index of the instance being queried.
+ *           InstanceCount       = number of instances requested.
+ *           InstanceLengthArray = array to receive instance data lengths.
+ *           BufferAvail         = size of the output buffer in bytes.
+ *           Buffer              = pointer to the output data buffer.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_PMQueryWmiDataBlock
 (
     IN PDEVICE_OBJECT DeviceObject,
@@ -4159,6 +4678,25 @@ NTSTATUS QCPNP_PMQueryWmiDataBlock
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_PMSetWmiDataItem
+ *
+ * purpose:  WMI callback to set a single data item. Updates the power
+ *           management enabled state and enables or disables selective
+ *           suspend accordingly.
+ *
+ * arguments:DeviceObject  = pointer to the WDM device object.
+ *           Irp           = pointer to the WMI IRP.
+ *           GuidIndex     = index of the GUID being set.
+ *           InstanceIndex = index of the instance being set.
+ *           DataItemId    = identifier of the data item to set.
+ *           BufferSize    = size of the input buffer in bytes.
+ *           Buffer        = pointer to the input data buffer.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_PMSetWmiDataItem
 (
     IN PDEVICE_OBJECT DeviceObject,
@@ -4221,6 +4759,23 @@ NTSTATUS QCPNP_PMSetWmiDataItem
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_PMQueryWmiRegInfo
+ *
+ * purpose:  WMI callback to query registration information. Provides the
+ *           PDO and service registry path to the WMI subsystem.
+ *
+ * arguments:DeviceObject    = pointer to the WDM device object.
+ *           RegFlags        = output flags for WMI registration.
+ *           InstanceName    = output instance name (unused).
+ *           RegistryPath    = output pointer to the service registry path.
+ *           MofResourceName = output MOF resource name (unused).
+ *           Pdo             = output pointer to the physical device object.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_PMQueryWmiRegInfo
 (
     IN  PDEVICE_OBJECT  DeviceObject,
@@ -4256,6 +4811,24 @@ NTSTATUS QCPNP_PMQueryWmiRegInfo
     return STATUS_SUCCESS;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_PMSetWmiDataBlock
+ *
+ * purpose:  WMI callback to set an entire data block. Updates the power
+ *           management enabled state and enables or disables selective
+ *           suspend accordingly.
+ *
+ * arguments:DeviceObject  = pointer to the WDM device object.
+ *           Irp           = pointer to the WMI IRP.
+ *           GuidIndex     = index of the GUID being set.
+ *           InstanceIndex = index of the instance being set.
+ *           BufferSize    = size of the input buffer in bytes.
+ *           Buffer        = pointer to the input data buffer.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_PMSetWmiDataBlock
 (
     IN PDEVICE_OBJECT DeviceObject,
@@ -4321,6 +4894,19 @@ NTSTATUS QCPNP_PMSetWmiDataBlock
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCPNP_SetFunctionProtocol
+ *
+ * purpose:  Writes the interface protocol code to the driver registry key
+ *           to record the current USB function protocol.
+ *
+ * arguments:pDevContext  = pointer to the device context.
+ *           ProtocolCode = protocol code value to store in the registry.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
 NTSTATUS QCPNP_SetFunctionProtocol(PDEVICE_CONTEXT pDevContext, ULONG ProtocolCode)
 {
     NTSTATUS       ntStatus;
@@ -4345,4 +4931,3 @@ NTSTATUS QCPNP_SetFunctionProtocol(PDEVICE_CONTEXT pDevContext, ULONG ProtocolCo
 
     return ntStatus;
 }  // QCPNP_SetFunctionProtocol
-

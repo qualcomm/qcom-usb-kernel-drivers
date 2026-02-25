@@ -1,7 +1,14 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C D S P . H
+
+GENERAL DESCRIPTION
+    IOCTL dispatch and I/O queue state-change callback declarations.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #ifndef QCDSP_H
 #define QCDSP_H

@@ -1,7 +1,16 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C U T I L S . C
+
+GENERAL DESCRIPTION
+    This file implements utility functions for the wdfserial driver,
+    including a circular ring buffer, help functions for doubly-linked
+    list, WDF request buffer copy helpers, and debug print utilities.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #include "QCUTILS.h"
 
@@ -10,6 +19,20 @@
 #include "QCUTILS.tmh"      //  this is the file that will be auto generated
 #endif
 
+/****************************************************************************
+ *
+ * function: QCUTIL_RingBufferInit
+ *
+ * purpose:  Allocates and initializes a ring buffer with the specified
+ *           capacity. One extra byte is allocated internally to distinguish
+ *           the full and empty states.
+ *
+ * arguments:ringBuffer = pointer to the RING_BUFFER structure to initialize.
+ *           capacity   = desired usable capacity in bytes.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCUTIL_RingBufferInit
 (
     PRING_BUFFER ringBuffer,
@@ -33,6 +56,18 @@ VOID QCUTIL_RingBufferInit
     }
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_RingBufferClear
+ *
+ * purpose:  Resets the ring buffer read and write heads to zero, logically
+ *           discarding all buffered data without freeing memory.
+ *
+ * arguments:ringBuffer = pointer to the RING_BUFFER structure to clear.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCUTIL_RingBufferClear
 (
     PRING_BUFFER ringBuffer
@@ -45,6 +80,18 @@ VOID QCUTIL_RingBufferClear
     }
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_RingBufferDelete
+ *
+ * purpose:  Frees the memory backing the ring buffer and resets the
+ *           structure fields to indicate an empty, unallocated state.
+ *
+ * arguments:ringBuffer = pointer to the RING_BUFFER structure to delete.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCUTIL_RingBufferDelete
 (
     PRING_BUFFER ringBuffer
@@ -58,6 +105,21 @@ VOID QCUTIL_RingBufferDelete
     }
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_RingBufferWrite
+ *
+ * purpose:  Copies writeLength bytes from source into the ring buffer.
+ *           Fails with STATUS_BUFFER_OVERFLOW if insufficient space is
+ *           available.
+ *
+ * arguments:ringBuffer  = pointer to the destination RING_BUFFER.
+ *           source      = pointer to the data to write.
+ *           writeLength = number of bytes to write.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCUTIL_RingBufferWrite
 (
     PRING_BUFFER ringBuffer,
@@ -84,6 +146,22 @@ NTSTATUS QCUTIL_RingBufferWrite
     return STATUS_SUCCESS;
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_RingBufferRead
+ *
+ * purpose:  Reads up to readLength bytes from the ring buffer into
+ *           destination, consuming the data. The actual number of bytes
+ *           copied is returned via bytesRead.
+ *
+ * arguments:ringBuffer   = pointer to the source RING_BUFFER.
+ *           destination  = pointer to the output buffer.
+ *           readLength   = maximum number of bytes to read.
+ *           bytesRead    = receives the number of bytes actually copied.
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCUTIL_RingBufferRead
 (
     PRING_BUFFER ringBuffer,
@@ -113,6 +191,21 @@ NTSTATUS QCUTIL_RingBufferRead
     return STATUS_SUCCESS;
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_RingBufferReadByte
+ *
+ * purpose:  Reads a single byte at the given offset from the current read
+ *           head without consuming it. Returns FALSE if the offset is
+ *           beyond the available data.
+ *
+ * arguments:ringBuffer = pointer to the RING_BUFFER.
+ *           out        = pointer to receive the byte value.
+ *           offset     = zero-based byte offset from the read head.
+ *
+ * returns:  BOOLEAN - TRUE if a byte was read, FALSE if offset is out of range.
+ *
+ ****************************************************************************/
 BOOLEAN QCUTIL_RingBufferReadByte
 (
     PRING_BUFFER ringBuffer,
@@ -130,6 +223,17 @@ BOOLEAN QCUTIL_RingBufferReadByte
     return TRUE;
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_RingBufferBytesUsed
+ *
+ * purpose:  Returns the number of bytes currently stored in the ring buffer.
+ *
+ * arguments:ringBuffer = pointer to the RING_BUFFER.
+ *
+ * returns:  size_t - number of bytes available to read.
+ *
+ ****************************************************************************/
 size_t QCUTIL_RingBufferBytesUsed
 (
     PRING_BUFFER ringBuffer
@@ -145,6 +249,18 @@ size_t QCUTIL_RingBufferBytesUsed
     }
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_RingBufferBytesFree
+ *
+ * purpose:  Returns the number of bytes of free space remaining in the
+ *           ring buffer.
+ *
+ * arguments:ringBuffer = pointer to the RING_BUFFER.
+ *
+ * returns:  size_t - number of bytes that can still be written.
+ *
+ ****************************************************************************/
 size_t QCUTIL_RingBufferBytesFree
 (
     PRING_BUFFER ringBuffer
@@ -153,6 +269,17 @@ size_t QCUTIL_RingBufferBytesFree
     return ringBuffer->Capacity - 1 - QCUTIL_RingBufferBytesUsed(ringBuffer);
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_IsIoQueueEmpty
+ *
+ * purpose:  Checks whether the specified WDF I/O queue is idle (empty).
+ *
+ * arguments:ioQueue = handle to the WDF I/O queue to check.
+ *
+ * returns:  BOOLEAN - TRUE if the queue is idle/empty, FALSE otherwise.
+ *
+ ****************************************************************************/
 BOOLEAN QCUTIL_IsIoQueueEmpty
 (
     WDFQUEUE ioQueue
@@ -168,6 +295,24 @@ BOOLEAN QCUTIL_IsIoQueueEmpty
     return (WDF_IO_QUEUE_IDLE(queueStatus)) ? TRUE : FALSE;
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_InsertTailList
+ *
+ * purpose:  Inserts an entry at the tail of a doubly-linked list,
+ *           optionally acquiring a spin lock and incrementing a length
+ *           counter.
+ *
+ * arguments:head        = pointer to the list head entry.
+ *           entry       = pointer to the list entry to insert.
+ *           lock        = optional WDF spin lock to acquire/release
+ *                         (may be NULL).
+ *           pListLength = optional pointer to a length counter to
+ *                         increment (may be NULL).
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCUTIL_InsertTailList
 (
     PLIST_ENTRY     head,
@@ -191,6 +336,22 @@ VOID QCUTIL_InsertTailList
     }
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_RemoveEntryList
+ *
+ * purpose:  Removes an entry from a doubly-linked list, optionally
+ *           acquiring a spin lock and decrementing a length counter.
+ *
+ * arguments:entry       = pointer to the list entry to remove.
+ *           lock        = optional WDF spin lock to acquire/release
+ *                         (may be NULL).
+ *           pListLength = optional pointer to a length counter to
+ *                         decrement (may be NULL).
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCUTIL_RemoveEntryList
 (
     PLIST_ENTRY     entry,
@@ -213,6 +374,19 @@ VOID QCUTIL_RemoveEntryList
     }
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_FindEntryInList
+ *
+ * purpose:  Searches a doubly-linked list for a specific entry by pointer
+ *           comparison.
+ *
+ * arguments:head  = pointer to the list head entry.
+ *           entry = pointer to the list entry to search for.
+ *
+ * returns:  BOOLEAN - TRUE if the entry is found in the list, FALSE otherwise.
+ *
+ ****************************************************************************/
 BOOLEAN QCUTIL_FindEntryInList
 (
     PLIST_ENTRY head,
@@ -231,6 +405,21 @@ BOOLEAN QCUTIL_FindEntryInList
     return FALSE;
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_RequestCopyToBuffer
+ *
+ * purpose:  Copies NumBytes from the WDF request's input memory into
+ *           Destination, then sets the request information to NumBytes.
+ *
+ * arguments:Request     = the WDF I/O request with input data.
+ *           Destination = pointer to the buffer to receive the data.
+ *           NumBytes    = number of bytes to copy.
+ *           pDevContext = pointer to the device context (for debug output).
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCUTIL_RequestCopyToBuffer
 (
     WDFREQUEST      Request,
@@ -276,6 +465,22 @@ NTSTATUS QCUTIL_RequestCopyToBuffer
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_RequestCopyFromBuffer
+ *
+ * purpose:  Copies NumBytes from Source into the WDF request's output
+ *           memory at offset zero. Delegates to
+ *           QCUTIL_RequestCopyFromBufferWithOffset.
+ *
+ * arguments:Request     = the WDF I/O request with output memory.
+ *           Source      = pointer to the data to copy into the request.
+ *           NumBytes    = number of bytes to copy.
+ *           pDevContext = pointer to the device context (for debug output).
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCUTIL_RequestCopyFromBuffer
 (
     WDFREQUEST      Request,
@@ -287,6 +492,24 @@ NTSTATUS QCUTIL_RequestCopyFromBuffer
     return QCUTIL_RequestCopyFromBufferWithOffset(Request, Source, NumBytes, 0, pDevContext);
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_RequestCopyFromBufferWithOffset
+ *
+ * purpose:  Copies NumBytes from Source into the WDF request's output
+ *           memory starting at RequestMemoryOffset bytes from the
+ *           beginning of the output buffer.
+ *
+ * arguments:Request              = the WDF I/O request with output memory.
+ *           Source               = pointer to the data to copy.
+ *           NumBytes             = number of bytes to copy.
+ *           RequestMomoryOffset  = byte offset into the output memory.
+ *           pDevContext          = pointer to the device context (for
+ *                                  debug output).
+ *
+ * returns:  NTSTATUS
+ *
+ ****************************************************************************/
 NTSTATUS QCUTIL_RequestCopyFromBufferWithOffset
 (
     WDFREQUEST      Request,
@@ -333,6 +556,21 @@ NTSTATUS QCUTIL_RequestCopyFromBufferWithOffset
     return status;
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_PrintNewLine
+ *
+ * purpose:  Emits a newline character to the debug output at the
+ *           specified mask and level.
+ *
+ * arguments:DbgMask     = debug mask controlling which subsystem output
+ *                         is enabled.
+ *           DbgLevel    = minimum debug level required to emit output.
+ *           pDevContext = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCUTIL_PrintNewLine
 (
     ULONG DbgMask,
@@ -348,6 +586,26 @@ VOID QCUTIL_PrintNewLine
     );
 }
 
+/****************************************************************************
+ *
+ * function: QCUTIL_PrintBytes
+ *
+ * purpose:  Formats and prints a hex dump of up to len bytes from Buf to
+ *           the debug output, annotated with the info label and byte
+ *           counts. Output is suppressed if the debug mask/level does not
+ *           match the device context settings.
+ *
+ * arguments:Buf         = pointer to the data buffer to dump.
+ *           len         = maximum number of bytes to display.
+ *           PktLen      = total packet length (for annotation).
+ *           info        = label string printed in the dump header.
+ *           DbgMask     = debug mask controlling output.
+ *           DbgLevel    = minimum debug level required to emit output.
+ *           pDevContext = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QCUTIL_PrintBytes
 (
     PVOID Buf,

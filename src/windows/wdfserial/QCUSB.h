@@ -1,7 +1,14 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C U S B . H
+
+GENERAL DESCRIPTION
+    LPC/VI device specific USB control function declarations.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #ifndef QCUSB_H
 #define QCUSB_H

@@ -1,7 +1,14 @@
-﻿/*
+﻿/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C P N P . H
+
+GENERAL DESCRIPTION
+    WDF PnP/power callbacks and device configuration declarations.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #ifndef QCPNP_H
 #define QCPNP_H
@@ -15,7 +22,7 @@
 #define REG_DEVICE_MAP_SUBKEY         L"SERIALCOMM"
 #define REG_SERIAL_DEVICE_MAP         L"HARDWARE\\DEVICEMAP\\SERIALCOMM\\"
 
-#ifndef GUID_DEVINTERFACE_MODEM 
+#ifndef GUID_DEVINTERFACE_MODEM
 DEFINE_GUID(GUID_DEVINTERFACE_MODEM, 0x2c7089aa, 0x2e0e, 0x11d1, 0xb1, 0x14, 0x00, 0xc0, 0x4f, 0xc2, 0xaa, 0xe4);
 #endif
 

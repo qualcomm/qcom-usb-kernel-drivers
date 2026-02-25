@@ -1,7 +1,15 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C M A I N . H
+
+GENERAL DESCRIPTION
+    Shared main header for the wdfserial driver. Defines shared data
+    structures, constants, debug macros, and driver-entry prototypes.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #ifndef QCMAIN_H
 #define QCMAIN_H
@@ -408,11 +416,11 @@ WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(REQUEST_CONTEXT, QCReqGetContext)
 #define QCUSB_AGGREGATION_PERIOD_MAX        5000
 #define QCUSB_AGGREGATION_PERIOD_DEFAULT    2000
 
-#define QCUSB_AGGREGATION_SIZE_MIN          (1024)*4 
+#define QCUSB_AGGREGATION_SIZE_MIN          (1024)*4
 #define QCUSB_AGGREGATION_SIZE_MAX          (1024)*30
 #define QCUSB_AGGREGATION_SIZE_DEFAULT      (1024)*20
 
-#define QCUSB_RESOLUTION_TIME_MIN           1 
+#define QCUSB_RESOLUTION_TIME_MIN           1
 #define QCUSB_RESOLUTION_TIME_MAX           5
 #define QCUSB_RESOLUTION_TIME_DEFAULT       1
 

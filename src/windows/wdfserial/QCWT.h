@@ -1,7 +1,14 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C W T . H
+
+GENERAL DESCRIPTION
+    USB bulk-OUT write pipeline and short-packet function declarations.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #ifndef QCWT_H
 #define QCWT_H

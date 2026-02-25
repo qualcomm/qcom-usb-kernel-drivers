@@ -1,7 +1,14 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C S E R . H
+
+GENERAL DESCRIPTION
+    Serial IOCTL handlers, UART state, and modem control declarations.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #ifndef QCSER_H
 #define QCSER_H

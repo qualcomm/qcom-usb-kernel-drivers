@@ -1,7 +1,14 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C R D . H
+
+GENERAL DESCRIPTION
+    USB bulk-IN read pipeline and timeout management function declarations.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #ifndef QCRD_H
 #define QCRD_H

@@ -1,7 +1,16 @@
-/*
+/*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
+
+                          Q C D S P . C
+
+GENERAL DESCRIPTION
+    This file implements device control (IOCTL) callback for the
+    wdfserial driver. It also notifies I/O worker threads that the
+    state of framework queue has changed.
+
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
-*/
+
+*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
 #include "QCMAIN.h"
 #include "QCDSP.h"
@@ -14,6 +23,22 @@
 #include "QCDSP.tmh"
 #endif
 
+/****************************************************************************
+ *
+ * function: QCDSP_EvtIoDeviceControl
+ *
+ * purpose:  WDF callback for device I/O control requests. Dispatches each
+ *           IOCTL to the appropriate serial or vendor-specific handler.
+ *
+ * arguments:Queue              = handle to the I/O queue.
+ *           Request            = handle to the I/O request.
+ *           OutputBufferLength = length of the output buffer in bytes.
+ *           InputBufferLength  = length of the input buffer in bytes.
+ *           IoControlCode      = IOCTL code identifying the operation.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 void QCDSP_EvtIoDeviceControl
 (
     WDFQUEUE    Queue,
@@ -586,6 +611,19 @@ exit:
     );
 }
 
+/****************************************************************************
+ *
+ * function: QCDSP_EvtIoReadQueueReady
+ *
+ * purpose:  WDF ready-notify callback for the read queue. Signals the read
+ *           thread that a new read request has arrived.
+ *
+ * arguments:Queue   = handle to the read I/O queue.
+ *           Context = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 void QCDSP_EvtIoReadQueueReady
 (
     WDFQUEUE   Queue,
@@ -615,6 +653,19 @@ void QCDSP_EvtIoReadQueueReady
     }
 }
 
+/****************************************************************************
+ *
+ * function: QCDSP_EvtIoWriteQueueReady
+ *
+ * purpose:  WDF ready-notify callback for the write queue. Signals the write
+ *           thread that a new write request has arrived.
+ *
+ * arguments:Queue   = handle to the write I/O queue.
+ *           Context = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 void QCDSP_EvtIoWriteQueueReady
 (
     WDFQUEUE   Queue,
