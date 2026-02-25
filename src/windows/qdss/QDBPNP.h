@@ -3,7 +3,10 @@
                           Q D B P N P . H
 
 GENERAL DESCRIPTION
-    This is the file which contains PnP function definitions for QDSS driver.
+    Function declarations and registry value name constants for the
+    QDSS PnP and power management module. Covers device-add, hardware
+    prepare, USB configuration, symbolic link creation, selective
+    suspend, and registry related functions.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause

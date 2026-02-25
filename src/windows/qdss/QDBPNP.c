@@ -3,7 +3,10 @@
                           Q D B P N P . C
 
 GENERAL DESCRIPTION
-    This is the file which contains PnP function for QDSS driver.
+    Plug-and-Play and power management callbacks for the QDSS USB
+    function driver. Handles device enumeration, USB interface and
+    pipe selection, symbolic link and friendly name creation, selective
+    suspend configuration, and DPL pipe drain lifecycle management.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
@@ -23,6 +26,21 @@ GENERAL DESCRIPTION
 #include "QDBPNP.tmh"
 #endif
 
+/****************************************************************************
+ *
+ * function: QDBPNP_EvtDriverDeviceAdd
+ *
+ * purpose:  WDF callback invoked when a new device is found. Creates
+ *           the WDF device object, configures file, queue, and PnP/power
+ *           callbacks, sets up I/O queues for read/write/control, and
+ *           creates a symbolic link for the device.
+ *
+ * arguments:Driver     = WDF driver handle
+ *           DeviceInit = pointer to the device initialization structure
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBPNP_EvtDriverDeviceAdd
 (
     WDFDRIVER        Driver,
@@ -254,6 +272,19 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
 }
 
 
+/****************************************************************************
+ *
+ * function: QDBPNP_ReadDebugMask
+ *
+ * purpose:  Reads the QCDriverDebugMask registry value from the driver
+ *           software key and updates the debug mask and level in the
+ *           device context.
+ *
+ * arguments:QCDevice = WDF device handle
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBPNP_ReadDebugMask(WDFDEVICE QCDevice)
 {
     WDFKEY      hKey = NULL;
@@ -301,6 +332,19 @@ NTSTATUS QDBPNP_ReadDebugMask(WDFDEVICE QCDevice)
     return QCstatus;
 }
 
+/****************************************************************************
+ *
+ * function: QDBPNP_EvtDriverCleanupCallback
+ *
+ * purpose:  WDF cleanup callback for the driver object. Invokes WPP
+ *           cleanup to release tracing resources before the driver
+ *           is unloaded.
+ *
+ * arguments:Object = WDF object handle (cast to PDRIVER_OBJECT)
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBPNP_EvtDriverCleanupCallback(WDFOBJECT Object)
 {
     PDRIVER_OBJECT driver;
@@ -326,6 +370,20 @@ VOID QDBPNP_EvtDriverCleanupCallback(WDFOBJECT Object)
     return;
 }  // QDBPNP_EvtDriverCleanupCallback
 
+/****************************************************************************
+ *
+ * function: QDBPNP_EvtDeviceCleanupCallback
+ *
+ * purpose:  WDF cleanup callback for the device object. Marks the device
+ *           as removed, frees the symbolic link buffer, clears registry
+ *           stamps, waits for active pipe drain to stop, and releases
+ *           RX buffers.
+ *
+ * arguments:Object = WDF object handle (cast to WDFDEVICE)
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBPNP_EvtDeviceCleanupCallback(WDFOBJECT Object)
 {
     WDFDEVICE       wdfDevice;
@@ -372,6 +430,19 @@ VOID QDBPNP_EvtDeviceCleanupCallback(WDFOBJECT Object)
     return;
 }  // QDBPNP_EvtDeviceCleanupCallback
 
+/****************************************************************************
+ *
+ * function: QDBPNP_WaitForDrainToStop
+ *
+ * purpose:  Waits for the DPL pipe drain to complete by polling the
+ *           DrainStoppedEvent with a 100 ms timeout until DrainingRx
+ *           reaches zero.
+ *
+ * arguments:pDevContext = pointer to the device context
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBPNP_WaitForDrainToStop(PDEVICE_CONTEXT pDevContext)
 {
     LARGE_INTEGER   delayValue;
@@ -416,7 +487,22 @@ VOID QDBPNP_WaitForDrainToStop(PDEVICE_CONTEXT pDevContext)
     }
 }  // QDBPNP_WaitForDrainToStop
 
-// Configure USB device
+/****************************************************************************
+ *
+ * function: QDBPNP_EvtDevicePrepareHW
+ *
+ * purpose:  WDF PnP callback invoked when hardware resources are assigned.
+ *           Initializes the device context, enumerates and configures the
+ *           USB device, enables selective suspend, reads registry settings,
+ *           and starts DPL pipe draining.
+ *
+ * arguments:Device                 = WDF device handle
+ *           ResourceList           = raw hardware resource list (unused)
+ *           ResourceListTranslated = translated hardware resource list (unused)
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBPNP_EvtDevicePrepareHW
 (
     WDFDEVICE    Device,
@@ -493,6 +579,22 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
     return ntStatus;
 }  // QDBPNP_EvtDevicePrepareHW
 
+/****************************************************************************
+ *
+ * function: QDBPNP_GetCID
+ *
+ * purpose:  Parses the product string for a "_CID:" field and writes the
+ *           extracted CID value to the device driver registry key.
+ *
+ * arguments:Device        = WDF device handle
+ *           ProductString = pointer to the product string buffer (Unicode)
+ *           ProductStrLen = length of the product string in bytes;
+ *                           0 removes the registry entry
+ *           hRegKey       = open registry key handle for the device
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBPNP_GetCID
 (
     WDFDEVICE Device,
@@ -616,6 +718,22 @@ UpdateRegistry:
 
 } // QDBPNP_GetCID
 
+/****************************************************************************
+ *
+ * function: QDBPNP_GetDeviceSerialNumber
+ *
+ * purpose:  Queries the USB string descriptor at the given index, optionally
+ *           extracts the "_SN:" field, and writes the serial number to the
+ *           device driver registry key. Also invokes QDBPNP_GetCID when
+ *           MatchPrefix is TRUE.
+ *
+ * arguments:Device      = WDF device handle
+ *           Index       = USB string descriptor index to query
+ *           MatchPrefix = TRUE to search for "_SN:" prefix in the string
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBPNP_GetDeviceSerialNumber(IN WDFDEVICE Device, UCHAR Index, BOOLEAN MatchPrefix)
 {
     PDEVICE_CONTEXT  pDevContext;
@@ -800,6 +918,19 @@ UpdateRegistry:
 
 } // QDBPNP_GetDeviceSerialNumber
 
+/****************************************************************************
+ *
+ * function: QDBPNP_SetFunctionProtocol
+ *
+ * purpose:  Writes the interface protocol code to the QCDeviceProtocol
+ *           value in the device driver registry key.
+ *
+ * arguments:Device       = WDF device handle
+ *           ProtocolCode = protocol code value to store
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBPNP_SetFunctionProtocol(IN WDFDEVICE Device, ULONG ProtocolCode)
 {
     PDEVICE_CONTEXT pDevContext;
@@ -857,6 +988,19 @@ NTSTATUS QDBPNP_SetFunctionProtocol(IN WDFDEVICE Device, ULONG ProtocolCode)
     return ntStatus;
 }  // QDBPNP_SetFunctionProtocol
 
+/****************************************************************************
+ *
+ * function: QDBPNP_EnumerateDevice
+ *
+ * purpose:  Creates the WDF USB device handle, retrieves the USB device
+ *           descriptor, queries serial number strings, and calls
+ *           QDBPNP_UsbConfigureDevice to select interfaces and pipes.
+ *
+ * arguments:Device = WDF device handle
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBPNP_EnumerateDevice(IN WDFDEVICE Device)
 {
     PDEVICE_CONTEXT       pDevContext;
@@ -992,6 +1136,19 @@ NTSTATUS QDBPNP_EnumerateDevice(IN WDFDEVICE Device)
 
 }  // QDBPNP_EnumerateDevice
 
+/****************************************************************************
+ *
+ * function: QDBPNP_UsbConfigureDevice
+ *
+ * purpose:  Retrieves the USB configuration descriptor, allocates memory
+ *           for it, and calls QDBPNP_SelectInterfaces to configure USB
+ *           interfaces and pipes.
+ *
+ * arguments:Device = WDF device handle
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBPNP_UsbConfigureDevice(IN WDFDEVICE Device)
 {
     PDEVICE_CONTEXT               pDevContext;
@@ -1109,6 +1266,20 @@ NTSTATUS QDBPNP_UsbConfigureDevice(IN WDFDEVICE Device)
 
 }  // QDBPNP_UsbConfigureDevice
 
+/****************************************************************************
+ *
+ * function: QDBPNP_SelectInterfaces
+ *
+ * purpose:  Selects the USB configuration and iterates over all interfaces
+ *           to identify and configure the TRACE (1-pipe bulk IN) and DEBUG
+ *           (2-pipe bulk IN/OUT) interfaces, storing pipe handles in the
+ *           device context.
+ *
+ * arguments:Device = WDF device handle
+ *
+ * returns:  NT status; STATUS_UNSUCCESSFUL if no valid interface is found
+ *
+ ****************************************************************************/
 NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
 {
     PDEVICE_CONTEXT                     pDevContext;
@@ -1481,6 +1652,21 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
     return ntStatus;
 }
 
+/****************************************************************************
+ *
+ * function: QDBPNP_SetFriendlyName
+ *
+ * purpose:  Locates the device hardware key in the registry, enumerates
+ *           its subkeys to find the one matching TargetDriverKey, and
+ *           writes the FriendlyName value to that subkey.
+ *
+ * arguments:Device          = WDF device handle
+ *           FriendlyName    = Unicode string containing the friendly name
+ *           TargetDriverKey = driver key string used to match the subkey
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBPNP_SetFriendlyName(WDFDEVICE Device, PUNICODE_STRING FriendlyName, PWCHAR TargetDriverKey)
 {
 #define QC_NAME_LEN 1024
@@ -1769,6 +1955,19 @@ NTSTATUS QDBPNP_SetFriendlyName(WDFDEVICE Device, PUNICODE_STRING FriendlyName, 
     // if match found, write FriendlyName
 }  // QDBPNP_SetFriendlyName
 
+/****************************************************************************
+ *
+ * function: QDBPNP_CreateSymbolicName
+ *
+ * purpose:  Constructs a symbolic link name from the device description
+ *           and driver key instance, creates the symbolic link, and writes
+ *           the FriendlyName to the registry.
+ *
+ * arguments:Device = WDF device handle
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBPNP_CreateSymbolicName(WDFDEVICE Device)
 {
     PDEVICE_CONTEXT pDevContext;
@@ -1917,6 +2116,18 @@ NTSTATUS QDBPNP_CreateSymbolicName(WDFDEVICE Device)
     return nts;
 }  // QDBPNP_CreateSymbolicName
 
+/****************************************************************************
+ *
+ * function: QDBPNP_EnableSelectiveSuspend
+ *
+ * purpose:  Configures USB selective suspend with a 200 ms idle timeout
+ *           using WDF power policy idle settings.
+ *
+ * arguments:Device = WDF device handle
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBPNP_EnableSelectiveSuspend(WDFDEVICE Device)
 {
     PDEVICE_CONTEXT pDevContext;
@@ -1955,6 +2166,22 @@ NTSTATUS QDBPNP_EnableSelectiveSuspend(WDFDEVICE Device)
     return nts;
 }  // QDBPNP_EnableSelectiveSuspend
 
+/****************************************************************************
+ *
+ * function: QDBPNP_SetStamp
+ *
+ * purpose:  Writes or clears the QCDeviceStamp DWORD value in the device
+ *           driver registry key to indicate driver load/unload state.
+ *
+ * arguments:PhysicalDeviceObject = PDO used to open the registry key when
+ *                                  hRegKey is NULL
+ *           hRegKey              = optional open registry key handle;
+ *                                  if NULL the key is opened internally
+ *           Startup              = TRUE sets stamp to 1, FALSE sets to 0
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBPNP_SetStamp
 (
     PDEVICE_OBJECT PhysicalDeviceObject,
@@ -2020,6 +2247,19 @@ NTSTATUS QDBPNP_SetStamp
     return STATUS_SUCCESS;
 }  // QDBPNP_SetStamp
 
+/****************************************************************************
+ *
+ * function: QDBPNP_GetParentDeviceName
+ *
+ * purpose:  Sends an IOCTL_QCDEV_GET_PARENT_DEV_NAME IRP to the target
+ *           device to retrieve the parent device name, then saves it to
+ *           the registry.
+ *
+ * arguments:Device = WDF device handle
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBPNP_GetParentDeviceName(WDFDEVICE Device)
 {
     PDEVICE_CONTEXT pDevContext;
@@ -2096,6 +2336,21 @@ NTSTATUS QDBPNP_GetParentDeviceName(WDFDEVICE Device)
 
 }  // QDBPNP_GetParentDeviceName
 
+/****************************************************************************
+ *
+ * function: QDBPNP_SaveParentDeviceNameToRegistry
+ *
+ * purpose:  Writes the parent device name string to the QCDeviceParent
+ *           value in the device driver registry key, or deletes the value
+ *           if NameLength is zero.
+ *
+ * arguments:pDevContext      = pointer to the device context
+ *           ParentDeviceName = buffer containing the parent device name
+ *           NameLength       = length of the name in bytes; 0 removes entry
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBPNP_SaveParentDeviceNameToRegistry
 (
     PDEVICE_CONTEXT pDevContext,
@@ -2144,4 +2399,3 @@ VOID QDBPNP_SaveParentDeviceNameToRegistry
     }
     ZwClose(hRegKey);
 }  // QDBPNP_SaveParentDeviceNameToRegistry
-

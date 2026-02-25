@@ -3,7 +3,9 @@
                           Q D B M A I N . C
 
 GENERAL DESCRIPTION
-    This is the file which contains main functions for QDSS function driver.
+    Driver entry point and common utility functions for the QDSS USB
+    function driver. Implements DriverEntry, Unicode string allocation,
+    and per-device registry settings retrieval.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
@@ -20,6 +22,20 @@ GENERAL DESCRIPTION
 
 LONG DevInstanceNumber = 0;
 
+/****************************************************************************
+ *
+ * function: DriverEntry
+ *
+ * purpose:  Driver initialization entry point. Initializes the WDF
+ *           driver object, registers device-add and driver-cleanup
+ *           callbacks, and enables WPP software tracing.
+ *
+ * arguments:DriverObject = pointer to the driver object
+ *           RegPath      = registry path string for driver parameters
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS DriverEntry
 (
     PDRIVER_OBJECT  DriverObject,
@@ -80,6 +96,20 @@ NTSTATUS DriverEntry
 
 }  // DriverEntry
 
+/****************************************************************************
+ *
+ * function: QDBMAIN_AllocateUnicodeString
+ *
+ * purpose:  Allocates a non-paged pool buffer for a UNICODE_STRING
+ *           and initializes its Length and MaximumLength fields.
+ *
+ * arguments:Ustring = pointer to the UNICODE_STRING to initialize
+ *           Size    = size in bytes to allocate for the string buffer
+ *           Tag     = pool allocation tag
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBMAIN_AllocateUnicodeString(PUNICODE_STRING Ustring, SIZE_T Size, ULONG Tag)
 {
     Ustring->Buffer = (PWSTR)ExAllocatePoolWithTag(NonPagedPool, Size, Tag);
@@ -92,6 +122,19 @@ NTSTATUS QDBMAIN_AllocateUnicodeString(PUNICODE_STRING Ustring, SIZE_T Size, ULO
     return STATUS_SUCCESS;
 }  // QDBMAIN_AllocateUnicodeString
 
+/****************************************************************************
+ *
+ * function: QDBMAIN_GetRegistrySettings
+ *
+ * purpose:  Reads per-device registry settings (function type and
+ *           I/O failure threshold) from the driver software key and
+ *           stores them in the device context.
+ *
+ * arguments:Device = WDF device handle
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBMAIN_GetRegistrySettings(WDFDEVICE Device)
 {
     PDEVICE_CONTEXT pDevContext;

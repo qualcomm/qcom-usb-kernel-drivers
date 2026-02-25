@@ -1,9 +1,10 @@
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
 
-                          Q D B D E V . C
+                          Q D B D S P . H
 
 GENERAL DESCRIPTION
-    This is the file which contains dispatch function definitions for QDSS driver.
+    Function declarations for the QDSS I/O dispatch and completion module.
+    Covers IOCTL handling, queue callbacks, and IRP completion routines.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause

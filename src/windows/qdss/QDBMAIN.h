@@ -3,7 +3,9 @@
                           Q D B M A I N . H
 
 GENERAL DESCRIPTION
-    This is the file which contains definitions for QDSS function driver.
+    Global type definitions, constants, IOCTL codes, device/file/request
+    context structures, and debug mask/level macros for the QDSS USB
+    function driver.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
@@ -20,7 +22,6 @@ GENERAL DESCRIPTION
 #include <usbdi.h>
 #include <usbdlib.h>
 #include <wdfusb.h>
-
 
 // {E093662A-FF18-4579-8681-506E9F561D3D}
 DEFINE_GUID(QDBUSB_GUID,

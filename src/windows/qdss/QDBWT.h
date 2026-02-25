@@ -1,9 +1,11 @@
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
 
-                          Q D B W T . C
+                          Q D B W T . H
 
 GENERAL DESCRIPTION
-    This is the file which contains TX function definitions for QDSS driver.
+    Function declarations for the QDSS USB write module. Covers
+    application write dispatch, USB URB submission, and write
+    completion handling for the DEBUG channel.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause

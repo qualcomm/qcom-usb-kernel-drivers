@@ -16,7 +16,21 @@ GENERAL DESCRIPTION
 #include "QDBWT.tmh"
 #endif
 
-// USB write not supported in phase 1
+/****************************************************************************
+ *
+ * function: QDBWT_IoWrite
+ *
+ * purpose:  WDF write dispatch callback. Validates the file context and
+ *           pipe availability, then forwards the request to QDBWT_WriteUSB.
+ *           Write is only supported on the DEBUG channel.
+ *
+ * arguments:Queue   = WDF I/O queue handle
+ *           Request = WDF write request handle
+ *           Length  = requested write length in bytes
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBWT_IoWrite
 (
     WDFQUEUE   Queue,
@@ -105,6 +119,20 @@ VOID QDBWT_IoWrite
     return;
 }  // QDBWT_IoWrite
 
+/****************************************************************************
+ *
+ * function: QDBWT_WriteUSB
+ *
+ * purpose:  Formats a WDF USB write URB for the DEBUG OUT pipe and sends
+ *           it to the USB I/O target asynchronously.
+ *
+ * arguments:Queue   = WDF I/O queue handle
+ *           Request = WDF write request handle
+ *           Length  = write length in bytes
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBWT_WriteUSB
 (
     IN WDFQUEUE         Queue,
@@ -200,6 +228,21 @@ VOID QDBWT_WriteUSB
     );
 }  // QDBWT_WriteUSB
 
+/****************************************************************************
+ *
+ * function: QDBWT_WriteUSBCompletion
+ *
+ * purpose:  WDF completion routine for USB write requests. Extracts the
+ *           number of bytes written and completes the original request.
+ *
+ * arguments:Request          = WDF request handle
+ *           Target           = WDF USB pipe I/O target
+ *           CompletionParams = USB completion parameters including byte count
+ *           Context          = pointer to the device context
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBWT_WriteUSBCompletion
 (
     WDFREQUEST                  Request,
@@ -260,4 +303,3 @@ VOID QDBWT_WriteUSBCompletion
     return;
 
 }  // QDBWT_WriteUSBCompletion
-

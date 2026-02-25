@@ -3,7 +3,7 @@
                           Q D B D E V . H
 
 GENERAL DESCRIPTION
-    This is the file which contains definitions for QDSS device I/O.
+    Function declarations for the QDSS file-object callbacks.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause

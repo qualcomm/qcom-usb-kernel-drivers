@@ -1,9 +1,11 @@
 /*====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*
 
-                          Q D B D E V . C
+                          Q D B D S P . C
 
 GENERAL DESCRIPTION
-    This is the file which contains dispatch functions for QDSS driver.
+    I/O dispatch and completion routines for the QDSS USB function driver.
+    Handles IOCTL requests, queue callbacks, and IRP completion routine for
+    internally allocated IRPs.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
@@ -16,6 +18,22 @@ GENERAL DESCRIPTION
 #include "QDBDSP.tmh"
 #endif
 
+/****************************************************************************
+ *
+ * function: QDBDSP_IoCompletion
+ *
+ * purpose:  WDF request completion callback for forwarded I/O requests.
+ *           Extracts the completion status and completes the original
+ *           request.
+ *
+ * arguments:Request          = WDF request handle
+ *           Target           = WDF I/O target (unused)
+ *           CompletionParams = completion parameters including I/O status
+ *           Context          = pointer to the device context
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBDSP_IoCompletion
 (
     WDFREQUEST                  Request,
@@ -51,6 +69,23 @@ VOID QDBDSP_IoCompletion
 }  // QDBDSP_IoCompletion
 
 
+/****************************************************************************
+ *
+ * function: QDBDSP_IoDeviceControl
+ *
+ * purpose:  WDF IOCTL dispatch callback. Handles IOCTL_QCDEV_DPL_STATS
+ *           (returns DPL statistics) and IOCTL_QCDEV_REQUEST_DEVICEID
+ *           (returns parent device ID).
+ *
+ * arguments:Queue              = WDF I/O queue handle
+ *           Request            = WDF request handle
+ *           OutputBufferLength = length of the output buffer
+ *           InputBufferLength  = length of the input buffer
+ *           IoControlCode      = IOCTL code
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBDSP_IoDeviceControl
 (
     WDFQUEUE   Queue,
@@ -182,6 +217,20 @@ VOID QDBDSP_IoDeviceControl
     return;
 }  // QDBDSP_IoDeviceControl
 
+/****************************************************************************
+ *
+ * function: QDBDSP_IoStop
+ *
+ * purpose:  WDF queue stop callback. Cancels the request on purge or
+ *           acknowledges stop-and-hold on suspend.
+ *
+ * arguments:Queue   = WDF I/O queue handle
+ *           Request = WDF request handle
+ *           Flags   = stop action flags (purge or suspend)
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBDSP_IoStop
 (
     WDFQUEUE   Queue,
@@ -236,6 +285,19 @@ VOID QDBDSP_IoStop
     return;
 }  // QDBDSP_IoStop
 
+/****************************************************************************
+ *
+ * function: QDBDSP_IoResume
+ *
+ * purpose:  WDF queue resume callback. Called when a previously stopped
+ *           queue is resumed; no action is required beyond logging.
+ *
+ * arguments:Queue   = WDF I/O queue handle
+ *           Request = WDF request handle
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBDSP_IoResume
 (
     WDFQUEUE   Queue,
@@ -272,6 +334,21 @@ VOID QDBDSP_IoResume
     return;
 }  // QDBDSP_IoResume
 
+/****************************************************************************
+ *
+ * function: QDBDSP_IrpIoCompletion
+ *
+ * purpose:  IRP completion routine for internally allocated IRPs. Signals
+ *           the caller's event and returns STATUS_MORE_PROCESSING_REQUIRED
+ *           to prevent the I/O manager from freeing the IRP.
+ *
+ * arguments:DeviceObject = device object (unused)
+ *           Irp          = pointer to the completed IRP
+ *           Context      = pointer to the device context
+ *
+ * returns:  STATUS_MORE_PROCESSING_REQUIRED
+ *
+ ****************************************************************************/
 NTSTATUS QDBDSP_IrpIoCompletion
 (
     PDEVICE_OBJECT DeviceObject,
@@ -295,6 +372,21 @@ NTSTATUS QDBDSP_IrpIoCompletion
     return STATUS_MORE_PROCESSING_REQUIRED;
 }  // QDBDSP_IrpIoCompletion
 
+/****************************************************************************
+ *
+ * function: QDBDSP_GetParentId
+ *
+ * purpose:  Allocates an IRP, sends IOCTL_QCDEV_REQUEST_DEVICEID to the
+ *           target device synchronously, and returns the 64-bit parent
+ *           device ID in IoBuffer.
+ *
+ * arguments:pDevContext = pointer to the device context
+ *           IoBuffer    = output buffer to receive the parent device ID
+ *           BufferLen   = length of IoBuffer in bytes
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
 NTSTATUS QDBDSP_GetParentId
 (
     PDEVICE_CONTEXT pDevContext,
@@ -376,4 +468,3 @@ NTSTATUS QDBDSP_GetParentId
     return ntStatus;
 
 }  // QDBDSP_GetParentId
-

@@ -3,7 +3,8 @@
                           Q D B D E V . C
 
 GENERAL DESCRIPTION
-    This is the file which contains functions for QDSS device I/O.
+    WDF file-object callbacks for the QDSS USB function driver. Handles
+    file create, close, and cleanup events to associate USB pipe handles.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
@@ -17,6 +18,21 @@ GENERAL DESCRIPTION
 #include "QDBDEV.tmh"
 #endif
 
+/****************************************************************************
+ *
+ * function: QDBDEV_EvtDeviceFileCreate
+ *
+ * purpose:  WDF file-create callback. Validates the file name against
+ *           the known channel names (TRACE, DEBUG, or DPL) and associates
+ *           the corresponding USB pipe handles with the file context.
+ *
+ * arguments:Device     = WDF device handle
+ *           Request    = WDF request handle for the create request
+ *           FileObject = WDF file object being created
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBDEV_EvtDeviceFileCreate
 (
     WDFDEVICE     Device,    // handle to a framework device object
@@ -130,6 +146,18 @@ VOID QDBDEV_EvtDeviceFileCreate
     return;
 }  // QDBDEV_EvtDeviceFileCreate
 
+/****************************************************************************
+ *
+ * function: QDBDEV_EvtDeviceFileClose
+ *
+ * purpose:  WDF file-close callback. Resumes DPL pipe draining after the
+ *           application closes the file handle.
+ *
+ * arguments:FileObject = WDF file object being closed
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBDEV_EvtDeviceFileClose(WDFFILEOBJECT FileObject)
 {
     PDEVICE_CONTEXT pDevContext;
@@ -160,6 +188,18 @@ VOID QDBDEV_EvtDeviceFileClose(WDFFILEOBJECT FileObject)
     return;
 }  // QDBDEV_EvtDeviceFileClose
 
+/****************************************************************************
+ *
+ * function: QDBDEV_EvtDeviceFileCleanup
+ *
+ * purpose:  WDF file-cleanup callback. Resumes DPL pipe draining after
+ *           the last handle to the file object is closed.
+ *
+ * arguments:FileObject = WDF file object being cleaned up
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBDEV_EvtDeviceFileCleanup(WDFFILEOBJECT FileObject)
 {
     PDEVICE_CONTEXT pDevContext;

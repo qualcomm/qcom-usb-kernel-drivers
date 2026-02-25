@@ -3,7 +3,9 @@
                           Q D B R D . H
 
 GENERAL DESCRIPTION
-    This is the file which contains RX function definitions for QDSS driver.
+    Function declarations for the QDSS USB pipe read module.
+    Covers application read dispatch, USB URB submission, completion
+    handling, and autonomous DPL pipe drain lifecycle management.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause

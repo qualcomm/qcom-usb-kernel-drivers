@@ -18,6 +18,21 @@ GENERAL DESCRIPTION
 
 #ifdef QDB_DATA_EMULATION
 
+/****************************************************************************
+ *
+ * function: QDBRD_ReturnEmulation
+ *
+ * purpose:  Fills the read request buffer with simulated data (SimData)
+ *           and completes the request. Used only when QDB_DATA_EMULATION
+ *           is defined.
+ *
+ * arguments:Queue   = WDF I/O queue handle
+ *           Request = WDF read request handle
+ *           Length  = requested read length in bytes
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBRD_ReturnEmulation(WDFQUEUE Queue, WDFREQUEST Request, size_t Length)
 {
     static LONG readCount = 0;
@@ -113,6 +128,21 @@ VOID QDBRD_ReturnEmulation(WDFQUEUE Queue, WDFREQUEST Request, size_t Length)
 
 #endif // QDB_DATA_EMULATION
 
+/****************************************************************************
+ *
+ * function: QDBRD_IoRead
+ *
+ * purpose:  WDF read dispatch callback. Stops pipe draining, validates
+ *           the file context and pipe availability, then forwards the
+ *           request to QDBRD_ReadUSB.
+ *
+ * arguments:Queue   = WDF I/O queue handle
+ *           Request = WDF read request handle
+ *           Length  = requested read length in bytes
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBRD_IoRead
 (
     WDFQUEUE   Queue,
@@ -198,6 +228,20 @@ VOID QDBRD_IoRead
     return;
 }  // QDBRD_IoRead
 
+/****************************************************************************
+ *
+ * function: QDBRD_ReadUSB
+ *
+ * purpose:  Formats a WDF USB read URB for the appropriate IN pipe and
+ *           sends it to the USB I/O target asynchronously.
+ *
+ * arguments:Queue   = WDF I/O queue handle
+ *           Request = WDF read request handle
+ *           Length  = requested read length in bytes
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBRD_ReadUSB
 (
     IN WDFQUEUE         Queue,
@@ -321,6 +365,22 @@ VOID QDBRD_ReadUSB
     );
 }  // QDBRD_ReadUSB
 
+/****************************************************************************
+ *
+ * function: QDBRD_ReadUSBCompletion
+ *
+ * purpose:  WDF completion routine for USB read requests. Extracts the
+ *           number of bytes read, completes the original request, and
+ *           updates the outstanding RX counter.
+ *
+ * arguments:Request          = WDF request handle
+ *           Target           = WDF USB pipe I/O target
+ *           CompletionParams = USB completion parameters including byte count
+ *           Context          = pointer to the device context
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBRD_ReadUSBCompletion
 (
     WDFREQUEST                  Request,
@@ -389,6 +449,20 @@ VOID QDBRD_ReadUSBCompletion
 /* --------------------------------------------------------------------
  *               PIPE DRAINING FUNCTIONS
  * --------------------------------------------------------------------*/
+
+/****************************************************************************
+ *
+ * function: QDBRD_AllocateRequestsRx
+ *
+ * purpose:  Allocates WDF request and memory objects for DPL pipe draining.
+ *           Only applicable when the device function type is DPL.
+ *
+ * arguments:pDevContext = pointer to the device context
+ *
+ * returns:  NT status; STATUS_NOT_SUPPORTED if not a DPL device,
+ *           STATUS_NO_MEMORY if allocation fails
+ *
+ ****************************************************************************/
 NTSTATUS QDBRD_AllocateRequestsRx(PDEVICE_CONTEXT pDevContext)
 {
     NTSTATUS              ntStatus;
@@ -484,6 +558,18 @@ NTSTATUS QDBRD_AllocateRequestsRx(PDEVICE_CONTEXT pDevContext)
 
 }  // QDBRD_AllocateRequestsRx
 
+/****************************************************************************
+ *
+ * function: QDBRD_FreeIoBuffer
+ *
+ * purpose:  Releases WDF memory and request objects previously allocated
+ *           by QDBRD_AllocateRequestsRx. Only applicable for DPL devices.
+ *
+ * arguments:pDevContext = pointer to the device context
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBRD_FreeIoBuffer(PDEVICE_CONTEXT pDevContext)
 {
     ULONG i;
@@ -526,7 +612,19 @@ VOID QDBRD_FreeIoBuffer(PDEVICE_CONTEXT pDevContext)
 
 }  // QDBRD_FreeIoBuffer
 
-// To drain pipe if there's no user buffer
+/****************************************************************************
+ *
+ * function: QDBRD_PipeDrainStart
+ *
+ * purpose:  Starts draining the DPL IN pipe by sending all pre-allocated
+ *           RX requests to the USB target. No-op if draining is already
+ *           active or the device is not a DPL function.
+ *
+ * arguments:pDevContext = pointer to the device context
+ *
+ * returns:  NT status; STATUS_NOT_SUPPORTED if not a DPL device
+ *
+ ****************************************************************************/
 NTSTATUS QDBRD_PipeDrainStart(PDEVICE_CONTEXT pDevContext)
 {
     KIRQL    oldLevel;
@@ -583,6 +681,19 @@ NTSTATUS QDBRD_PipeDrainStart(PDEVICE_CONTEXT pDevContext)
     return STATUS_SUCCESS;
 }  // QDBRD_PipeDrainStart
 
+/****************************************************************************
+ *
+ * function: QDBRD_SendIOBlock
+ *
+ * purpose:  Formats and sends a single pre-allocated RX request to the
+ *           DPL IN pipe. Skips if the request is already pending.
+ *
+ * arguments:pDevContext = pointer to the device context
+ *           Index       = index into the RxRequest array
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
 {
     NTSTATUS   ntStatus;
@@ -704,6 +815,18 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
     );
 } // QDBRD_SendIOBlock
 
+/****************************************************************************
+ *
+ * function: QDBRD_PipeDrainStop
+ *
+ * purpose:  Stops DPL pipe draining by clearing the PipeDrain flag so
+ *           that completion routines will not re-submit requests.
+ *
+ * arguments:pDevContext = pointer to the device context
+ *
+ * returns:  NT status; STATUS_NOT_SUPPORTED if not a DPL device
+ *
+ ****************************************************************************/
 NTSTATUS QDBRD_PipeDrainStop(PDEVICE_CONTEXT pDevContext)
 {
     // ULONG i;
@@ -742,6 +865,23 @@ NTSTATUS QDBRD_PipeDrainStop(PDEVICE_CONTEXT pDevContext)
 
 }  // QDBRD_PipeDrainStop
 
+/****************************************************************************
+ *
+ * function: QDBRD_PipeDrainCompletion
+ *
+ * purpose:  WDF completion routine for DPL pipe drain requests. Recycles
+ *           the WDF request and re-submits it if draining is still active
+ *           and the failure threshold has not been exceeded. Signals
+ *           DrainStoppedEvent when all drain requests have completed.
+ *
+ * arguments:Request          = WDF request handle
+ *           Target           = WDF USB pipe I/O target
+ *           CompletionParams = USB completion parameters including byte count
+ *           Context          = pointer to the QDB_IO_REQUEST structure
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBRD_PipeDrainCompletion
 (
     WDFREQUEST                  Request,
@@ -845,6 +985,20 @@ VOID QDBRD_PipeDrainCompletion
 
 } // QDBRD_PipeDrainCompletion
 
+/****************************************************************************
+ *
+ * function: QDBRD_ProcessDrainedDPLBlock
+ *
+ * purpose:  Parses a drained DPL data block by iterating over QMAP-framed
+ *           packets and incrementing the PacketsDrained statistics counter.
+ *
+ * arguments:pDevContext = pointer to the device context
+ *           Buffer      = pointer to the received data buffer
+ *           Length      = length of the data buffer in bytes
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
 VOID QDBRD_ProcessDrainedDPLBlock(PDEVICE_CONTEXT pDevContext, PVOID Buffer, ULONG Length)
 {
     PVOID dataPtr, pktPtr;
@@ -863,6 +1017,22 @@ VOID QDBRD_ProcessDrainedDPLBlock(PDEVICE_CONTEXT pDevContext, PVOID Buffer, ULO
 
 }  // QDBRD_ProcessDrainedDPLBlock
 
+/****************************************************************************
+ *
+ * function: QDBRD_RetrievePacket
+ *
+ * purpose:  Parses one QMAP-framed packet from the data buffer, advances
+ *           the data pointer, and returns a pointer to the packet payload.
+ *
+ * arguments:DataPtr      = pointer to the current position in the buffer;
+ *                          updated to point past the consumed packet
+ *           DataLength   = remaining buffer length in bytes; decremented
+ *                          by the consumed packet size
+ *           PacketLength = receives the payload length in bytes
+ *
+ * returns:  pointer to the packet payload, or NULL on error
+ *
+ ****************************************************************************/
 PVOID QDBRD_RetrievePacket(PVOID *DataPtr, PULONG DataLength, PULONG PacketLength)
 {
     PQCQMAP_STRUCT qmap;

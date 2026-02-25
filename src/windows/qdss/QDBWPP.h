@@ -19,10 +19,6 @@ GENERAL DESCRIPTION
 #ifndef QDBWPP_H
 #define QDBWPP_H
 
-
-//
-// Software Tracing Definitions 
-//
 // NOTE: these bits are shared amongst all components so must be kept in sync
 // {5F02CA82-B28B-4a95-BA2C-FBED52DDD3DC}
 #define WPP_CONTROL_GUIDS \
@@ -42,10 +38,10 @@ GENERAL DESCRIPTION
         WPP_DEFINE_BIT(WPP_DRV_MASK_PIRP)                 \
         WPP_DEFINE_BIT(WPP_DRV_MASK_PROTOCOL)             \
         WPP_DEFINE_BIT(WPP_DRV_MASK_MCONTROL)             \
-        WPP_DEFINE_BIT(WPP_DRV_MASK_QOS)	          \
-	WPP_DEFINE_BIT(WPP_DRV_MASK_DATA_QOS)		  \
-        WPP_DEFINE_BIT(WPP_DRV_MASK_DATA_WT)		  \
-        WPP_DEFINE_BIT(WPP_DRV_MASK_DATA_RD)		  \
+        WPP_DEFINE_BIT(WPP_DRV_MASK_QOS)	              \
+        WPP_DEFINE_BIT(WPP_DRV_MASK_DATA_QOS)		      \
+        WPP_DEFINE_BIT(WPP_DRV_MASK_DATA_WT)		      \
+        WPP_DEFINE_BIT(WPP_DRV_MASK_DATA_RD)		      \
         WPP_DEFINE_BIT(WPP_DRV_MASK_FILTER)               \
         WPP_DEFINE_BIT(WPP_DRV_MASK_UNUSED1)              \
         WPP_DEFINE_BIT(WPP_DRV_MASK_UNUSED2)              \
