@@ -6,8 +6,8 @@
 #ifndef __QMAP_H
 #define __QMAP_H
 
-#include "Structs.h"
-#include "QMI.h"
+#include "common.h"
+#include "qmi.h"
 
 #define ETH_TYPE_ARP  0x0806
 #define ETH_TYPE_IPV4 0x0800

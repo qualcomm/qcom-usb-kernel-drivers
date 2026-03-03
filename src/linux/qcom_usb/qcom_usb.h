@@ -40,7 +40,7 @@
 
 // #define QCUSB_TEST_ONLY
 
-#include "qtiEvt.h"
+#include "qcom_event.h"
 #include "qtiDevInf.h"
 
 #define BULK_URB_LIST            4

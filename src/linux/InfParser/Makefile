@@ -1,12 +1,23 @@
 obj-m := qtiDevInf.o
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
+QCOM_USBINF_PARSER_OUTPUTDIR=/lib/modules/$(shell uname -r)/kernel/drivers/usb/misc
 
-all: clean
-	$(MAKE) -C $(KDIR) M=$(PWD) modules
+build: clean
+	make -C $(KDIR) M=$(PWD) modules
+
+install: build
+	mkdir -p $(QCOM_USBINF_PARSER_OUTPUTDIR)
+	cp -f qtiDevInf.ko $(QCOM_USBINF_PARSER_OUTPUTDIR)
+	depmod
+	modprobe qtiDevInf
+
+uninstall: clean
+	rmmod qtiDevInf
+	rm -rf $(QCOM_USBINF_PARSER_OUTPUTDIR)/qtiDevInf.ko
+	depmod
 
 clean:
-	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c *.mod .tmp_versions Module.* modules.order *.ur-safe
-
+	make -C $(KDIR) M=$(PWD) clean
 
 

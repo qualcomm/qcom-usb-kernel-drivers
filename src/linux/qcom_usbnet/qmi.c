@@ -3,8 +3,8 @@
     SPDX-License-Identifier: BSD-3-Clause
 */
 
-#include "QMIDevice.h"
-#include "QMI.h"
+#include "qmidevice.h"
+#include "qmi.h"
 /*=========================================================================*/
 // Get sizes of buffers needed by QMI requests
 /*=========================================================================*/

@@ -1,3 +1,44 @@
+
+## Building, Installing, and Uninstalling QUD Driver Modules (Without qcom_drivers.sh)
+
+You can now efficiently build, install, or uninstall individual or multiple driver modules without relying on the qcom_drivers.sh script.
+
+### Build/Install/Uninstall Both Modules (qcom_usb and qcom_usbnet)
+
+To manage both driver modules simultaneously, use the Makefile located at: `src/linux`
+
+### Execute the following commands:
+
+- make build  (Recommended: do not use sudo for build)
+- sudo make install
+- sudo make uninstall
+
+### Build/Debug/Install/Uninstall Individual Modules
+
+To work with a specific driver module, navigate to the respective directory:
+
+Then execute:
+
+- make build
+- make debug  (Enables driver debug messages*)
+- sudo make install
+- sudo make uninstall
+
+ *Enable debug logs for single device. for multiple device. Navigate to specific interface folder in /sys directory and `echo 2 > Debug` 
+
+#### Benefits
+
+- Enables users to modify, test, and debug modules independently.
+- Provides a faster and cleaner workflow for development and validation.
+- Users no longer need to depend on the qcom_drivers.sh script.
+
+#### Note
+
+- Modifying qcom_drivers.sh is not recommended, as it is reserved for full installation and uninstallation workflows.
+- For complete installations, dependency handling, conflict resolution, and thorough cleanup, we recommend using qcom_driver.sh
+
+
+
 ## FAQ's and troubleshooting for linux qualcomm USB drivers
 
 ```bash

@@ -3,14 +3,14 @@
     SPDX-License-Identifier: BSD-3-Clause
 */
 
-#include "QMIDevice.h"
-#include "QMI.h"
+#include "qmidevice.h"
+#include "qmi.h"
 #include "qmap.h"
 #include <linux/device.h>
 #include <linux/if_arp.h>
 #include <linux/platform_device.h>
 
-#define DRIVER_DESC "GobiNet"
+#define DRIVER_DESC "qcom_usbnet"
 
 // Timer value
 unsigned long gtimer = 2 * NSEC_PER_MSEC;
@@ -35,7 +35,7 @@ int enableDhcp = 0;
 
 #define CONFIG_USB_CODE
 #ifdef CONFIG_USB_CODE
-#define QTI_RMNET_INF_PATH "/opt/QTI/QUD/rmnet/qtiwwan.inf"
+#define QTI_RMNET_INF_PATH "/opt/qcom/QUD/qcom_usbnet/qtiwwan.inf"
 #define GOBI_NUM_DEVICES_DEFAULT 8
 
 fileInfo_t  *gQTIRmnetFileInfo = NULL;
@@ -48,7 +48,7 @@ static spinlock_t DevListLock;
 static int DevicesIdle, DevicesActive;
 
 // Class should be created during module init, so needs to be global
-static struct class * gpClass;
+static struct class * qcom_usbnet_class;
 
 // Proc enrty should be created during module init, so needs to be global
 static struct proc_dir_entry *gpProcEnt;
@@ -2266,7 +2266,7 @@ static struct attribute_group dev_attr_grp =
 /*=========================================================================*/
 static const struct driver_info GobiNetInfo =
 {
-   .description   = "GobiNet Ethernet Device",
+   .description   = "qcom usbnet ethernet device",
    .flags         = FLAG_MULTI_PACKET | FLAG_NO_SETINT,
    .bind          = GobiNetDriverBind,
    .unbind        = GobiNetDriverUnbind,
@@ -2280,7 +2280,7 @@ static const struct driver_info GobiNetInfo =
 /*=========================================================================*/
 static const struct driver_info GobiMUXNetInfo =
 {
-   .description   = "GobiNet Ethernet Device",
+   .description   = "qcom usbnet ethernet device",
    .flags         = FLAG_MULTI_PACKET | FLAG_NO_SETINT,
    .bind          = GobiMUXNetDriverBind,
    .unbind        = GobiNetDriverUnbind,
@@ -2643,7 +2643,7 @@ struct attribute *gobinet_sysfs_attrs[] = {
 };
 
 const struct attribute_group gobinet_sysfs_attr_group = {
-   //.name       = "GobiNet",
+   //.name       = "qcom_usbnet",
 	.attrs = gobinet_sysfs_attrs,
 };
 
@@ -3032,7 +3032,7 @@ int GobiUSBNetProbe(
    pGobiDev->mbQMIValid = false;
 
    pGobiDev->mQMIDev.mbCdevIsInitialized = false;
-   pGobiDev->mQMIDev.mpDevClass = gpClass;
+   pGobiDev->mQMIDev.mpDevClass = qcom_usbnet_class;
    
    if(pGobiDev->mQMIDev.mdeviceName[0] == '\0')
    {
@@ -3049,7 +3049,7 @@ int GobiUSBNetProbe(
    for (i=0;i<MAX_MUX_DEVICES;i++)
    {
        pGobiDev->mQMIMUXDev[i].mbCdevIsInitialized = false;
-       pGobiDev->mQMIMUXDev[i].mpDevClass = gpClass;
+       pGobiDev->mQMIMUXDev[i].mpDevClass = qcom_usbnet_class;
        if(pGobiDev->mQMIMUXDev[i].mdeviceName[0] == '\0')
        {
          pGobiDev->mQMIMUXDev[i].debug = 1;
@@ -3093,7 +3093,7 @@ int GobiUSBNetProbe(
 
 static struct usb_driver GobiNet =
 {
-   .name       = "GobiNet",
+   .name       = "qcom_usbnet",
 #ifdef CONFIG_USB_CODE
    .id_table   = GobiConfigVIDPIDTable,
 #else
@@ -3206,14 +3206,13 @@ static int GobiUSBNetModInit(void)
 #endif
 
 #if (LINUX_VERSION_CODE <= KERNEL_VERSION(6,3,13))
-   gpClass = class_create( THIS_MODULE, "GobiQMI" );
+   qcom_usbnet_class = class_create(THIS_MODULE, "qcom_usbnet");
 #else
-   gpClass = class_create("GobiQMI" );
+   qcom_usbnet_class = class_create("qcom_usbnet");
 #endif
-   if (IS_ERR( gpClass ) == true)
+   if (IS_ERR( qcom_usbnet_class ) == true)
    {
-     QC_LOG_GLOBAL( "error at class_create %ld\n",
-           PTR_ERR( gpClass ) );
+     QC_LOG_GLOBAL( "error at class_create %ld\n", PTR_ERR(qcom_usbnet_class));
 #ifdef CONFIG_USB_CODE
      if (gQTIRmnetFileInfo)
      {
@@ -3276,7 +3275,7 @@ static void __exit GobiUSBNetModExit(void)
 {
    usb_deregister( &GobiNet );
    GobiFreeDevices();
-   class_destroy( gpClass );
+   class_destroy( qcom_usbnet_class );
    proc_remove(gpProcEnt);
 #ifdef CONFIG_USB_CODE
    if (gQTIRmnetFileInfo)
