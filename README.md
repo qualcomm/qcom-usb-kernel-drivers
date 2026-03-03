@@ -91,13 +91,13 @@ pnputil /add-driver <build_path/driver_name.inf> /install
     
 - Installation
 ```bash
-sudo ./QcDevDriver.sh install
+sudo ./qcom_drivers.sh install
 ```
 - Uninstallation
 ```bash
-sudo ./QcDevDriver.sh uninstall
+sudo ./qcom_drivers.sh uninstall
 ```
-For FAQ's and troubleshooting, please refer to [README](./src/linux/README.md) document. 
+For more guidance on build process, FAQ's and troubleshooting, please refer to [README](./src/linux/README.md) document. 
 
 ## Contributing
 

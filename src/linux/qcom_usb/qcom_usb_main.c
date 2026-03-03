@@ -3,15 +3,15 @@
     SPDX-License-Identifier: BSD-3-Clause
 */
 
-#include "qtiDiag.h"
+#include "qcom_usb.h"
 #include "../version.h"
 #include <linux/poll.h>
 #include <linux/vmalloc.h>
 
-#define DRIVER_DESC "QTIDebugSubsystemUSB"
-#define QDSS_INF_PATH "/opt/QTI/QUD/diag/qdbusb.inf"
-#define DIAG_INF_PATH "/opt/QTI/QUD/diag/qtiser.inf"
-#define MODEM_INF_PATH "/opt/QTI/QUD/diag/qtimdm.inf"
+#define DRIVER_DESC "qcom_usb"
+#define QDSS_INF_PATH "/opt/qcom/QUD/qcom_usb/qdbusb.inf"
+#define DIAG_INF_PATH "/opt/qcom/QUD/qcom_usb/qtiser.inf"
+#define MODEM_INF_PATH "/opt/qcom/QUD/qcom_usb/qtimdm.inf"
 
 fileInfo_t  *gQdssFileInfo;
 static char *gQdssInfFilePath = NULL;
@@ -4122,9 +4122,7 @@ module_exit(QTIDevUSBModExit);
 
 MODULE_VERSION( DRIVER_VERSION );
 MODULE_DESCRIPTION( DRIVER_DESC );
-MODULE_LICENSE("Dual BSD/GPL");
-
-
+MODULE_LICENSE("GPL v2");
 
 module_param( debug_g, int, S_IRUGO | S_IWUSR );
 

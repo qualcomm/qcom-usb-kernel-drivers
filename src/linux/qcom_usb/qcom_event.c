@@ -3,7 +3,7 @@
     SPDX-License-Identifier: BSD-3-Clause
 */
 
-#include "qtiEvt.h"
+#include "qcom_event.h"
 
 sQtiEvent *qti_create_event(void)
 {
@@ -105,3 +105,4 @@ void qti_clear_event(sQtiEvent *evt, unsigned long long event)
     spin_unlock(&evt->evt_lock);
 }
 
+MODULE_LICENSE("GPL v2");

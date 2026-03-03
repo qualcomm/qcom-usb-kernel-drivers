@@ -15,7 +15,7 @@
 #include <linux/uaccess.h>
 #include <linux/version.h>
 
-#include "Structs.h"
+#include "common.h"
 
 #define QTIDEV_INF_DEFAULT_VENDOR    "QTI"  /**< Default Vendor */
 

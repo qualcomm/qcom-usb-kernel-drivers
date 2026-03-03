@@ -5,8 +5,8 @@
 
 #pragma once
 
-#include "Structs.h"
-#include "QMI.h"
+#include "common.h"
+#include "qmi.h"
 #include "qtiDevInf.h"
 #include "../version.h"
 #include <linux/rtnetlink.h>

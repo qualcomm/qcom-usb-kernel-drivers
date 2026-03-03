@@ -3,7 +3,7 @@
     SPDX-License-Identifier: BSD-3-Clause
 */
 
-#include "QMIDevice.h"
+#include "qmidevice.h"
 
 extern int debug_g;
 extern int interruptible;
@@ -3853,7 +3853,7 @@ int RegisterQMIDevice( sGobiUSBNet * pDev )
 #endif
    }
 
-   pDev->pGobiWaitThread = kthread_run(GobiWaitForResponses, pDev, "GobiNet/%d-%s", pDev->mpNetDev->udev->bus->busnum, pDev->mpNetDev->udev->devpath);
+   pDev->pGobiWaitThread = kthread_run(GobiWaitForResponses, pDev, "qcom_usbnet/%d-%s", pDev->mpNetDev->udev->bus->busnum, pDev->mpNetDev->udev->devpath);
    if (IS_ERR(pDev->pGobiWaitThread))
    {
        QC_LOG_ERR(GET_QMIDEV(pDev),"Thread creation error : %ld\n", PTR_ERR(pDev->pGobiWaitThread));
@@ -3862,7 +3862,7 @@ int RegisterQMIDevice( sGobiUSBNet * pDev )
 
    //get_task_struct(pGobiWaitThread); // no need to increment counter at this moment
    // allocate and fill devno with numbers
-   result = alloc_chrdev_region( &devno, 0, 1+MAX_MUX_DEVICES, "qtiqmi" );
+   result = alloc_chrdev_region( &devno, 0, 1+MAX_MUX_DEVICES, "qcom_usbnet" );
    if (result < 0)
    {
       return result;
@@ -3924,7 +3924,7 @@ int RegisterQMIDevice( sGobiUSBNet * pDev )
 #endif
 
    // Always print this output
-   QC_LOG_INFO(GET_QMIDEV(pDev),"creating qtiqmi%d\n",
+   QC_LOG_INFO(GET_QMIDEV(pDev),"creating qcom_usbnet%d\n",
            GobiQMIIndex );
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION( 2,6,27 ))
@@ -3939,7 +3939,7 @@ int RegisterQMIDevice( sGobiUSBNet * pDev )
                   pDev->mpNetDev->udev->bus->busnum,
                   pDev->mpNetDev->udev->devpath,
                   GobiQMIIndex, 0))){
-                     QC_LOG_ERR(GET_QMIDEV(pDev),"GobiNet: Device creation failed :%ld\n",PTR_ERR(dev_ret));
+                     QC_LOG_ERR(GET_QMIDEV(pDev),"qcom_usbnet: Device creation failed :%ld\n",PTR_ERR(dev_ret));
                      class_destroy(pDev->mQMIDev.mpDevClass);
                      unregister_chrdev_region(devno, 1);
                      return PTR_ERR(dev_ret);
@@ -3954,7 +3954,7 @@ int RegisterQMIDevice( sGobiUSBNet * pDev )
                   pDev->mpNetDev->udev->devpath,
                   GobiQMIIndex, 0)))
                   {
-                     QC_LOG_ERR(GET_QMIDEV(pDev),"GobiNet: Device creation failed :%ld\n",PTR_ERR(dev_ret));
+                     QC_LOG_ERR(GET_QMIDEV(pDev),"qcom_usbnet: Device creation failed :%ld\n",PTR_ERR(dev_ret));
                      class_destroy(pDev->mQMIDev.mpDevClass);
                      unregister_chrdev_region(devno, 1);
                      return PTR_ERR(dev_ret);
@@ -4008,7 +4008,7 @@ int RegisterQMIDevice( sGobiUSBNet * pDev )
                          pDev->mpNetMUXDev[i]->udev->bus->busnum,
                          pDev->mpNetMUXDev[i]->udev->devpath,
                          GobiQMIIndex, i + 1))){
-                           QC_LOG_ERR(GET_QMIMUXDEV(pDev,i),"GobiNet: Device creation failed :%ld\n",PTR_ERR(dev_ret));
+                           QC_LOG_ERR(GET_QMIMUXDEV(pDev,i),"qcom_usbnet: Device creation failed :%ld\n",PTR_ERR(dev_ret));
                            class_destroy(pDev->mQMIMUXDev[i].mpDevClass);
                            unregister_chrdev_region(devMUXno[i], 1);
                            return PTR_ERR(dev_ret);
@@ -4022,7 +4022,7 @@ int RegisterQMIDevice( sGobiUSBNet * pDev )
                          pDev->mpNetMUXDev[i]->udev->bus->busnum,
                          pDev->mpNetMUXDev[i]->udev->devpath,
                          GobiQMIIndex, i + 1))){
-                           QC_LOG_ERR(GET_QMIMUXDEV(pDev,i),"GobiNet: Device creation failed :%ld\n",PTR_ERR(dev_ret));
+                           QC_LOG_ERR(GET_QMIMUXDEV(pDev,i),"qcom_usbnet: Device creation failed :%ld\n",PTR_ERR(dev_ret));
                            class_destroy(pDev->mQMIMUXDev[i].mpDevClass);
                            unregister_chrdev_region(devMUXno[i], 1);
                            return PTR_ERR(dev_ret);

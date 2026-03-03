@@ -18,7 +18,7 @@ DESCRIPTION:
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION( 3,2,0 ))
 #include <linux/module.h>
 #endif
-#include "serial.h"
+#include "qcom_serial.h"
 #include "qtiDevInf.h"
 #include "../version.h"
 // Debug flag
@@ -26,7 +26,7 @@ static ulong debug;
 
 #define CONFIG_USB_CODE
 #ifdef CONFIG_USB_CODE
-#define QTI_MODEM_INF_PATH "/opt/QTI/QUD/serial/qtimdm.inf"
+#define QTI_MODEM_INF_PATH "/opt/qcom/QUD/qcom_serial/qtimdm.inf"
 
 fileInfo_t  *gQTIModemFileInfo = NULL;
 static char *gQTIModemInfFilePath = NULL;
