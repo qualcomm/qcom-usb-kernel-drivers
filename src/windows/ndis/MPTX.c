@@ -191,7 +191,7 @@ BOOLEAN MPTX_ProcessPendingTxQueue(IN PMP_ADAPTER pAdapter)
 
     if (kicker)
     {
-        MPWork_ScheduleWorkItem(pAdapter);
+    	MPMAIN_ScheduleWorkItem( pAdapter );
     }
 
     QCNET_DbgPrint
@@ -744,7 +744,7 @@ BOOLEAN MPTX_ProcessPendingTxQueueTlpEx(IN PMP_ADAPTER pAdapter)
 
     if (kicker)
     {
-        MPWork_ScheduleWorkItem(pAdapter);
+    	MPMAIN_ScheduleWorkItem(pAdapter);
     }
 
     QCNET_DbgPrint
@@ -1139,7 +1139,7 @@ BOOLEAN MPTX_ProcessPendingTxQueueEx(IN PMP_ADAPTER pAdapter)
 
     if (kicker)
     {
-        MPWork_ScheduleWorkItem(pAdapter);
+    	MPMAIN_ScheduleWorkItem(pAdapter);
     }
 
     QCNET_DbgPrint

@@ -14,7 +14,7 @@ GENERAL DESCRIPTION
 
 #include "MPMain.h"
 
-BOOLEAN MPWork_ScheduleWorkItem(PMP_ADAPTER pAdapter);
+BOOLEAN MPMAIN_ScheduleWorkItem(PMP_ADAPTER pAdapter);
 
 VOID MPWork_WorkItem(PNDIS_WORK_ITEM pWorkItem, PVOID pContext);
 

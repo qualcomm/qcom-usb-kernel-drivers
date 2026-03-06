@@ -435,6 +435,12 @@ NDIS_STATUS MPQCTL_SetDataFormat
     PVOID       Context   // Adapter
 );
 
+NDIS_STATUS MPQCTL_CtlSync
+(
+   PMP_ADAPTER pAdapter,
+   PVOID       Context   // Adapter
+);
+
 // ============= Internal Functions ==============
 PVOID MPQCTL_HandleSetInstanceIdReq
 (
@@ -519,6 +525,19 @@ VOID MPQCTL_HandleSetDataFormatRsp
     PMP_ADAPTER              pAdapter,
     PQCQMI                   qmi,
     PQMICTL_TRANSACTION_ITEM item
+);
+
+PVOID MPQCTL_HandleCtlSyncReq
+(
+   PMP_ADAPTER pAdapter,
+   PUCHAR      TransactionId,
+   PULONG      MsgLen
+);
+
+VOID MPQCTL_HandleCtlSyncRsp
+(
+   PMP_ADAPTER              pAdapter,
+   PQCQMI                   qmi
 );
 
 VOID MPQCTL_HandleRevokeClientIdInd

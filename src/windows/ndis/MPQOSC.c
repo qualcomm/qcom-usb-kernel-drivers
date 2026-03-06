@@ -2213,7 +2213,7 @@ VOID MPQOSC_ComposeQosSetClientIpPrefReq
     ULONG     qmiLength = sizeof(QCQMI_HDR) + QCQMUX_HDR_SIZE + sizeof(QMI_QOS_SET_CLIENT_IP_PREF_REQ_MSG);
     UCHAR     clientId;
 
-    if (QCMAIN_IsDualIPSupported(pAdapter) == FALSE)
+   if (MPMAIN_IsDualIPSupported(pAdapter) == FALSE)
     {
         QCNET_DbgPrint
         (

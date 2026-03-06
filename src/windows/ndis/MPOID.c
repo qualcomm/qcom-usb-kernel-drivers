@@ -205,7 +205,7 @@ VOID MPOID_IndicationReadyInfo
     pAdapter->ReadyInfo.ReadyInfo.EmergencyMode = WwanEmergencyModeOff;
     pAdapter->ReadyInfo.ReadyInfo.ReadyState = ReadyState;
 
-    MyNdisMIndicateStatus
+   MPMAIN_NdisMIndicateStatus
     (
         pAdapter->AdapterHandle,
         NDIS_STATUS_WWAN_READY_INFO,
@@ -1255,8 +1255,8 @@ NDIS_STATUS MPOID_QueryInformation
         case OID_GEN_TRANSMIT_BUFFER_SPACE:
         {
             // If the data pipe is occupied, we return no capacity
-            if (listDepth(&pAdapter->TxPendingList, &pAdapter->TxLock) ||
-                listDepth(&pAdapter->TxBusyList, &pAdapter->TxLock))
+            if (MPMAIN_ListDepth(&pAdapter->TxPendingList, &pAdapter->TxLock) ||
+               MPMAIN_ListDepth(&pAdapter->TxBusyList, &pAdapter->TxLock))
             {
                 MPOID_GetInformationUL(&ulInfo, &ulInfoLen, 0);
             }

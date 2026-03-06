@@ -22,6 +22,11 @@ GENERAL DESCRIPTION
 #define VEN_DEV_CID         L"QCDeviceCID"
 #define VEN_DEV_PARENT      L"QCDeviceParent"
 
+NTSTATUS USBPNP_AddDevice
+(
+   IN PDRIVER_OBJECT pDriverObject,
+   IN PDEVICE_OBJECT pdo
+);
 NTSTATUS USBPNP_GetDeviceCapabilities
 (
     PDEVICE_EXTENSION pDevExt,

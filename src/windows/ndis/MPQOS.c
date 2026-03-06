@@ -838,7 +838,7 @@ VOID MPQOS_TransmitPackets(PMP_ADAPTER pAdapter)
                         ("<%s> QOS_TX_BUSY: flow 0x%x, drop pkt\n", pAdapter->PortName, qosFlow->FlowId)
                     );
                     MPMAIN_Wait(-(100 * 1000L)); // 10ms
-                    MPWork_ScheduleWorkItem(pAdapter);
+               		MPMAIN_ScheduleWorkItem(pAdapter);
                     break;
                 }
                 case NDIS_STATUS_INTERFACE_DOWN:
@@ -849,7 +849,7 @@ VOID MPQOS_TransmitPackets(PMP_ADAPTER pAdapter)
                         MP_DBG_LEVEL_ERROR,
                         ("<%s> QOS_TX_IF_DOWN: flow 0x%x, drop pkt\n", pAdapter->PortName, qosFlow->FlowId)
                     );
-                    MPWork_ScheduleWorkItem(pAdapter);
+               		MPMAIN_ScheduleWorkItem(pAdapter);
                     break;
                 }
                 default:
@@ -938,7 +938,7 @@ VOID MPQOS_TransmitPackets(PMP_ADAPTER pAdapter)
                         ("<%s> QOS_TX_BUSY: flow 0x%x, drop pkt\n", pAdapter->PortName, qosFlow->FlowId)
                     );
                     MPMAIN_Wait(-(100 * 1000L)); // 10ms
-                    MPWork_ScheduleWorkItem(pAdapter);
+               		MPMAIN_ScheduleWorkItem(pAdapter);
                     break;
                 }
                 case NDIS_STATUS_INTERFACE_DOWN:
@@ -949,7 +949,7 @@ VOID MPQOS_TransmitPackets(PMP_ADAPTER pAdapter)
                         MP_DBG_LEVEL_ERROR,
                         ("<%s> QOS_TX_IF_DOWN: flow 0x%x, drop pkt\n", pAdapter->PortName, qosFlow->FlowId)
                     );
-                    MPWork_ScheduleWorkItem(pAdapter);
+               		MPMAIN_ScheduleWorkItem(pAdapter);
                     break;
                 }
                 default:
@@ -1256,7 +1256,7 @@ VOID MPQOS_CategorizePackets(IN PMP_ADAPTER pAdapter)
 
     if (kicker)
     {
-        MPWork_ScheduleWorkItem(pAdapter);
+    	MPMAIN_ScheduleWorkItem(pAdapter);
     }
 
     QCNET_DbgPrint
@@ -1421,7 +1421,7 @@ VOID MPQOS_CategorizePacketsEx(IN PMP_ADAPTER pAdapter)
 
     if (kicker)
     {
-        MPWork_ScheduleWorkItem(pAdapter);
+    	MPMAIN_ScheduleWorkItem(pAdapter);
     }
 
     QCNET_DbgPrint
@@ -2945,7 +2945,7 @@ VOID MPQOS_PurgeQueues(PMP_ADAPTER  pAdapter)
 
     if (kicker == TRUE)
     {
-        MPWork_ScheduleWorkItem(pAdapter);
+    	MPMAIN_ScheduleWorkItem(pAdapter);
     }
 
     QCNET_DbgPrint
@@ -3895,7 +3895,7 @@ VOID MPQOS_TLPTransmitPackets(PMP_ADAPTER pAdapter)
                             ("<%s> QOS_TLPTX_BUSY: flow 0x%x, drop pkt\n", pAdapter->PortName, qosFlow->FlowId)
                         );
                         MPMAIN_Wait(-(100 * 1000L)); // 10ms
-                        MPWork_ScheduleWorkItem(pAdapter);
+                  		MPMAIN_ScheduleWorkItem(pAdapter);
                         break;
                     }
                     case NDIS_STATUS_INTERFACE_DOWN:
@@ -3906,7 +3906,7 @@ VOID MPQOS_TLPTransmitPackets(PMP_ADAPTER pAdapter)
                             MP_DBG_LEVEL_ERROR,
                             ("<%s> QOS_TLPTX_IF_DOWN: flow 0x%x, drop pkt\n", pAdapter->PortName, qosFlow->FlowId)
                         );
-                        MPWork_ScheduleWorkItem(pAdapter);
+                  		MPMAIN_ScheduleWorkItem(pAdapter);
                         break;
                     }
                     default:
@@ -4025,7 +4025,7 @@ VOID MPQOS_TLPTransmitPackets(PMP_ADAPTER pAdapter)
                             ("<%s> QOS_TLPTX_BUSY: flow 0x%x, drop pkt\n", pAdapter->PortName, qosFlow->FlowId)
                         );
                         MPMAIN_Wait(-(100 * 1000L)); // 10ms
-                        MPWork_ScheduleWorkItem(pAdapter);
+                  		MPMAIN_ScheduleWorkItem(pAdapter);
                         break;
                     }
                     case NDIS_STATUS_INTERFACE_DOWN:
@@ -4036,7 +4036,7 @@ VOID MPQOS_TLPTransmitPackets(PMP_ADAPTER pAdapter)
                             MP_DBG_LEVEL_ERROR,
                             ("<%s> QOS_TLPTX_IF_DOWN: flow 0x%x, drop pkt\n", pAdapter->PortName, qosFlow->FlowId)
                         );
-                        MPWork_ScheduleWorkItem(pAdapter);
+                  		MPMAIN_ScheduleWorkItem(pAdapter);
                         break;
                     }
                     default:

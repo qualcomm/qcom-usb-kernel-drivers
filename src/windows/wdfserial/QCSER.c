@@ -763,6 +763,8 @@ NTSTATUS QCSER_Purge
                     );
                     // Cancel all pending reads
                     WdfIoQueueStopAndPurgeSynchronously(pDevContext->ReadQueue);
+                    KeCancelTimer(&pDevContext->ReadTimer);
+                    QCUTIL_IoQueuePopAndComplete(pDevContext->TimeoutReadQueue, STATUS_CANCELLED, 0);
                     WdfIoQueueStart(pDevContext->ReadQueue);
                 }
                 if (mask & SERIAL_PURGE_RXCLEAR)

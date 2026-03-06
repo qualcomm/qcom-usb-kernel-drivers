@@ -334,7 +334,7 @@ VOID QCMAIN_Wait
     LONGLONG WaitTime
 );
 
-NTSTATUS AllocateUnicodeString
+NTSTATUS QCMAIN_AllocateUnicodeString
 (
     PUNICODE_STRING pusString,
     SIZE_T ulSize,
@@ -400,6 +400,7 @@ WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(REQUEST_CONTEXT, QCReqGetContext)
 #define VEN_DEV_ZLP_ON      L"QCDeviceZLPEnabled"
 #define VEN_DEV_CID         L"QCDeviceCID"
 #define VEN_DEV_SOCVER      L"QCDeviceSOCVER"
+#define VEN_DEV_DESC        L"QCDeviceDescription"
 
 //DBG Macros
 #define VEN_DRV_RESIDENT    L"QCDriverResident"

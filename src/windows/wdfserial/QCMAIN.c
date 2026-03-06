@@ -78,7 +78,7 @@ DriverEntry
     if (NT_SUCCESS(status))
     {
         // Store the service path
-        status = AllocateUnicodeString
+        status = QCMAIN_AllocateUnicodeString
         (
             &gServicePath,
             RegistryPath->Length,
@@ -472,7 +472,7 @@ VOID QCMAIN_Wait
  * returns:  NT Status
  *
  ****************************************************************************/
-NTSTATUS AllocateUnicodeString(PUNICODE_STRING pusString, SIZE_T ulSize, ULONG pucTag)
+NTSTATUS QCMAIN_AllocateUnicodeString(PUNICODE_STRING pusString, SIZE_T ulSize, ULONG pucTag)
 {
     pusString->Buffer = (PWSTR)ExAllocatePoolZero(NonPagedPoolNx, ulSize, pucTag);
     if (pusString->Buffer == NULL)

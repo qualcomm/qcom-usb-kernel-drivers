@@ -305,7 +305,7 @@ NDIS_STATUS MPParam_GetConfigValues
 (
     IN NDIS_HANDLE AdapterHandle,
     IN NDIS_HANDLE WrapperConfigurationContext,
-    PVOID          AdapterContext
+    PMP_ADAPTER    AdapterContext
 )
 {
     NDIS_HANDLE configurationHandle = NULL;

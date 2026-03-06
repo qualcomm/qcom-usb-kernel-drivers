@@ -295,6 +295,25 @@ BOOLEAN QCUTIL_IsIoQueueEmpty
     return (WDF_IO_QUEUE_IDLE(queueStatus)) ? TRUE : FALSE;
 }
 
+
+
+NTSTATUS QCUTIL_IoQueuePopAndComplete
+(
+    WDFQUEUE  ioQueue,
+    NTSTATUS  status,
+    ULONG_PTR info
+)
+{
+    WDFREQUEST request = NULL;
+    NTSTATUS retStatus = WdfIoQueueRetrieveNextRequest(ioQueue, &request);
+
+    if (NT_SUCCESS(retStatus) && request != NULL)
+    {
+        WdfRequestCompleteWithInformation(request, status, info);
+    }
+    return retStatus;
+}
+
 /****************************************************************************
  *
  * function: QCUTIL_InsertTailList
@@ -313,6 +332,7 @@ BOOLEAN QCUTIL_IsIoQueueEmpty
  * returns:  VOID
  *
  ****************************************************************************/
+
 VOID QCUTIL_InsertTailList
 (
     PLIST_ENTRY     head,
