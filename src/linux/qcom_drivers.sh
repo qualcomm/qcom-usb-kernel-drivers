@@ -46,17 +46,17 @@ if [ ! -f "$QCOM_MAKE_DIR/keyctl" ]; then
    echo -e ${RED}"Error: keyutils not found, installing..\n"${RESET}
 fi
 
-# if [[ ! -f "$QCOM_MAKE_DIR/mokutil" ]] || [[ ! -f "$QCOM_MAKE_DIR/keyctl" ]]; then
-#    if [[ $OSName =~ "Red Hat Enterprise Linux" ]]; then
-#       sudo dnf install -y mokutil
-#       sudo dnf install -y keyutils
-#    fi
+if [[ ! -f "$QCOM_MAKE_DIR/mokutil" ]] || [[ ! -f "$QCOM_MAKE_DIR/keyctl" ]]; then
+   if [[ $OSName =~ "Red Hat Enterprise Linux" ]]; then
+      sudo dnf install -y mokutil
+      sudo dnf install -y keyutils
+   fi
 
-#    if [[ $OSName =~ "Ubuntu" ]]; then
-#       sudo apt-get install -y mokutil
-#       sudo apt-get install -y keyutils
-#    fi
-# fi
+   if [[ $OSName =~ "Ubuntu" ]]; then
+      sudo apt-get install -y mokutil
+      sudo apt-get install -y keyutils
+   fi
+fi
 
 if [[ $OSName =~ "Fedora Linux" ]]; then
    sudo dnf install -y make automake gcc gcc-c++ kernel-devel
@@ -123,6 +123,7 @@ else
       else
          echo -e "$DEST_QCOM_USBNET_PATH does not exist, nothing to remove"
       fi
+
       if [ -d $DEST_MODEM_SERIAL_PATH ]; then
          $QCOM_LN_RM_MK_DIR/rm -rf $DEST_MODEM_SERIAL_PATH
          if [ ! -d $DEST_MODEM_SERIAL_PATH ]; then
@@ -132,6 +133,17 @@ else
          fi
       else
          echo -e "$DEST_MODEM_SERIAL_PATH does not exist, nothing to remove"
+      fi
+
+      if [ -d $DEST_QCOM_USBINF_PARSER_PATH ]; then
+         $QCOM_LN_RM_MK_DIR/rm -rf $DEST_QCOM_USBINF_PARSER_PATH
+         if [ ! -d $DEST_QCOM_USBINF_PARSER_PATH ]; then
+            echo -e "Successfully removed $DEST_QCOM_USBINF_PARSER_PATH"
+         else
+            echo -e ${RED}"Failed to remove $DEST_QCOM_USBINF_PARSER_PATH"${RESET}
+         fi
+      else
+         echo -e "$DEST_QCOM_USBINF_PARSER_PATH does not exist, nothing to remove"
       fi
 
       if [ -f $QCOM_UDEV_PATH/qcom-usb-devices.rules ]; then
@@ -289,7 +301,7 @@ else
       #change to permission to default mode
       $QCOM_LN_RM_MK_DIR/chmod 644 $MODULE_BLACKLIST_CONFIG/blacklist.conf
 
-      echo -e "Removing modules for /etc/modules."
+      echo -e "Removed modules for /etc/modules."
       MODUPDATE="`grep -r qtiDevInf /etc/modules`"
       if [ "$MODUPDATE" == "qtiDevInf" ]; then
 	  sed -i '/qtiDevInf/d' /etc/modules
@@ -313,19 +325,23 @@ else
       	fi
       fi
 
-      echo -e "Removing modules from $MODULE_BLACKLIST_PATH"
       if [ -f $MODULE_BLACKLIST_PATH/$QCOM_MODEM_SERIAL_NAME ]; then
+         echo -e "Removed module from $MODULE_BLACKLIST_PATH/$QCOM_MODEM_SERIAL_NAME"
          rm -rf $MODULE_BLACKLIST_PATH/$QCOM_MODEM_SERIAL_NAME
       fi
-      echo -e "Removing modules from $QCOM_USB_KERNEL_PATH"
+
       if [ -f $QCOM_USB_KERNEL_PATH/$QCOM_USB_MODULE_NAME ]; then
+         echo -e "Removed module from $QCOM_USB_KERNEL_PATH/$QCOM_USB_MODULE_NAME"
          rm -rf $QCOM_USB_KERNEL_PATH/$QCOM_USB_MODULE_NAME
       fi
+
       if [ -f $QCOM_USB_KERNEL_PATH/$QCOM_MODULE_INF_NAME ]; then
+         echo -e "Removed module from $QCOM_USB_KERNEL_PATH/$QCOM_MODULE_INF_NAME"
          rm -rf $QCOM_USB_KERNEL_PATH/$QCOM_MODULE_INF_NAME
       fi
-      echo -e "Removing modules from $QCOM_USBNET_AND_QMI_WWAN"
+
       if [ -f $QCOM_USBNET_AND_QMI_WWAN/$QCOM_USBNET_MODULE_NAME ]; then
+         echo -e "Removed module from $QCOM_USBNET_AND_QMI_WWAN/$QCOM_USBNET_MODULE_NAME"
          rm -rf $QCOM_USBNET_AND_QMI_WWAN/$QCOM_USBNET_MODULE_NAME
       fi
 	   # update modules.dep and modules.alias
@@ -349,18 +365,22 @@ fi
 
 ######## Installation ###########
 
-# if [[ $OSName =~ "Ubuntu" ]]; then
-#    sudo apt-get update
-#    sudo apt-get install -y build-essential
-#    sudo apt-get install -y gawk
-#    sudo apt-get install -y python3-tk
-# fi
+if [[ $OSName =~ "Ubuntu" ]]; then
+   sudo apt-get update
+   sudo apt-get install -y build-essential
+   sudo apt-get install -y gawk
+   sudo apt-get install -y python3-tk
+fi
 
-# IFS=. read -r major_ver minor_ver patch_ver <<< "$KERNEL_VERSION"
-# if [[ $OSName =~ "Ubuntu 22." ]] && (( "$major_ver" >= 6 && "$minor_ver" >= 5 )); then
-#    echo -e "Installing gcc 12 version ..."
-#    sudo apt install -y gcc-12 g++-12
-# fi
+IFS=. read -r major_ver minor_ver patch_ver <<< "$KERNEL_VERSION"
+if [[ $OSName =~ "Ubuntu 22." ]] && (( $major_ver >= 6 && $minor_ver >= 5 )); then
+   echo -e "Installing gcc 12 version ..."
+   sudo apt install -y gcc-12 g++-12
+fi
+if [[ $OSName =~ "Ubuntu 24." ]] && (( $major_ver >= 6 && $minor_ver >= 14 )); then
+   echo -e "Installing gcc 14 version ..."
+   sudo apt install -y gcc-14 g++-14
+fi
 
 echo -e "${CYAN}======================================================================================="
 echo -e "=======================================================================================${RESET}"
@@ -382,7 +402,7 @@ echo $DEST_QCOM_USBNET_PATH
 
 # this script will use in qik uninstallation process
 if [ -f "$DEST_QUD_PATH/qcom_drivers.sh" ]; then
-   echo -e "Delete and copy again (qcom_drivers.sh)"${RESET}
+   echo -e "Delete old file and copy again (qcom_drivers.sh)"${RESET}
    $QCOM_LN_RM_MK_DIR/rm -rf $DEST_QUD_PATH/qcom_drivers.sh
    $QCOM_LN_RM_MK_DIR/cp -rf ./qcom_drivers.sh $DEST_QUD_PATH/
 else
@@ -583,20 +603,10 @@ if [ ! -f $DEST_QCOM_USB_PATH/qcom_event.h ]; then
 fi
 
 # All modules makefile
-# $QCOM_LN_RM_MK_DIR/cp ./Makefile $DEST_QCOM_USB_PATH/
-# if [ ! -f $DEST_QCOM_USB_PATH/Makefile ]; then
-#    echo -e "${RED}Error: Failed to copy '$QCOM_USB_DIR/Makefile' to installation path"${RESET}
-#    $QCOM_LN_RM_MK_DIR/rm -rf $DEST_QCOM_USB_PATH
-#    exit 1
-# fi
-
-if [ -d $DEST_INS_RMNET_PATH ]; then
-   $QCOM_LN_RM_MK_DIR/rm -rf $DEST_INS_RMNET_PATH
-fi
-
-$QCOM_LN_RM_MK_DIR/mkdir -p $DEST_INS_RMNET_PATH
-if [  ! -d $DEST_INS_RMNET_PATH  ]; then
-   echo -e "${RED}Error: Failed to create installation path, please run installer under root."${RESET}
+$QCOM_LN_RM_MK_DIR/cp ./Makefile $DEST_QUD_PATH/
+if [ ! -f $DEST_QUD_PATH/Makefile ]; then
+   echo -e "${RED}Error: Failed to copy '$DEST_QUD_PATH/Makefile' to installation path"${RESET}
+   #$QCOM_LN_RM_MK_DIR/rm -rf $DEST_QUD_PATH
    exit 1
 fi
 
@@ -689,47 +699,49 @@ $QCOM_LN_RM_MK_DIR/chmod 644 $DEST_QCOM_USBNET_PATH/qtiwwan.inf
 
 #DEST_SIGN_PATH=/opt/qcom/QUD/sign
 #OLD_DEST_SIGN_PATH=/opt/QTI/sign
-if [[ -d $OLD_DEST_SIGN_PATH ]] && [[ -f $OLD_DEST_SIGN_PATH/Signkey_pub.der ]]; then
-   QCOM_OLD_PUBLIC_KEY_VERIFY=`mokutil --test-key $OLD_DEST_SIGN_PATH/Signkey_pub.der`
-   if [[ $QCOM_OLD_PUBLIC_KEY_VERIFY = "$OLD_DEST_SIGN_PATH/Signkey_pub.der is already enrolled" ]]; then
-      $QCOM_LN_RM_MK_DIR/cp -rf $OLD_DEST_SIGN_PATH/* $DEST_SIGN_PATH/
-      $QCOM_LN_RM_MK_DIR/chmod -R 777 $DEST_SIGN_PATH
-      $QCOM_LN_RM_MK_DIR/chmod 644 $DEST_SIGN_PATH/signReadme.txt
-      $QCOM_LN_RM_MK_DIR/chmod 755 $DEST_SIGN_PATH/Signkey_pub.der
-      $QCOM_LN_RM_MK_DIR/chmod 755 $DEST_SIGN_PATH/Signkey.priv
-   fi
-elif [[ -d $DEST_SIGN_PATH ]]; then
-   QCOM_PUBLIC_KEY_VERIFY=`mokutil --test-key $DEST_SIGN_PATH/Signkey_pub.der`
-   if [[ $QCOM_PUBLIC_KEY_VERIFY = "$DEST_SIGN_PATH/Signkey_pub.der is already enrolled" ]]; then
-      echo -e ${GREEN}"$DEST_SIGN_PATH/Signkey_pub.der is enrolled"${RESET}
-   else
-      echo -e ${RED}"Signkey_pub.der is not enrolled or doesn't exist"${RESET}
-      $QCOM_LN_RM_MK_DIR/cp -rf ./sign/SignConf.config $DEST_SIGN_PATH
-      $QCOM_LN_RM_MK_DIR/chmod 777 $DEST_SIGN_PATH/SignConf.config
-      awk -i inplace -v name=`hostname` '{gsub(/O = /,"O = "name)}1' $DEST_SIGN_PATH/SignConf.config
-      awk -i inplace -v name=`hostname` '{gsub(/CN = /,"CN = "name" Signing Key")}1' $DEST_SIGN_PATH/SignConf.config
-      awk -i inplace -v name=`hostname` '{gsub(/emailAddress = /,"emailAddress = "name"@no-reply.com")}1' $DEST_SIGN_PATH/SignConf.config
-
-      if [ ! -f $DEST_SIGN_PATH/SignConf.config ]; then
-         echo -e ${RED}"Error: Failed to copy SignConf.config installation path"${RESET}
-         $QCOM_LN_RM_MK_DIR/rm -rf $DEST_SIGN_PATH
-         exit 1
+if [[ $QCOM_SECURE_BOOT_CHECK = "SecureBoot enabled" ]]; then
+   if [[ -d $OLD_DEST_SIGN_PATH ]] && [[ -f $OLD_DEST_SIGN_PATH/Signkey_pub.der ]]; then
+      QCOM_OLD_PUBLIC_KEY_VERIFY=`mokutil --test-key $OLD_DEST_SIGN_PATH/Signkey_pub.der`
+      if [[ $QCOM_OLD_PUBLIC_KEY_VERIFY = "$OLD_DEST_SIGN_PATH/Signkey_pub.der is already enrolled" ]]; then
+         $QCOM_LN_RM_MK_DIR/cp -rf $OLD_DEST_SIGN_PATH/* $DEST_SIGN_PATH/
+         $QCOM_LN_RM_MK_DIR/chmod -R 777 $DEST_SIGN_PATH
+         $QCOM_LN_RM_MK_DIR/chmod 644 $DEST_SIGN_PATH/signReadme.txt
+         $QCOM_LN_RM_MK_DIR/chmod 755 $DEST_SIGN_PATH/Signkey_pub.der
+         $QCOM_LN_RM_MK_DIR/chmod 755 $DEST_SIGN_PATH/Signkey.priv
       fi
+   elif [[ -d $DEST_SIGN_PATH ]]; then
+      QCOM_PUBLIC_KEY_VERIFY=`mokutil --test-key $DEST_SIGN_PATH/Signkey_pub.der`
+      if [[ $QCOM_PUBLIC_KEY_VERIFY = "$DEST_SIGN_PATH/Signkey_pub.der is already enrolled" ]]; then
+         echo -e ${GREEN}"$DEST_SIGN_PATH/Signkey_pub.der is enrolled"${RESET}
+      else
+         echo -e ${RED}"Signkey_pub.der is not enrolled or doesn't exist"${RESET}
+         $QCOM_LN_RM_MK_DIR/cp -rf ./sign/SignConf.config $DEST_SIGN_PATH
+         $QCOM_LN_RM_MK_DIR/chmod 777 $DEST_SIGN_PATH/SignConf.config
+         awk -i inplace -v name=`hostname` '{gsub(/O = /,"O = "name)}1' $DEST_SIGN_PATH/SignConf.config
+         awk -i inplace -v name=`hostname` '{gsub(/CN = /,"CN = "name" Signing Key")}1' $DEST_SIGN_PATH/SignConf.config
+         awk -i inplace -v name=`hostname` '{gsub(/emailAddress = /,"emailAddress = "name"@no-reply.com")}1' $DEST_SIGN_PATH/SignConf.config
 
-      $QCOM_LN_RM_MK_DIR/cp -rf ./sign/signReadme.txt $DEST_SIGN_PATH
-      if [ ! -f $DEST_SIGN_PATH/signReadme.txt ]; then
-         echo -e ${RED}"Error: Failed to copy signReadme.txt installation path"${RESET}
-         $QCOM_LN_RM_MK_DIR/rm -rf $DEST_SIGN_PATH
-         exit 1
+         if [ ! -f $DEST_SIGN_PATH/SignConf.config ]; then
+            echo -e ${RED}"Error: Failed to copy SignConf.config installation path"${RESET}
+            $QCOM_LN_RM_MK_DIR/rm -rf $DEST_SIGN_PATH
+            exit 1
+         fi
+
+         $QCOM_LN_RM_MK_DIR/cp -rf ./sign/signReadme.txt $DEST_SIGN_PATH
+         if [ ! -f $DEST_SIGN_PATH/signReadme.txt ]; then
+            echo -e ${RED}"Error: Failed to copy signReadme.txt installation path"${RESET}
+            $QCOM_LN_RM_MK_DIR/rm -rf $DEST_SIGN_PATH
+            exit 1
+         fi
+         $QCOM_LN_RM_MK_DIR/chmod 644 $DEST_SIGN_PATH/signReadme.txt
       fi
-      $QCOM_LN_RM_MK_DIR/chmod 644 $DEST_SIGN_PATH/signReadme.txt
    fi
 fi
 
 if [[ $QCOM_SECURE_BOOT_CHECK = "SecureBoot enabled" ]]; then
    echo -e ${GREEN}"SecureBoot enabled"${RESET}
-   QCOM_PUBLIC_KEY_VERIFY=`mokutil --test-key $DEST_SIGN_PATH/Signkey_pub.der`
    if [ -f $DEST_SIGN_PATH/Signkey_pub.der ]; then
+      QCOM_PUBLIC_KEY_VERIFY=`mokutil --test-key $DEST_SIGN_PATH/Signkey_pub.der`
       if [[ $QCOM_PUBLIC_KEY_VERIFY = "$DEST_SIGN_PATH/Signkey_pub.der is already enrolled" ]]; then
          echo -e ${CYAN}"==========================================================="
          echo -e ${GREEN}"$DEST_SIGN_PATH/Signkey_pub.der is enrolled"
@@ -886,8 +898,8 @@ if [ "`grep -nr 'Qualcomm clients' $MODULE_BLACKLIST_CONFIG/blacklist.conf`" != 
    sed -i '/# Blacklist these module so that Qualcomm clients use only/d' $MODULE_BLACKLIST_CONFIG/blacklist.conf
    sed -i '/# qcom_usbnet, qcom_usb, qtiDevInf driver/d' $MODULE_BLACKLIST_CONFIG/blacklist.conf
 fi
-echo -e "# Blacklist these module so that Qualcomm clients use only" >> $MODULE_BLACKLIST_CONFIG/blacklist.conf
-echo -e "# qcom_usbnet, qcom_usb, qtiDevInf driver" >> $MODULE_BLACKLIST_CONFIG/blacklist.conf
+echo -e "# Blacklist these module so that Qualcomm clients use only" >> /etc/modprobe.d/blacklist.conf
+echo -e "# qcom_usbnet, qcom_usb driver" >> /etc/modprobe.d/blacklist.conf
 
 MOD_EXIST="`grep -nr  'blacklist qcserial' $MODULE_BLACKLIST_CONFIG/blacklist.conf`"
 if [ "$MOD_EXIST" != "" ]; then
@@ -1085,6 +1097,13 @@ $QCOM_MODBIN_DIR/insmod $DEST_QCOM_USBNET_PATH/$QCOM_USBNET_MODULE_NAME debug_g=
 MODLOADED="`/sbin/lsmod | grep -w qcom_usbnet`"
 if [ "$MODLOADED" == "" ]; then
    echo -e ${RED}"Failed to load new $QCOM_USBNET_MODULE_NAME module"${RESET}
+   exit 1
+fi
+
+$QCOM_LN_RM_MK_DIR/rm -rf $QCOM_USB_KERNEL_PATH/$QCOM_MODULE_INF_NAME
+$QCOM_LN_RM_MK_DIR/cp -rf $DEST_QCOM_USBINF_PARSER_PATH/$QCOM_MODULE_INF_NAME $QCOM_USB_KERNEL_PATH
+if [ ! -f $QCOM_USB_KERNEL_PATH/$QCOM_MODULE_INF_NAME ]; then
+   echo -e ${RED}"Error: Failed to copy $QCOM_MODULE_INF_NAME to $QCOM_USB_KERNEL_PATH path."${RESET}
    exit 1
 fi
 

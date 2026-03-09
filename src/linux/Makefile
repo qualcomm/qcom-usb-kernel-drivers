@@ -1,3 +1,12 @@
+ifeq ($(origin CC),undefined)
+  CC := gcc
+  $(info QUD: CC was no set, defaulting to gcc)
+endif
+ifneq (, $(findstring ++, $(CC)))
+  $(warning QUD warning: CC ($(CC)) appears to be a C++ compiler, Forcing to gcc because kernel modules must be compiled as C.)
+  CC := gcc
+endif
+export CC
 obj-y := InfParser/ qcom_usb/ qcom_usbnet/ qcom_serial/
 PWD := $(shell pwd)
 KDIR := /lib/modules/$(shell uname -r)/build

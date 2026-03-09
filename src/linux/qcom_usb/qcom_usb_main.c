@@ -1714,7 +1714,11 @@ static ssize_t UserspaceQTIDevWrite(struct file *file, const char *user_buffer,
     {
         // timeout, cancel what's on the anchor
         QC_LOG_WARN(pDev, "QTI TX timeout: planned size %lu TxCount %ld\n", dataLen, pDev->mStats.TxCount);
+#if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))
+        usb_unpoison_anchored_urbs(txAnchor);
+#else
         usb_unlink_anchored_urbs(txAnchor);
+#endif
     }
 
     down(&writeSem); // make it non-interruptible
@@ -1917,10 +1921,11 @@ static void aio_submit_read_worker(struct work_struct *work)
         ret = aioDataCtx->mDataLen;
     }
 
-    #if (LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0))
-        aioDataCtx->kiocb->ki_complete(aioDataCtx->kiocb, ret, 0);
-    #else
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
+        (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))
         aioDataCtx->kiocb->ki_complete(aioDataCtx->kiocb, ret);
+    #else
+        aioDataCtx->kiocb->ki_complete(aioDataCtx->kiocb, ret, 0);
     #endif
     
     spin_unlock_irqrestore(&aioDataCtx->pDev->mBulkMemList.mReadMemLock, flags);
@@ -1984,10 +1989,11 @@ static void *io_async_complete(struct kiocb *kiocb, void *userData)
             if (!io_data->buf) {
                 QC_LOG_ERR(pDev," Failed to allocate memory\n");
                 io_data->mActualLen = 0;
-            #if (LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0))
-                kiocb->ki_complete(kiocb, 0, -ENOMEM);
-            #else
+            #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,16,0)) || \
+                (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))
                 kiocb->ki_complete(kiocb, -ENOMEM);
+            #else
+                kiocb->ki_complete(kiocb, 0, -ENOMEM);
             #endif
                 return NULL;
             }
@@ -1999,10 +2005,11 @@ static void *io_async_complete(struct kiocb *kiocb, void *userData)
         }
     }
     else {
-    #if (LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0))
-        kiocb->ki_complete(kiocb, 0, -ETIMEDOUT);
-    #else
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,16,0)) || \
+        (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))
         kiocb->ki_complete(kiocb, -ETIMEDOUT);
+    #else
+        kiocb->ki_complete(kiocb, 0, -ETIMEDOUT);
     #endif
         return NULL;
     }
@@ -2432,17 +2439,19 @@ static void aio_submit_worker(struct work_struct *work)
             submit_work);
 
 	if(aioDataCtx->mActualLen) {
-    #if (LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0))
-	    aioDataCtx->kiocb->ki_complete(aioDataCtx->kiocb, aioDataCtx->mActualLen, 0);
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,16,0)) || \
+        (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))
+	    aioDataCtx->kiocb->ki_complete(aioDataCtx->kiocb, aioDataCtx->mActualLen);
     #else
-        aioDataCtx->kiocb->ki_complete(aioDataCtx->kiocb, aioDataCtx->mActualLen);
+        aioDataCtx->kiocb->ki_complete(aioDataCtx->kiocb, aioDataCtx->mActualLen, 0);
     #endif
     }
 	else {
-    #if (LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0))
-	    aioDataCtx->kiocb->ki_complete(aioDataCtx->kiocb, aioDataCtx->mActualLen, aioDataCtx->mDataLen);
-    #else
+    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5,16,0)) || \
+	    (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))
         aioDataCtx->kiocb->ki_complete(aioDataCtx->kiocb, aioDataCtx->mDataLen);
+    #else
+	aioDataCtx->kiocb->ki_complete(aioDataCtx->kiocb, aioDataCtx->mActualLen, aioDataCtx->mDataLen);
     #endif
     }
 
@@ -4028,10 +4037,11 @@ static int QTIDevUSBModInit(void)
     }
 #endif
 
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(6,3,13))
-    gpDiagClass = class_create(THIS_MODULE, QTIDEV_PORT_CLASS_NAME);
-#else
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)) || \
+    (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 3))
     gpDiagClass = class_create(QTIDEV_PORT_CLASS_NAME);
+#else
+    gpDiagClass = class_create(THIS_MODULE, QTIDEV_PORT_CLASS_NAME);
 #endif
     if (IS_ERR(gpDiagClass) == true)
     {
@@ -4043,10 +4053,11 @@ static int QTIDevUSBModInit(void)
         return -ENOMEM;
     }
 
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION(6,3,13))
-    gpQdssClass = class_create(THIS_MODULE, QTIDEV_USB_CLASS_NAME);
-#else
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)) || \
+    (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 3))
     gpQdssClass = class_create(QTIDEV_USB_CLASS_NAME);
+#else
+    gpQdssClass = class_create(THIS_MODULE, QTIDEV_USB_CLASS_NAME);
 #endif
     if (IS_ERR(gpQdssClass) == true)
     {

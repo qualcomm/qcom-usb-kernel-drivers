@@ -3093,10 +3093,11 @@ void WriteAsyncCallback( struct urb * pWriteURB )
         kfree(pWriteURB->transfer_buffer);
         usb_free_urb( pWriteURB );
 
-      #if (LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0))
-         pAioDataCtx->kiocb->ki_complete(pAioDataCtx->kiocb, 0, -EINVAL);
+      #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
+          (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))
+          pAioDataCtx->kiocb->ki_complete(pAioDataCtx->kiocb, -EINVAL);
       #else
-         pAioDataCtx->kiocb->ki_complete(pAioDataCtx->kiocb, -EINVAL);
+          pAioDataCtx->kiocb->ki_complete(pAioDataCtx->kiocb, 0, -EINVAL);
       #endif
 
         return; 
@@ -3110,20 +3111,22 @@ void WriteAsyncCallback( struct urb * pWriteURB )
         // Add URB back in URBlist
         if (pWriteURB != NULL)
             AddToURBList( pDev, pFilpData->mClientID, pWriteURB, pFilpData->QMIDev );
-      #if (LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0))
-         pAioDataCtx->kiocb->ki_complete(pAioDataCtx->kiocb, 0, -EINVAL);
-      #else
+      #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
+          (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))
          pAioDataCtx->kiocb->ki_complete(pAioDataCtx->kiocb, 0);
+      #else
+         pAioDataCtx->kiocb->ki_complete(pAioDataCtx->kiocb, 0, -EINVAL);
       #endif
 
         return;
     }
 
    QC_LOG_DBG(GET_QMIDEV_QMIFILP(pFilpData), "Actual Write:\n" );
-   #if (LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0))
-      pAioDataCtx->kiocb->ki_complete(pAioDataCtx->kiocb, (pWriteURB->actual_length - QMUXHeaderSize()), pWriteURB->status);
-   #else
+   #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
+       (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))
       pAioDataCtx->kiocb->ki_complete(pAioDataCtx->kiocb, (pWriteURB->actual_length - QMUXHeaderSize()));
+   #else
+      pAioDataCtx->kiocb->ki_complete(pAioDataCtx->kiocb, (pWriteURB->actual_length - QMUXHeaderSize()), pWriteURB->status);
    #endif
 
     kfree(pWriteURB->transfer_buffer);
@@ -3143,10 +3146,11 @@ static void aio_cancel_worker(struct work_struct *work)
 
     usb_kill_urb(io_data->urb);
 
-   #if (LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0))
-      io_data->kiocb->ki_complete(io_data->kiocb, -1, -ETIMEDOUT);
+   #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
+       (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))
+       io_data->kiocb->ki_complete(io_data->kiocb, -1);
    #else
-      io_data->kiocb->ki_complete(io_data->kiocb, -1);
+       io_data->kiocb->ki_complete(io_data->kiocb, -1, -ETIMEDOUT);
    #endif
 
     return;
@@ -3462,10 +3466,11 @@ static void aio_read_copy_worker(struct work_struct *work)
         status = 0;
     }
 
-   #if (LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0))
-      kiocb->ki_complete(kiocb, ret, status); //Status = 0, in case of success
+   #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
+       (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))
+       kiocb->ki_complete(kiocb, ret); // ret: number of bytes not copied
    #else
-      kiocb->ki_complete(kiocb, ret); // ret: number of bytes not copied
+       kiocb->ki_complete(kiocb, ret, status); //Status = 0, in case of success
    #endif
 
     kfree(aioDataCtx);
@@ -3608,10 +3613,11 @@ static void aio_read_cancel_worker(struct work_struct *work)
     }
     spin_unlock_irqrestore( &QMIDev->mClientMemLock, flags );
 
-   #if (LINUX_VERSION_CODE < KERNEL_VERSION(5,16,0))
-      kiocb->ki_complete(kiocb, 0, -ETIMEDOUT);
+   #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
+       (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))
+       kiocb->ki_complete(kiocb, 0);
    #else
-      kiocb->ki_complete(kiocb, 0);
+       kiocb->ki_complete(kiocb, 0, -ETIMEDOUT);
    #endif
 
     QC_LOG_DBG(GET_QMIDEV_QMIFILP(pFilpData), "Done\n");
