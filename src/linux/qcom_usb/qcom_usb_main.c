@@ -1714,7 +1714,8 @@ static ssize_t UserspaceQTIDevWrite(struct file *file, const char *user_buffer,
     {
         // timeout, cancel what's on the anchor
         QC_LOG_WARN(pDev, "QTI TX timeout: planned size %lu TxCount %ld\n", dataLen, pDev->mStats.TxCount);
-#if (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)) || \
+    (RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9, 1))
         usb_unpoison_anchored_urbs(txAnchor);
 #else
         usb_unlink_anchored_urbs(txAnchor);
