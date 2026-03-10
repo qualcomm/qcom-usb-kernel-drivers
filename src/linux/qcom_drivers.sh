@@ -898,8 +898,8 @@ if [ "`grep -nr 'Qualcomm clients' $MODULE_BLACKLIST_CONFIG/blacklist.conf`" != 
    sed -i '/# Blacklist these module so that Qualcomm clients use only/d' $MODULE_BLACKLIST_CONFIG/blacklist.conf
    sed -i '/# qcom_usbnet, qcom_usb, qtiDevInf driver/d' $MODULE_BLACKLIST_CONFIG/blacklist.conf
 fi
-echo -e "# Blacklist these module so that Qualcomm clients use only" >> /etc/modprobe.d/blacklist.conf
-echo -e "# qcom_usbnet, qcom_usb driver" >> /etc/modprobe.d/blacklist.conf
+echo -e "# Blacklist these module so that Qualcomm clients use only" >> $MODULE_BLACKLIST_CONFIG/blacklist.conf
+echo -e "# qcom_usbnet, qcom_usb driver" >> $MODULE_BLACKLIST_CONFIG/blacklist.conf
 
 MOD_EXIST="`grep -nr  'blacklist qcserial' $MODULE_BLACKLIST_CONFIG/blacklist.conf`"
 if [ "$MOD_EXIST" != "" ]; then
