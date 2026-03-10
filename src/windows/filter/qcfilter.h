@@ -448,18 +448,9 @@ NTSTATUS getRegDwValueEntryData
     OUT PULONG pValueEntryData
 );
 
-NTSTATUS getRegSzValueEntryData
-(
-    IN HANDLE OpenRegKey,
-    IN PWSTR ValueEntryName,
-    OUT PCHAR pValueEntryData
-);
-
 NTSTATUS QCFLT_GetValueEntry( HANDLE hKey, PWSTR FieldName, PKEY_VALUE_FULL_INFORMATION  *pKeyValInfo );
 
 ULONG QCFLT_GetDwordField( PKEY_VALUE_FULL_INFORMATION pKvi );
-
-VOID QCFLT_GetSzField(PKEY_VALUE_FULL_INFORMATION pKvi, PCHAR ValueEntryDataSz);
 
 BOOLEAN USBPNP_ValidateConfigDescriptor
 (

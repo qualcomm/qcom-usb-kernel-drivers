@@ -3007,45 +3007,6 @@ getRegDwValueEntryData_Return:
     return ntStatus;
 }
 
-/******************************************************************************************
-* Function Name: getRegSzValueEntryData
-* Arguments:
-*
-*  IN HANDLE OpenRegKey,
-*  IN PWSTR ValueEntryName,
-*  OUT PULONG pValueEntryData
-*
-*******************************************************************************************/
-NTSTATUS getRegSzValueEntryData
-(
-    IN HANDLE OpenRegKey,
-    IN PWSTR ValueEntryName,
-    OUT PCHAR pValueEntryData
-)
-{
-    NTSTATUS ntStatus = STATUS_SUCCESS;
-    PKEY_VALUE_FULL_INFORMATION pKeyValueInfo = NULL;
-
-   ntStatus = QCFLT_GetValueEntry( OpenRegKey, ValueEntryName, &pKeyValueInfo );
-
-    if (!NT_SUCCESS(ntStatus))
-    {
-        goto getRegSzValueEntryData_Return;
-    }
-
-   QCFLT_GetSzField( pKeyValueInfo, pValueEntryData);
-
-getRegSzValueEntryData_Return:
-
-    if (pKeyValueInfo)
-    {
-        _ExFreePool(pKeyValueInfo);
-        pKeyValueInfo = NULL;
-    }
-
-    return ntStatus;
-}
-
 /************************************************************************
 Routine Description:
    Return a KEY_VALUE information from an open registry node
@@ -3142,28 +3103,6 @@ ULONG QCFLT_GetDwordField( PKEY_VALUE_FULL_INFORMATION pKvi )
     pVal = (PULONG)((PCHAR)pKvi + pKvi->DataOffset);
     dwVal = *pVal;
     return dwVal;
-}
-
-/************************************************************************
-Routine Description:
-   Return a Sz value from an open registry node
-
-Arguments:
-   pKvi -- node key information
-
-Returns:
-   Sz value of the value entry
-
-************************************************************************/
-VOID QCFLT_GetSzField( PKEY_VALUE_FULL_INFORMATION pKvi, PCHAR ValueEntryDataSz  )
-{
-    UNICODE_STRING unicodeStr;
-    ANSI_STRING    ansiStr;
-    PWSTR strPtr = (PWSTR)((PCHAR)pKvi + pKvi->DataOffset);
-    RtlInitUnicodeString(&unicodeStr, strPtr);
-    RtlUnicodeStringToAnsiString(&ansiStr, &unicodeStr, TRUE);
-    strcpy(ValueEntryDataSz, ansiStr.Buffer);
-    RtlFreeAnsiString(&ansiStr);
 }
 
 /************************************************************************
