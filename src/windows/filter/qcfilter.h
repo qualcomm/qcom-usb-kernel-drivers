@@ -173,7 +173,7 @@ typedef enum _QC_DEVICE_PNP_STATE
            } \
         }
 
-#define _ExAllocatePool(a,b,c) ExAllocatePool(a,b)
+#define _ExAllocatePool(a,b,c) ExAllocatePoolZero(a,b,c)
 #define _ExFreePool(_a) { ExFreePool(_a); _a=NULL; }
 
 #define _freeBuf(_a) \
