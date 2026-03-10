@@ -38,7 +38,13 @@
 #endif
 
 #ifndef RHEL_RELEASE_VERSION
-#define RHEL_RELEASE_VERSION(x,y) 0
+/* For non-RHEL systems, RHEL_RELEASE_VERSION should produce a non-zero
+ * value so that comparsion RHEL_RELEASE_CODE (0) >= RHEL_RELEASE_VERSION(x,y)
+ * is always FALSE.
+ * For example:
+ * RHEL_RELEASE_VERSION(9,1) = (9<<8)|1 = 2305
+ * so  0 >= 2305  evaluates to FALSE on Ubuntu/Debian/etc. */
+#define RHEL_RELEASE_VERSION(x,y) (((x) << 8) | (y))
 #endif
 
 #define MAX_MUX_DEVICES 3
