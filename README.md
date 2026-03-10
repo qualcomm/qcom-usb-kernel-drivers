@@ -66,7 +66,7 @@ make
 - Installation
 
   Right click the `.inf` file in output folder and select **Install**.
-  Or install via `pnputil`:
+  Or install via command line `pnputil`:
 ```bash
 pnputil /add-driver <build_path/driver_name.inf> /install
 ```
