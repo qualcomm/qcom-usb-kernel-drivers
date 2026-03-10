@@ -32,7 +32,7 @@ NTSTATUS MPIP_StartWdsIpClient(PMP_ADAPTER pAdapter)
     NTSTATUS          ntStatus;
     OBJECT_ATTRIBUTES objAttr;
 
-    if (QCMAIN_IsDualIPSupported(pAdapter) == FALSE)
+    if (MPMAIN_IsDualIPSupported(pAdapter) == FALSE)
     {
         QCNET_DbgPrint
         (
@@ -331,7 +331,7 @@ VOID MPIP_WdsIpThread(PVOID Context)
     MPQMUX_SetQMUXBindMuxDataPort(pAdapter, pIocDev, QMUX_TYPE_WDS, QMIWDS_BIND_MUX_DATA_PORT_REQ);
 
     // set IPV6
-    if ((QCMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL))
+    if ((MPMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL))
     {
         MPQMUX_ComposeQMUXReq(pAdapter, NULL, QMUX_TYPE_WDS,
                               QMIWDS_SET_CLIENT_IP_FAMILY_PREF_REQ, (CUSTOMQMUX)MPQMUX_SetIPv6ClientIPFamilyPref, TRUE);
@@ -775,7 +775,7 @@ VOID ProcessWdsPktSrvcStatusInd(PMPIOC_DEV_INFO IocDevice, PQMUX_MSG Message)
             ContextState.ContextState.ConnectionId = pAdapter->WWanServiceConnectHandle;
             ContextState.ContextState.ActivationState = WwanActivationStateDeactivated;
 
-            MyNdisMIndicateStatus
+			MPMAIN_NdisMIndicateStatus
             (
                 pAdapter->AdapterHandle,
                 NDIS_STATUS_WWAN_CONTEXT_STATE,

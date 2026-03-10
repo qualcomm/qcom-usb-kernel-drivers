@@ -406,13 +406,13 @@ QCFilterCreateControlObject(PDEVICE_OBJECT DeviceObject, PFILTER_DEVICE_INFO pFi
 NTSTATUS
 QCFilterDeleteControlObject(PDEVICE_OBJECT DeviceObject, PFILTER_DEVICE_INFO pFilterDeviceInfo);
 
-NTSTATUS QCFilter_StartFilterThread(PDEVICE_OBJECT devObj);
+NTSTATUS QCFLT_StartFilterThread(PDEVICE_OBJECT devObj);
 
 VOID QCFilter_CancelFilterThread(PDEVICE_OBJECT pDevObj);
 
 VOID QCFLT_Wait(PDEVICE_EXTENSION pDevExt, LONGLONG WaitTime);
 
-NTSTATUS QCFilter_InitializeDeviceExt(PDEVICE_OBJECT deviceObject);
+NTSTATUS QCFLT_InitializeDeviceExt( PDEVICE_OBJECT deviceObject );
 
 BOOLEAN QCFLT_IsIrpInQueue
 (
@@ -455,11 +455,11 @@ NTSTATUS getRegSzValueEntryData
     OUT PCHAR pValueEntryData
 );
 
-NTSTATUS GetValueEntry(HANDLE hKey, PWSTR FieldName, PKEY_VALUE_FULL_INFORMATION *pKeyValInfo);
+NTSTATUS QCFLT_GetValueEntry( HANDLE hKey, PWSTR FieldName, PKEY_VALUE_FULL_INFORMATION  *pKeyValInfo );
 
-ULONG GetDwordField(PKEY_VALUE_FULL_INFORMATION pKvi);
+ULONG QCFLT_GetDwordField( PKEY_VALUE_FULL_INFORMATION pKvi );
 
-VOID GetSzField(PKEY_VALUE_FULL_INFORMATION pKvi, PCHAR ValueEntryDataSz);
+VOID QCFLT_GetSzField(PKEY_VALUE_FULL_INFORMATION pKvi, PCHAR ValueEntryDataSz);
 
 BOOLEAN USBPNP_ValidateConfigDescriptor
 (

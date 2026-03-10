@@ -41,7 +41,7 @@ EVT_WDF_REQUEST_COMPLETION_ROUTINE    QCINT_InterruptPipeCompletion;
 
 #pragma pack(pop)
 
-NTSTATUS StopInterruptService
+NTSTATUS QCINT_StopInterruptService
 (
     PDEVICE_CONTEXT pDevContext,
     BOOLEAN           bWait

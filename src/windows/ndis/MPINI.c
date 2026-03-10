@@ -428,7 +428,7 @@ NDIS_STATUS MPINI_MiniportInitialize
 
             // KeClearEvent(&pAdapter->ControlReadPostedEvent);
 
-            MPWork_ScheduleWorkItem(pAdapter);
+			MPMAIN_ScheduleWorkItem( pAdapter );
 
 #ifdef QCMP_DISABLE_QMI
             if (pAdapter->DisableQMI == 0)
@@ -886,7 +886,7 @@ NDIS_STATUS MPINI_MiniportInitializeEx
                 LinkState.PauseFunctions = NdisPauseFunctionsUnknown;
                 LinkState.XmitLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
                 LinkState.RcvLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
-                MyNdisMIndicateStatus
+				MPMAIN_NdisMIndicateStatus
                 (
                     pAdapter->AdapterHandle,
                     NDIS_STATUS_LINK_STATE,
@@ -896,7 +896,7 @@ NDIS_STATUS MPINI_MiniportInitializeEx
             }
 #else
 
-            MyNdisMIndicateStatus
+         	MPMAIN_NdisMIndicateStatus
             (
                 pAdapter->AdapterHandle,
                 NDIS_STATUS_MEDIA_DISCONNECT,
@@ -908,7 +908,7 @@ NDIS_STATUS MPINI_MiniportInitializeEx
 
             KeClearEvent(&pAdapter->ControlReadPostedEvent);
 
-            MPWork_ScheduleWorkItem(pAdapter);
+         	MPMAIN_ScheduleWorkItem( pAdapter );
 
 #ifdef QCMP_DISABLE_QMI
             if (pAdapter->DisableQMI == 0)
@@ -1121,14 +1121,14 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
     NdisInitializeTimer
     (
         &Adapter->ResetTimer,
-        (PNDIS_TIMER_FUNCTION)ResetCompleteTimerDpc,
+        (PNDIS_TIMER_FUNCTION)MPMAIN_ResetCompleteTimerDpc,
         (PVOID)Adapter
     );
 
     NdisInitializeTimer
     (
         &Adapter->ReconfigTimer,
-        (PNDIS_TIMER_FUNCTION)ReconfigTimerDpc,
+        (PNDIS_TIMER_FUNCTION)MPMAIN_ReconfigTimerDpc,
         (PVOID)Adapter
     );
     Adapter->ReconfigTimerState = RECONF_TIMER_IDLE;
@@ -1136,7 +1136,7 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
     NdisInitializeTimer
     (
         &Adapter->ReconfigTimerIPv6,
-        (PNDIS_TIMER_FUNCTION)ReconfigTimerDpcIPv6,
+        (PNDIS_TIMER_FUNCTION)MPMAIN_ReconfigTimerDpcIPv6,
         (PVOID)Adapter
     );
     Adapter->ReconfigTimerStateIPv6 = RECONF_TIMER_IDLE;
@@ -1145,28 +1145,28 @@ NDIS_STATUS MPINI_AllocAdapter(PMP_ADAPTER *pAdapter)
     NdisInitializeTimer
     (
         &Adapter->SignalStateTimer,
-        (PNDIS_TIMER_FUNCTION)SignalStateTimerDpc,
+        (PNDIS_TIMER_FUNCTION)MPMAIN_SignalStateTimerDpc,
         (PVOID)Adapter
     );
 
     NdisInitializeTimer
     (
         &Adapter->MsisdnTimer,
-        (PNDIS_TIMER_FUNCTION)MsisdnTimerDpc,
+        (PNDIS_TIMER_FUNCTION)MPMAIN_MsisdnTimerDpc,
         (PVOID)Adapter
     );
 
     NdisInitializeTimer
     (
         &Adapter->RegisterPacketTimer,
-        (PNDIS_TIMER_FUNCTION)RegisterPacketTimerDpc,
+        (PNDIS_TIMER_FUNCTION)MPMAIN_RegisterPacketTimerDpc,
         (PVOID)Adapter
     );
 
     NdisInitializeTimer
     (
         &Adapter->SignalStateDisconnectTimer,
-        (PNDIS_TIMER_FUNCTION)SignalStateDisconnectTimerDpc,
+        (PNDIS_TIMER_FUNCTION)MPMAIN_SignalStateDisconnectTimerDpc,
         (PVOID)Adapter
     );
 

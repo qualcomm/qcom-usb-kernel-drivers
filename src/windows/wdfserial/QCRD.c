@@ -138,14 +138,8 @@ void QCRD_ReadRequestHandlerThread
     BOOLEAN          bDeviceOpened = FALSE;
     BOOLEAN          bDeviceAwaken = FALSE;
     BOOLEAN          bBufferOverflow = FALSE;
-
-#ifdef QCUSB_MUX_PROTOCOL
-    size_t           readOffset = 0;
-    size_t           tempSessionTotal = 0;
-#endif
-
-    PLIST_ENTRY head;
-    PLIST_ENTRY peek;
+    PLIST_ENTRY      head;
+    PLIST_ENTRY      peek;
     PREAD_BUFFER_PARAM pBufferParam;        // for read urbs
     WDF_REQUEST_PARAMETERS requestParam;    // for application requests
     PRING_BUFFER rxBuffer = &pDevContext->ReadRingBuffer;
@@ -286,18 +280,19 @@ void QCRD_ReadRequestHandlerThread
                         (
                             QCSER_DBG_MASK_READ,
                             QCSER_DBG_LEVEL_TRACE,
-                            ("<%ws> RIRP: QCRD_ReadRequestHandlerThread clean up outdated urbs\n", pDevContext->PortName)
+                            ("<%ws> RIRP: QCRD_ReadRequestHandlerThread LPC/VI clean up outdated urbs\n", pDevContext->PortName)
                         );
                         QCRD_CleanupReadQueues(pDevContext);
                         WdfRequestCompleteWithInformation(pDevContext->PendingReadRequest, STATUS_CANCELLED, 0);
+                        pDevContext->PendingReadRequest = NULL;
                     }
-                    status = WdfIoQueueRetrieveNextRequest(pDevContext->ReadQueue, &request);
-                    if (NT_SUCCESS(status) && request != NULL)
+                    pDevContext->QcStats.SessionTotal = 0;
+                    status = WdfIoQueueRetrieveNextRequest(pDevContext->ReadQueue, &pDevContext->PendingReadRequest);
+                    if (NT_SUCCESS(status) && pDevContext->PendingReadRequest != NULL)
                     {
                         // set sessionTotal and save pending request
-                        pDevContext->PendingReadRequest = request;
                         WDF_REQUEST_PARAMETERS_INIT(&requestParam);
-                        WdfRequestGetParameters(request, &requestParam);
+                        WdfRequestGetParameters(pDevContext->PendingReadRequest, &requestParam);
                         pDevContext->QcStats.SessionTotal = requestParam.Parameters.Read.Length;
                         QCSER_DbgPrint
                         (
@@ -310,132 +305,108 @@ void QCRD_ReadRequestHandlerThread
                 }
 
                 // create and send read urbs
-                readOffset = 0;
-                tempSessionTotal = (size_t)pDevContext->QcStats.SessionTotal;
-                WDFREQUEST outRequest = NULL;
-                ULONGLONG readBufferSize = 0, errorCount = 0;
+                size_t sessionTotal = (size_t)pDevContext->QcStats.SessionTotal;
+                ULONGLONG readBufferSize = 0;
                 ULONG index = 0;
-                while (tempSessionTotal > 0)
+                while (sessionTotal > 0)
                 {
-                    if (tempSessionTotal >= pDevContext->UrbReadBufferSize)
+                    if (sessionTotal >= pDevContext->UrbReadBufferSize)
                     {
                         readBufferSize = pDevContext->UrbReadBufferSize;
                     }
                     else
                     {
-                        readBufferSize = tempSessionTotal;
+                        readBufferSize = sessionTotal;
                     }
-                    tempSessionTotal -= (size_t)readBufferSize;
+                    sessionTotal -= (size_t)readBufferSize;
 
                     QCSER_DbgPrint
                     (
                         QCSER_DBG_MASK_READ,
                         QCSER_DBG_LEVEL_TRACE,
-                        ("<%ws> RIRP: QCRD_ReadRequestHandlerThread sending read urb index: [%lu]\n", pDevContext->PortName, index)
+                        ("<%ws> RIRP: QCRD_ReadRequestHandlerThread LPC/VI sending read urb index: [%lu], size: %llu\n", pDevContext->PortName, index, readBufferSize)
                     );
 
-                    QCSER_DbgPrint
-                    (
-                        QCSER_DBG_MASK_READ,
-                        QCSER_DBG_LEVEL_TRACE,
-                        ("<%ws> RIRP: QCRD_ReadRequestHandlerThread per read buffer size: %llu, temp session total: %llu\n",
-                        pDevContext->PortName, readBufferSize, tempSessionTotal)
-                    );
-
+                    WDFREQUEST outRequest = NULL;
                     // create urb
-                    errorCount = 0;
-                    while (!NT_SUCCESS(status = QCRD_CreateReadUrb(pDevContext, (size_t)readBufferSize, '4gaT', &outRequest)))
+                    if (!NT_SUCCESS(status = QCRD_CreateReadUrb(pDevContext, (size_t)readBufferSize, '4gaT', &outRequest)))
                     {
-                        errorCount++;
-                        if (errorCount > gVendorConfig.UrbReadErrorMaxLimit)
-                        {
-                            QCSER_DbgPrint
-                            (
-                                QCSER_DBG_MASK_READ,
-                                QCSER_DBG_LEVEL_CRITICAL,
-                                ("<%ws> RIRP: QCRD_ReadRequestHandlerThread READ_THREAD_SESSION_TOTAL_SET_EVENT urb create fatal error\n", pDevContext->PortName)
-                            );
-                            QCRD_CleanupReadQueues(pDevContext);
-                            goto exit;
-                        }
-                        QCMAIN_Wait(pDevContext, -(1 * 10 * 1000)); // 1ms
-                    }
-
-                    // init urb
-                    pReqContext = QCReqGetContext(outRequest);
-                    errorCount = 0;
-                    while (!NT_SUCCESS(status = QCRD_ResetReadUrb(pDevContext, outRequest)))
-                    {
-                        errorCount++;
-                        if (errorCount > gVendorConfig.UrbReadErrorMaxLimit)
-                        {
-                            QCSER_DbgPrint
-                            (
-                                QCSER_DBG_MASK_READ,
-                                QCSER_DBG_LEVEL_CRITICAL,
-                                ("<%ws> RIRP: QCRD_ReadRequestHandlerThread READ_THREAD_SESSION_TOTAL_SET_EVENT urb init FATAL ERROR status: 0x%x\n",
-                                pDevContext->PortName, status)
-                            );
-                            InsertHeadList(&pDevContext->UrbReadFreeList, &pReqContext->Link);
-                            pDevContext->UrbReadFreeListLength++;
-                            QCRD_CleanupReadQueues(pDevContext);
-                            goto exit;
-                        }
-                        QCMAIN_Wait(pDevContext, -(1 * 10 * 1000)); // 1ms
-                    }
-
-                    // send urb
-                    errorCount = 0;
-                    WdfSpinLockAcquire(pDevContext->UrbReadListLock);
-                    InsertTailList(&pDevContext->UrbReadPendingList, &pReqContext->Link);
-                    pDevContext->UrbReadPendingListLength++;
-                    WdfSpinLockRelease(pDevContext->UrbReadListLock);
-                    while (!WdfRequestSend(outRequest, ioTarget, WDF_NO_SEND_OPTIONS))
-                    {
-                        status = WdfRequestGetStatus(outRequest);
                         QCSER_DbgPrint
                         (
                             QCSER_DBG_MASK_READ,
                             QCSER_DBG_LEVEL_ERROR,
-                            ("<%ws> RIRP: QCRD_ReadRequestHandlerThread READ_THREAD_SESSION_TOTAL_SET_EVENT read urb resend FAILED request: 0x%p, status: 0x%x\n",
-                            pDevContext->PortName, outRequest, status)
+                            ("<%ws> RIRP: QCRD_ReadRequestHandlerThread LPC/VI urb create FAILED status: 0x%x\n", pDevContext->PortName, status)
                         );
-                        WdfSpinLockAcquire(pDevContext->UrbReadListLock);
-                        RemoveEntryList(&pReqContext->Link);
-                        pDevContext->UrbReadPendingListLength--;
-                        WdfSpinLockRelease(pDevContext->UrbReadListLock);
+                    }
 
-                        errorCount++;
-                        if (errorCount > gVendorConfig.UrbReadErrorMaxLimit)
+                    // init urb
+                    if (NT_SUCCESS(status))
+                    {
+                        if (!NT_SUCCESS(status = QCRD_ResetReadUrb(pDevContext, outRequest)))
                         {
-                            status = WdfRequestGetStatus(outRequest);
                             QCSER_DbgPrint
                             (
                                 QCSER_DBG_MASK_READ,
                                 QCSER_DBG_LEVEL_ERROR,
-                                ("<%ws> RIRP: QCRD_ReadRequestHandlerThread READ_THREAD_SESSION_TOTAL_SET_EVENT urb send FATAL ERROR status: 0x%x\n",
-                                pDevContext->PortName, status)
+                                ("<%ws> RIRP: QCRD_ReadRequestHandlerThread LPC/VI urb init FAILED status: 0x%x\n", pDevContext->PortName, status)
                             );
-                            InsertHeadList(&pDevContext->UrbReadFreeList, &pReqContext->Link);
-                            pDevContext->UrbReadFreeListLength++;
-                            QCRD_CleanupReadQueues(pDevContext);
-                            goto exit;
                         }
-                        QCMAIN_Wait(pDevContext, -(1 * 10 * 1000)); // 1ms
-                        WdfSpinLockAcquire(pDevContext->UrbReadListLock);
-                        InsertTailList(&pDevContext->UrbReadPendingList, &pReqContext->Link);
-                        pDevContext->UrbReadPendingListLength++;
-                        WdfSpinLockRelease(pDevContext->UrbReadListLock);
                     }
+
+                    // send urb
+                    if (NT_SUCCESS(status))
+                    {
+                        pReqContext = QCReqGetContext(outRequest);
+                        QCUTIL_InsertTailList(&pDevContext->UrbReadPendingList, &pReqContext->Link, pDevContext->UrbReadListLock, &pDevContext->UrbReadPendingListLength);
+                        if (!NT_SUCCESS(status = QCRD_SendReadUrb(pDevContext, outRequest, ioTarget)))
+                        {
+                            QCUTIL_RemoveEntryList(&pReqContext->Link, pDevContext->UrbReadListLock, &pDevContext->UrbReadPendingListLength);
+                            QCSER_DbgPrint
+                            (
+                                QCSER_DBG_MASK_READ,
+                                QCSER_DBG_LEVEL_ERROR,
+                                ("<%ws> RIRP: QCRD_ReadRequestHandlerThread LPC/VI urb send FAILED status: 0x%x\n", pDevContext->PortName, status)
+                            );
+                        }
+                    }
+
+                    if (!NT_SUCCESS(status))
+                    {
+                        if (outRequest != NULL)
+                        {
+                            WdfObjectDelete(outRequest);
+                            outRequest = NULL;
+                        }
+                        if (index > 0)
+                        {
+                            QCRD_CleanupReadQueues(pDevContext);
+                        }
+                        if (pDevContext->PendingReadRequest != NULL)
+                        {
+                            WdfRequestCompleteWithInformation(pDevContext->PendingReadRequest, status, 0);
+                            pDevContext->PendingReadRequest = NULL;
+                        }
+                        pDevContext->UrbReadListCapacity = 0;
+                        break;
+                    }
+
+                    QCSER_DbgPrint
+                    (
+                        QCSER_DBG_MASK_READ,
+                        QCSER_DBG_LEVEL_TRACE,
+                        ("<%ws> RIRP: QCRD_ReadRequestHandlerThread LPC/VI read urb sent 0x%p, size: %llu\n", pDevContext->PortName, outRequest, readBufferSize)
+                    );
+
                     index++;
                     pDevContext->UrbReadListCapacity = index;
                 }
+
                 QCSER_DbgPrint
                 (
                     QCSER_DBG_MASK_READ,
                     QCSER_DBG_LEVEL_TRACE,
                     ("<%ws> RIRP: QCRD_ReadRequestHandlerThread session total finish sending read urbs free list length: %llu, session total left: %llu\n",
-                    pDevContext->PortName, pDevContext->UrbReadFreeListLength, tempSessionTotal)
+                        pDevContext->PortName, pDevContext->UrbReadFreeListLength, sessionTotal)
                 );
 #endif
                 break;
@@ -564,7 +535,12 @@ void QCRD_ReadRequestHandlerThread
                     }
                 }
                 WdfSpinLockRelease(pDevContext->UrbReadListLock);
-                KeSetEvent(&pDevContext->ReadRequestArriveEvent, IO_NO_INCREMENT, FALSE);
+
+                if (pDevContext->DeviceFunction != QCUSB_DEV_FUNC_VI ||
+                    QCUTIL_RingBufferBytesUsed(rxBuffer) >= pDevContext->QcStats.SessionTotal)
+                {
+                    KeSetEvent(&pDevContext->ReadRequestArriveEvent, IO_NO_INCREMENT, FALSE);
+                }
                 break;
             }
             case READ_THREAD_REQUEST_ARRIVE_EVENT:
@@ -647,23 +623,39 @@ void QCRD_ReadRequestHandlerThread
                         while (QCUTIL_RingBufferBytesUsed(rxBuffer) > 0)
                         {
                             // get a pending request and its parameter
-                            WdfIoQueueRetrieveNextRequest(pDevContext->TimeoutReadQueue, &pendingTimeoutRequest);
-                            if (pendingTimeoutRequest != NULL)
+                            if (pDevContext->DeviceFunction == QCUSB_DEV_FUNC_VI)
                             {
-                                QCSER_DbgPrint
-                                (
-                                    QCSER_DBG_MASK_READ,
-                                    QCSER_DBG_LEVEL_TRACE,
-                                    ("<%ws> RIRP: QCRD_ReadRequestHandlerThread completing pendingTimeoutRequest request: 0x%p\n", pDevContext->PortName, pendingTimeoutRequest)
-                                );
-                                KeClearEvent(&pDevContext->ReadRequestTimeoutEvent);
-                                KeCancelTimer(&pDevContext->ReadTimer);
-                                request = pendingTimeoutRequest;
-                                pendingTimeoutRequest = NULL;
+                                if (QCUTIL_RingBufferBytesUsed(rxBuffer) >= pDevContext->QcStats.SessionTotal)
+                                {
+                                    request = pDevContext->PendingReadRequest;
+                                    pDevContext->PendingReadRequest = NULL;
+                                    status = STATUS_SUCCESS;
+                                }
+                                else
+                                {
+                                    request = NULL;
+                                }
                             }
                             else
                             {
-                                status = WdfIoQueueRetrieveNextRequest(pDevContext->ReadQueue, &request);
+                                status = WdfIoQueueRetrieveNextRequest(pDevContext->TimeoutReadQueue, &pendingTimeoutRequest);
+                                if (pendingTimeoutRequest != NULL)
+                                {
+                                    QCSER_DbgPrint
+                                    (
+                                        QCSER_DBG_MASK_READ,
+                                        QCSER_DBG_LEVEL_TRACE,
+                                        ("<%ws> RIRP: QCRD_ReadRequestHandlerThread completing pendingTimeoutRequest request: 0x%p\n", pDevContext->PortName, pendingTimeoutRequest)
+                                    );
+                                    KeClearEvent(&pDevContext->ReadRequestTimeoutEvent);
+                                    KeCancelTimer(&pDevContext->ReadTimer);
+                                    request = pendingTimeoutRequest;
+                                    pendingTimeoutRequest = NULL;
+                                }
+                                else
+                                {
+                                    status = WdfIoQueueRetrieveNextRequest(pDevContext->ReadQueue, &request);
+                                }
                             }
 
                             if (!NT_SUCCESS(status) || request == NULL)
@@ -727,6 +719,18 @@ void QCRD_ReadRequestHandlerThread
                             }
                             pDevContext->AmountInInQueue = QCUTIL_RingBufferBytesUsed(rxBuffer);
                         }
+                    }
+
+                    if (pDevContext->DeviceFunction == QCUSB_DEV_FUNC_VI)
+                    {
+                        QCSER_DbgPrint
+                        (
+                            QCSER_DBG_MASK_READ,
+                            QCSER_DBG_LEVEL_TRACE,
+                            ("<%ws> RIRP: QCRD_ReadRequestHandlerThread Vi device skip resending free list\n", pDevContext->PortName)
+                        );
+                        QCRD_CleanupReadQueues(pDevContext);
+                        break;
                     }
 
                     QCSER_DbgPrint
@@ -873,12 +877,7 @@ void QCRD_ReadRequestHandlerThread
                     QCSER_DBG_LEVEL_TRACE,
                     ("<%ws> RIRP: QCRD_ReadRequestHandlerThread READ_THREAD_REQUEST_TIMEOUT_EVENT triggered\n", pDevContext->PortName)
                 );
-                WdfIoQueueRetrieveNextRequest(pDevContext->TimeoutReadQueue, &pendingTimeoutRequest);
-                if (pendingTimeoutRequest != NULL)
-                {
-                    WdfRequestCompleteWithInformation(pendingTimeoutRequest, STATUS_TIMEOUT, 0);
-                    pendingTimeoutRequest = NULL;
-                }
+                QCUTIL_IoQueuePopAndComplete(pDevContext->TimeoutReadQueue, STATUS_TIMEOUT, 0);
                 break;
             }
             case READ_THREAD_SCAN_WAIT_MASK_EVENT:
@@ -895,6 +894,7 @@ void QCRD_ReadRequestHandlerThread
                 {
                     QCRD_ScanForWaitMask(pDevContext, pDevContext->Chars.EventChar, pDevContext->WaitMask);
                 }
+                break;
             }
             default:
             {

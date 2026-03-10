@@ -422,7 +422,7 @@ BOOLEAN FindallDualIPAdapters(PMP_ADAPTER pAdapter, PQCQMI qmi, PMP_ADAPTER *ret
             if ((pDevExt->MuxInterface.PhysicalInterfaceNumber == pTempDevExt->MuxInterface.PhysicalInterfaceNumber) &&
                 (pDevExt->MuxInterface.FilterDeviceObj == pTempDevExt->MuxInterface.FilterDeviceObj))
             {
-                if ((QCMAIN_IsDualIPSupported(pTempAdapter) == TRUE) && (pTempAdapter->WdsIpClientContext != NULL))
+            if ((MPMAIN_IsDualIPSupported(pTempAdapter) == TRUE) && (pTempAdapter->WdsIpClientContext != NULL))
                 {
                     pIocDev = pTempAdapter->WdsIpClientContext;
                     if ((qmi->QMIType == pIocDev->QMIType) &&
@@ -501,7 +501,7 @@ VOID MPQMI_ProcessInboundQMUX
     )
     );
 
-    if ((QCMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL))
+    if ((MPMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL))
     {
         pIocDev = pAdapter->WdsIpClientContext;
         if ((qmi->QMIType == pIocDev->QMIType) &&
@@ -582,7 +582,7 @@ VOID MPQMI_ProcessInboundQMUX
             );
 
             NdisReleaseSpinLock(&pAdapter->CtrlWriteLock);
-            MPWork_ScheduleWorkItem(pAdapter);
+         	MPMAIN_ScheduleWorkItem( pAdapter );
         }
     }
 
@@ -1090,7 +1090,7 @@ VOID MPQMI_ProcessInboundQWDSResponse
         bCompound = TRUE;
     }
 
-    if ((QCMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL))
+    if ((MPMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL))
     {
         pIocDev = pAdapter->WdsIpClientContext;
         if (qmi->ClientId == pIocDev->ClientId)
@@ -1555,7 +1555,7 @@ VOID MPQMI_ProcessInboundQWDSIndication
                         ContextState.ContextState.ConnectionId = pAdapter->WWanServiceConnectHandle;
                         ContextState.ContextState.ActivationState = WwanActivationStateDeactivated;
 
-                        MyNdisMIndicateStatus
+                  		MPMAIN_NdisMIndicateStatus
                         (
                             pAdapter->AdapterHandle,
                             NDIS_STATUS_WWAN_CONTEXT_STATE,
@@ -1607,7 +1607,7 @@ VOID MPQMI_ProcessInboundQWDSIndication
                         // Query IPV6
                         if (IpFamily == 0x04)
                         {
-                            if ((QCMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL))
+                  			if ((MPMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL))
                             {
                                 MPQMUX_ComposeQMUXReq(pAdapter, NULL, QMUX_TYPE_WDS,
                                                       QMIWDS_GET_PKT_SRVC_STATUS_REQ, (CUSTOMQMUX)MPQMUX_ChkIPv6PktSrvcStatus, TRUE);
@@ -1639,7 +1639,7 @@ VOID MPQMI_ProcessInboundQWDSIndication
 
             case QMIWDS_EVENT_REPORT_IND:
             {
-                if ((QCMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL))
+             	if ((MPMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL))
                 {
                     pIocDev = pAdapter->WdsIpClientContext;
                     if ((qmi->QMIType == pIocDev->QMIType) &&
@@ -1741,7 +1741,7 @@ VOID MPQMI_ProcessInboundQWDSIndication
 
                                 if (pAdapter->DeviceReadyState == DeviceWWanOn)
                                 {
-                                    MyNdisMIndicateStatus
+                           			MPMAIN_NdisMIndicateStatus
                                     (
                                         pAdapter->AdapterHandle,
                                         NDIS_STATUS_WWAN_PACKET_SERVICE,
@@ -1749,7 +1749,7 @@ VOID MPQMI_ProcessInboundQWDSIndication
                                         sizeof(NDIS_WWAN_PACKET_SERVICE_STATE)
                                     );
 
-                                    MyNdisMIndicateStatus
+                           			MPMAIN_NdisMIndicateStatus
                                     (
                                         pAdapter->AdapterHandle,
                                         NDIS_STATUS_WWAN_REGISTER_STATE,
@@ -4543,7 +4543,7 @@ ULONG MPQMUX_ProcessWdsGetCurrentChannelRateResp
                     {
                         if (pAdapter->DisableTimerResolution == 0)
                         {
-                            SetTimerResolution(pAdapter, FALSE);
+                      		MPMAIN_SetTimerResolution( pAdapter, FALSE );
                         }
                     }
                 }
@@ -4553,7 +4553,7 @@ ULONG MPQMUX_ProcessWdsGetCurrentChannelRateResp
                     {
                         if (pAdapter->DisableTimerResolution == 0)
                         {
-                            SetTimerResolution(pAdapter, TRUE);
+                      		MPMAIN_SetTimerResolution( pAdapter, TRUE );
                         }
                     }
 
@@ -4608,7 +4608,7 @@ ULONG MPQMUX_ProcessWdsGetCurrentChannelRateResp
             {
                 if (pAdapter->DisableTimerResolution == 0)
                 {
-                    SetTimerResolution(pAdapter, FALSE);
+               		MPMAIN_SetTimerResolution( pAdapter, FALSE );
                 }
             }
         }
@@ -4623,7 +4623,7 @@ ULONG MPQMUX_ProcessWdsGetCurrentChannelRateResp
             {
                 if (pAdapter->DisableTimerResolution == 0)
                 {
-                    SetTimerResolution(pAdapter, TRUE);
+               		MPMAIN_SetTimerResolution( pAdapter, TRUE );
                 }
             }
         }
@@ -4639,7 +4639,7 @@ ULONG MPQMUX_ProcessWdsGetCurrentChannelRateResp
         LinkState.XmitLinkSpeed = pAdapter->ulServingSystemRxRate;
         LinkState.RcvLinkSpeed = pAdapter->ulServingSystemRxRate;
 
-        MyNdisMIndicateStatus
+      	MPMAIN_NdisMIndicateStatus
         (
             pAdapter->AdapterHandle,
             generalStatus,
@@ -6496,7 +6496,7 @@ ULONG MPQMUX_ProcessDmsGetDeviceCapResp
                     }
 #if 0            
                     if ((pAdapter->DeviceClass == DEVICE_CLASS_CDMA) &&
-                        (QCMAIN_IsDualIPSupported(pAdapter) == TRUE))
+                	(MPMAIN_IsDualIPSupported(pAdapter) == TRUE))
                     {
                         pAdapter->CDMAUIMSupport = 1;
                         pNdisDeviceCaps->DeviceCaps.WwanSimClass = WwanSimClassSimRemovable;
@@ -6948,7 +6948,7 @@ ULONG MPQMUX_ProcessDmsGetOperatingModeResp
                     pAdapter->RadioState.Header.Revision = NDIS_WWAN_RADIO_STATE_REVISION_1;
                     pAdapter->RadioState.Header.Size = sizeof(NDIS_WWAN_RADIO_STATE);
 
-                    MyNdisMIndicateStatus
+               		MPMAIN_NdisMIndicateStatus
                     (
                         pAdapter->AdapterHandle,
                         NDIS_STATUS_WWAN_RADIO_STATE,
@@ -10619,7 +10619,7 @@ ULONG MPQMUX_ProcessWdsGetRuntimeSettingResp
                             16
                         );
 
-                        if (QCMAIN_IsDualIPSupported(pAdapter) == TRUE)
+                     	if (MPMAIN_IsDualIPSupported(pAdapter) == TRUE)
                         {
                             pAdapter->IPSettings.IPV6.PrefixLengthIPAddr = ipv6Addr->PrefixLength;
                         }
@@ -10638,7 +10638,7 @@ ULONG MPQMUX_ProcessWdsGetRuntimeSettingResp
                             ipv6Addr->IPV6Address,
                             16
                         );
-                        if (QCMAIN_IsDualIPSupported(pAdapter) == TRUE)
+                     	if (MPMAIN_IsDualIPSupported(pAdapter) == TRUE)
                         {
                             pAdapter->IPSettings.IPV6.PrefixLengthGateway = ipv6Addr->PrefixLength;
                         }
@@ -11283,13 +11283,13 @@ ULONG MPQMUX_ProcessWdsGetMipModeResp
                         WWAN_DATA_CLASS_1XEVDO |
                         WWAN_DATA_CLASS_1XEVDO_REVA;
 #if 0            
-                    if (QCMAIN_IsDualIPSupported(pAdapter) == TRUE)
+            		if (MPMAIN_IsDualIPSupported(pAdapter) == TRUE)
                     {
                         pNdisDeviceCaps->DeviceCaps.WwanDataClass |= WWAN_DATA_CLASS_1XEVDO_REVA; /* Needed to supprot EHRPD */;
                         //pNdisDeviceCaps->DeviceCaps.WwanDataClass |= WWAN_DATA_CLASS_1XEVDO_REVB; /* Needed to supprot EHRPD */;
                     }
 #endif
-                    if (QCMAIN_IsDualIPSupported(pAdapter) == TRUE)
+            		if (MPMAIN_IsDualIPSupported(pAdapter) == TRUE)
                     {
                         pNdisDeviceCaps->DeviceCaps.WwanControlCaps |= WWAN_CTRL_CAPS_CDMA_SIMPLE_IP;
                     }
@@ -11321,7 +11321,7 @@ ULONG MPQMUX_ProcessWdsGetMipModeResp
                         WWAN_DATA_CLASS_UMTS |
                         WWAN_DATA_CLASS_HSDPA |
                         WWAN_DATA_CLASS_HSUPA;
-                    if (QCMAIN_IsDualIPSupported(pAdapter) == TRUE)
+            		if (MPMAIN_IsDualIPSupported(pAdapter) == TRUE)
                     {
                         pNdisDeviceCaps->DeviceCaps.WwanDataClass |= WWAN_DATA_CLASS_LTE;
                         pNdisDeviceCaps->DeviceCaps.WwanDataClass |= WWAN_DATA_CLASS_5G_EPC;
@@ -11561,7 +11561,7 @@ USHORT MPQMUX_ComposeWdsStartNwInterfaceReqSend
     }
 
     // Add IP Family Preference
-    if (QCMAIN_IsDualIPSupported(pAdapter) == TRUE)
+   	if (MPMAIN_IsDualIPSupported(pAdapter) == TRUE)
     {
         PQMIWDS_IP_FAMILY_TLV pIpFamily;
         pIpFamily = (PQMIWDS_IP_FAMILY_TLV)((UCHAR *)pApnName + sizeof(QMIWDS_APNNAME) * ApnPresent + Length - 1);
@@ -12084,7 +12084,7 @@ ULONG MPQMUX_ProcessWdsStartNwInterfaceResp
                         }
                         else
                         {
-                            if ((QCMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL)
+                		if ((MPMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL)
                                 && (pAdapter->IPType != 0x06))
                             {
                                 pAdapter->IPType = 0x06;
@@ -12108,7 +12108,7 @@ ULONG MPQMUX_ProcessWdsStartNwInterfaceResp
                     }
                     else
                     {
-                        if ((QCMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL)
+                 		if ((MPMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL)
                             && (pAdapter->IPType != 0x06))
                         {
                             pAdapter->IPType = 0x06;
@@ -12154,7 +12154,7 @@ ULONG MPQMUX_ProcessWdsStartNwInterfaceResp
                     pContextState->ContextState.ConnectionId = pAdapter->WWanServiceConnectHandle;
                     pAdapter->DeviceContextState = DeviceWWanContextAttached;
                     pAdapter->DeregisterIndication = 0;
-                    if ((QCMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL)
+              		if ((MPMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL)
                         && (pAdapter->IPType != 0x06))
                     {
                         pAdapter->IPType = 0x06;
@@ -12223,7 +12223,7 @@ ULONG MPQMUX_ProcessWdsStopNwInterfaceResp
                 if (retVal == 0xFF)
                 {
                     pOID->OIDStatus = WWAN_STATUS_CONTEXT_NOT_ACTIVATED;
-                    if ((QCMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL)
+              		if ((MPMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL)
                         && (pAdapter->IPType != 0x06) && (pAdapter->ConnectIPv6Handle != 0))
                     {
                         pAdapter->IPType = 0x06;
@@ -12241,7 +12241,7 @@ ULONG MPQMUX_ProcessWdsStopNwInterfaceResp
                 }
                 else
                 {
-                    if ((QCMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL)
+              		if ((MPMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL)
                         && (pAdapter->IPType != 0x06) && (pAdapter->ConnectIPv6Handle != 0))
                     {
                         pAdapter->IPType = 0x06;
@@ -13819,7 +13819,7 @@ ULONG MPQMUX_ProcessWmsListMessagesResp
                     SmsState.SmsStatus.uFlag |= WWAN_SMS_FLAG_MESSAGE_STORE_FULL;
                 }
 #endif
-                MyNdisMIndicateStatus
+             	MPMAIN_NdisMIndicateStatus
                 (
                     pAdapter->AdapterHandle,
                     NDIS_STATUS_WWAN_SMS_STATUS,
@@ -13839,7 +13839,7 @@ ULONG MPQMUX_ProcessWmsListMessagesResp
             }
             else
             {
-                MyNdisMIndicateStatus
+            	MPMAIN_NdisMIndicateStatus
                 (
                     pAdapter->AdapterHandle,
                     NDIS_STATUS_WWAN_SMS_STATUS,
@@ -14427,7 +14427,7 @@ ULONG MPQMUX_ProcessWmsGetStoreMaxSizeResp
                 if (pNdisSMSConfiguration->SmsConfiguration.ulMaxMessageIndex != 0)
                 {
                     /* Send the indication */
-                    MyNdisMIndicateStatus
+               		MPMAIN_NdisMIndicateStatus
                     (
                         pAdapter->AdapterHandle,
                         NDIS_STATUS_WWAN_SMS_CONFIGURATION,
@@ -17232,7 +17232,7 @@ ULONG MPQMUX_ProcessNasGetServingSystemResp
                                 WwanServingState.PacketService.PacketServiceState = WwanPacketServiceStateDetached;
                                 WwanServingState.PacketService.AvailableDataClass = WWAN_DATA_CLASS_NONE;
                                 WwanServingState.PacketService.CurrentDataClass = WWAN_DATA_CLASS_NONE;
-                                MyNdisMIndicateStatus
+                       			MPMAIN_NdisMIndicateStatus
                                 (
                                     pAdapter->AdapterHandle,
                                     NDIS_STATUS_WWAN_PACKET_SERVICE,
@@ -17872,7 +17872,7 @@ ULONG MPQMUX_ProcessNasGetServingSystemResp
                                     pAdapter->AuthPreference = 0x02;
                                 }
                                 RtlInitUnicodeString(&unicodeStr, pSetContext->SetContextState.AccessString);
-                                if ((unicodeStr.Length > 0) && (QCMAIN_IsDualIPSupported(pAdapter) == FALSE))
+                       			if ( (unicodeStr.Length > 0) && (MPMAIN_IsDualIPSupported(pAdapter) == FALSE) )
                                 {
                                     RtlUnicodeStringToAnsiString(&ansiStr, &unicodeStr, TRUE);
                                     // if (strcmp(ansiStr.Buffer, "#777") == 0 )
@@ -18231,7 +18231,7 @@ ULONG MPQMUX_ProcessNasGetServingSystemResp
                     MPQMUX_ComposeNasGetPLMNReqSend(pAdapter, NULL, MCC, MNC);
                     return retVal;
                 }
-                MyNdisMIndicateStatus
+            	MPMAIN_NdisMIndicateStatus
                 (
                     pAdapter->AdapterHandle,
                     NDIS_STATUS_WWAN_REGISTER_STATE,
@@ -18246,7 +18246,7 @@ ULONG MPQMUX_ProcessNasGetServingSystemResp
                     WwanServingState.PacketService.AvailableDataClass != WWAN_DATA_CLASS_NONE &&
                     WwanServingState.PacketService.CurrentDataClass != WWAN_DATA_CLASS_NONE))
                 {
-                    MyNdisMIndicateStatus
+               		MPMAIN_NdisMIndicateStatus
                     (
                         pAdapter->AdapterHandle,
                         NDIS_STATUS_WWAN_PACKET_SERVICE,
@@ -18593,7 +18593,7 @@ ULONG MPQMUX_ProcessNasServingSystemInd
                     MPQMUX_ComposeNasGetPLMNReqSend(pAdapter, NULL, MCC, MNC);
                     return retVal;
                 }
-                MyNdisMIndicateStatus
+               	MPMAIN_NdisMIndicateStatus
                 (
                     pAdapter->AdapterHandle,
                     NDIS_STATUS_WWAN_REGISTER_STATE,
@@ -18616,7 +18616,7 @@ ULONG MPQMUX_ProcessNasServingSystemInd
                 //if (pAdapter->DeviceContextState != DeviceWWanContextAttached ||
                 //    WwanServingState.PacketService.PacketServiceState != WwanPacketServiceStateDetached)
                 {
-                    MyNdisMIndicateStatus
+               		MPMAIN_NdisMIndicateStatus
                     (
                         pAdapter->AdapterHandle,
                         NDIS_STATUS_WWAN_PACKET_SERVICE,
@@ -18719,7 +18719,7 @@ ULONG MPQMUX_ProcessNasServingSystemInd
                             if (pAdapter->DeviceContextState != DeviceWWanContextAttached ||
                                 WwanServingState.PacketService.PacketServiceState != WwanPacketServiceStateDetached)
                             {
-                                MyNdisMIndicateStatus
+                        		MPMAIN_NdisMIndicateStatus
                                 (
                                     pAdapter->AdapterHandle,
                                     NDIS_STATUS_WWAN_PACKET_SERVICE,
@@ -19638,7 +19638,7 @@ ULONG MPQMUX_ProcessNasGetSysInfoResp
                                 WwanServingState.PacketService.PacketServiceState = WwanPacketServiceStateDetached;
                                 WwanServingState.PacketService.AvailableDataClass = WWAN_DATA_CLASS_NONE;
                                 WwanServingState.PacketService.CurrentDataClass = WWAN_DATA_CLASS_NONE;
-                                MyNdisMIndicateStatus
+                       			MPMAIN_NdisMIndicateStatus
                                 (
                                     pAdapter->AdapterHandle,
                                     NDIS_STATUS_WWAN_PACKET_SERVICE,
@@ -20285,7 +20285,7 @@ ULONG MPQMUX_ProcessNasGetSysInfoResp
                                     pAdapter->AuthPreference = 0x02;
                                 }
                                 RtlInitUnicodeString(&unicodeStr, pSetContext->SetContextState.AccessString);
-                                if ((unicodeStr.Length > 0) && (QCMAIN_IsDualIPSupported(pAdapter) == FALSE))
+                       			if ( (unicodeStr.Length > 0) && (MPMAIN_IsDualIPSupported(pAdapter) == FALSE) )
                                 {
                                     RtlUnicodeStringToAnsiString(&ansiStr, &unicodeStr, TRUE);
                                     // if (strcmp(ansiStr.Buffer, "#777") == 0 )
@@ -20650,7 +20650,7 @@ ULONG MPQMUX_ProcessNasGetSysInfoResp
                     MPQMUX_ComposeNasGetPLMNReqSend(pAdapter, NULL, MCC, MNC);
                     return retVal;
                 }
-                MyNdisMIndicateStatus
+            	MPMAIN_NdisMIndicateStatus
                 (
                     pAdapter->AdapterHandle,
                     NDIS_STATUS_WWAN_REGISTER_STATE,
@@ -20665,7 +20665,7 @@ ULONG MPQMUX_ProcessNasGetSysInfoResp
                     WwanServingState.PacketService.AvailableDataClass != WWAN_DATA_CLASS_NONE &&
                     WwanServingState.PacketService.CurrentDataClass != WWAN_DATA_CLASS_NONE))
                 {
-                    MyNdisMIndicateStatus
+         			MPMAIN_NdisMIndicateStatus
                     (
                         pAdapter->AdapterHandle,
                         NDIS_STATUS_WWAN_PACKET_SERVICE,
@@ -21019,7 +21019,7 @@ ULONG MPQMUX_ProcessNasSysInfoInd
                     MPQMUX_ComposeNasGetPLMNReqSend(pAdapter, NULL, MCC, MNC);
                     return retVal;
                 }
-                MyNdisMIndicateStatus
+              	MPMAIN_NdisMIndicateStatus
                 (
                     pAdapter->AdapterHandle,
                     NDIS_STATUS_WWAN_REGISTER_STATE,
@@ -21042,7 +21042,7 @@ ULONG MPQMUX_ProcessNasSysInfoInd
                 //if (pAdapter->DeviceContextState != DeviceWWanContextAttached ||
                 //    WwanServingState.PacketService.PacketServiceState != WwanPacketServiceStateDetached)
                 {
-                    MyNdisMIndicateStatus
+               		MPMAIN_NdisMIndicateStatus
                     (
                         pAdapter->AdapterHandle,
                         NDIS_STATUS_WWAN_PACKET_SERVICE,
@@ -21146,7 +21146,7 @@ ULONG MPQMUX_ProcessNasSysInfoInd
                             if (pAdapter->DeviceContextState != DeviceWWanContextAttached ||
                                 WwanServingState.PacketService.PacketServiceState != WwanPacketServiceStateDetached)
                             {
-                                MyNdisMIndicateStatus
+                        		MPMAIN_NdisMIndicateStatus
                                 (
                                     pAdapter->AdapterHandle,
                                     NDIS_STATUS_WWAN_PACKET_SERVICE,
@@ -22946,7 +22946,7 @@ ULONG MPQMUX_ProcessNasGetSignalStrengthResp
             pAdapter->DeviceRadioState == DeviceWWanRadioOn &&
             pAdapter->nBusyOID == 0)
         {
-            MyNdisMIndicateStatus
+         	MPMAIN_NdisMIndicateStatus
             (
                 pAdapter->AdapterHandle,
                 NDIS_STATUS_WWAN_SIGNAL_STATE,
@@ -23019,7 +23019,7 @@ ULONG MPQMUX_ProcessNasGetSignalStrengthResp
                             LinkState.PauseFunctions = NdisPauseFunctionsUnknown;
                             LinkState.XmitLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
                             LinkState.RcvLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
-                            MyNdisMIndicateStatus
+                     		MPMAIN_NdisMIndicateStatus
                             (
                                 pAdapter->AdapterHandle,
                                 NDIS_STATUS_LINK_STATE,
@@ -23743,7 +23743,7 @@ ULONG MPQMUX_ProcessNasGetPLMNResp
                             pAdapter->DeviceRegisterState = QMI_NAS_REGISTRATION_UNKNOWN;
                             break;
                     }
-                    MyNdisMIndicateStatus
+                	MPMAIN_NdisMIndicateStatus
                     (
                         pAdapter->AdapterHandle,
                         NDIS_STATUS_WWAN_REGISTER_STATE,
@@ -23766,7 +23766,7 @@ ULONG MPQMUX_ProcessNasGetPLMNResp
                 if (pAdapter->DeviceContextState != DeviceWWanContextAttached ||
                     WwanServingState.PacketService.PacketServiceState != WwanPacketServiceStateDetached)
                 {
-                    MyNdisMIndicateStatus
+               		MPMAIN_NdisMIndicateStatus
                     (
                         pAdapter->AdapterHandle,
                         NDIS_STATUS_WWAN_PACKET_SERVICE,

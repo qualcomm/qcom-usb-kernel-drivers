@@ -1401,7 +1401,7 @@ NTSTATUS QCPNP_EvtDevicePrepareHardware
         usbDeviceDesc.iProduct,
         0x0409
     );
-    if (!NT_SUCCESS(status) || strlen == 0)
+    if (!NT_SUCCESS(status) || strLen == 0)
     {
         QCSER_DbgPrint
         (
@@ -1435,13 +1435,40 @@ NTSTATUS QCPNP_EvtDevicePrepareHardware
                 usbDeviceDesc.iProduct,
                 0x0409
             );
-            buffer[strLen] = L'\0';
-            QCSER_DbgPrint
-            (
-                QCSER_DBG_MASK_CONTROL,
-                QCSER_DBG_LEVEL_DETAIL,
-                ("<%ws> QCPNP_EvtDevicePrepareHardware USB ProductInfo: %ws, status: 0x%x, strlen: %llu\n", pDevContext->PortName, buffer, status, strLen)
-            );
+
+            if (!NT_SUCCESS(status))
+            {
+                QCSER_DbgPrint
+                (
+                    QCSER_DBG_MASK_CONTROL,
+                    QCSER_DBG_LEVEL_ERROR,
+                    ("<%ws> QCPNP_EvtDevicePrepareHardware: USB ProductInfo query FAILED: 0x%x\n", pDevContext->PortName, status)
+                );
+                ExFreePoolWithTag(buffer, '2gaT');
+                // Continue with device initialization despite this failure
+            }
+            else
+            {
+                buffer[strLen] = L'\0';
+                status = QCMAIN_SetDriverRegistryStringW(VEN_DEV_DESC, buffer, pDevContext);
+                if (!NT_SUCCESS(status))
+                {
+                    QCSER_DbgPrint
+                    (
+                        QCSER_DBG_MASK_CONTROL,
+                        (QCSER_DBG_LEVEL_ERROR),
+                        ("<%ws> QCPNP_EvtDevicePrepareHardware: USB ProductInfo: set FAILED: 0x%x\n", pDevContext->PortName, status)
+                    );
+                }
+                else {
+                    QCSER_DbgPrint
+                    (
+                        QCSER_DBG_MASK_CONTROL,
+                        QCSER_DBG_LEVEL_DETAIL,
+                        ("<%ws> QCPNP_EvtDevicePrepareHardware USB ProductInfo: %ws, status: 0x%x, strlen: %llu\n", pDevContext->PortName, buffer, status, strLen)
+                    );
+                }
+            }
             ExFreePoolWithTag(buffer, '2gaT');
         } // End printing usb device info as debug message
     }
@@ -1746,7 +1773,7 @@ NTSTATUS QCPNP_EvtDeviceReleaseHardware
     QCPNP_NotifyDeviceRemoval(pDevContext);
     QCSER_CompleteWomRequest(pDevContext, STATUS_CANCELLED, 0);
 
-    StopInterruptService(pDevContext, TRUE);
+    QCINT_StopInterruptService(pDevContext, TRUE);
     // signal the I/O threads to exit
     KeSetEvent(&pDevContext->DeviceRemoveEvent, IO_NO_INCREMENT, FALSE);
 
@@ -4322,6 +4349,12 @@ NTSTATUS QCPNP_GetStringDescriptor
             (PUSHORT)&strLen,
             Index,
             LanguageId
+        );
+        QCSER_DbgPrint
+        (
+            QCSER_DBG_MASK_CONTROL,
+            QCSER_DBG_LEVEL_ERROR,
+            ("<%ws> QCPNP_GetStringDescriptor USB ProductInfo: %ws, strlen: %llu\n", pDevContext->PortName, pSerNum, strLen)
         );
     } // End printing usb device info as debug message
 

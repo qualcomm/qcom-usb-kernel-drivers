@@ -69,6 +69,13 @@ BOOLEAN QCUTIL_IsIoQueueEmpty
     WDFQUEUE ioQueue
 );
 
+NTSTATUS QCUTIL_IoQueuePopAndComplete
+(
+    WDFQUEUE  ioQueue,
+    NTSTATUS  status,
+    ULONG_PTR info
+);
+
 VOID QCUTIL_InsertTailList
 (
     PLIST_ENTRY     head,

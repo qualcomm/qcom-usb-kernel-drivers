@@ -519,7 +519,7 @@ VOID QCINT_ReadInterruptPipe(PVOID pContext)
  * returns:  NT Status
  *
  ****************************************************************************/
-NTSTATUS StopInterruptService
+NTSTATUS QCINT_StopInterruptService
 (
     PDEVICE_CONTEXT pDevContext,
     BOOLEAN           bWait
@@ -552,7 +552,7 @@ NTSTATUS StopInterruptService
     (
         QCSER_DBG_MASK_READ,
         QCSER_DBG_LEVEL_DETAIL,
-        ("<%ws> QCINT: StopInterruptService. Waiting for Stop response event\n", pDevContext->PortName)
+        ("<%ws> QCINT: QCINT_StopInterruptService. Waiting for Stop response event\n", pDevContext->PortName)
     );
     if (bWait == TRUE)
     {

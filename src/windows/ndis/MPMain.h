@@ -558,11 +558,11 @@ typedef struct _RX_THREAD_CONTEXT
 
 typedef enum _QOS_FLOW_QUEUE_TYPE
 {
-    FLOW_SEND_WITH_DATA,
-    FLOW_SEND_WITHOUT_DATA,
-    FLOW_QUEUED,
-    FLOW_DEFAULT,
-    FLOW_QUEUE_MAX
+   FLOW_SEND_WITH_DATA    = 0,
+   FLOW_SEND_WITHOUT_DATA = 1,
+   FLOW_QUEUED            = 2,
+   FLOW_DEFAULT,
+   FLOW_QUEUE_MAX
 } QOS_FLOW_QUEUE_TYPE;
 
 #pragma pack(push, 1)
@@ -1752,7 +1752,7 @@ VOID MPMAIN_InitUsbGlobal(void);
 VOID MPMAIN_ResetOIDWaitingQueue(PMP_ADAPTER pAdapter);
 #endif // NDIS_WDM
 
-int listDepth(PLIST_ENTRY listHead, PNDIS_SPIN_LOCK lock);
+int MPMAIN_ListDepth(PLIST_ENTRY listHead, PNDIS_SPIN_LOCK lock);
 
 NDIS_STATUS MPMAIN_SetDeviceId(PMP_ADAPTER pAdapter, BOOLEAN state);
 
@@ -1788,7 +1788,7 @@ VOID MPMAIN_PowerDownDevice(PVOID Context, DEVICE_POWER_STATE DevicePower);
 
 VOID MPMAIN_ResetPacketCount(PMP_ADAPTER pAdapter);
 
-BOOLEAN QCMAIN_IsDualIPSupported(PMP_ADAPTER pAdapter);
+BOOLEAN MPMAIN_IsDualIPSupported(PMP_ADAPTER pAdapter);
 
 VOID MPMAIN_MediaDisconnect(PMP_ADAPTER pAdapter, BOOLEAN DisconnectAll);
 
@@ -1796,7 +1796,11 @@ VOID MPMAIN_DeregisterMiniport(VOID);
 
 VOID MPMAIN_DetermineNdisVersion(VOID);
 
-VOID MyNdisMIndicateStatus
+BOOLEAN MPMAIN_QueuesAreEmpty(PMP_ADAPTER, char*);
+
+VOID MPMAIN_CleanupQueues(PMP_ADAPTER);
+
+VOID MPMAIN_NdisMIndicateStatus
 (
     IN NDIS_HANDLE  MiniportAdapterHandle,
     IN NDIS_STATUS  GeneralStatus,
@@ -1865,11 +1869,11 @@ NDIS_STATUS MPMAIN_MiniportSetOptions
     IN NDIS_HANDLE  DriverContext
 );
 
-BOOLEAN SetTimerResolution(PMP_ADAPTER pAdapter, BOOLEAN Flag);
+BOOLEAN MPMAIN_SetTimerResolution ( PMP_ADAPTER pAdapter, BOOLEAN Flag );
 
-BOOLEAN MoveQMIRequests(PMP_ADAPTER pAdapter);
+BOOLEAN MPMAIN_MoveQMIRequests( PMP_ADAPTER pAdapter );
 
-VOID CleanupTxQueues(PMP_ADAPTER pAdapter);
+VOID MPMAIN_CleanupTxQueues(PMP_ADAPTER pAdapter);
 
 #ifdef NDIS60_MINIPORT
 // For debugging only
@@ -1882,7 +1886,7 @@ VOID MPRCV_QnblInfo
 );
 #endif // NDIS60_MINIPORT
 
-VOID ResetCompleteTimerDpc
+VOID MPMAIN_ResetCompleteTimerDpc
 (
     PVOID SystemSpecific1,
     PVOID FunctionContext,
@@ -1890,7 +1894,7 @@ VOID ResetCompleteTimerDpc
     PVOID SystemSpecific3
 );
 
-VOID ReconfigTimerDpc
+VOID MPMAIN_ReconfigTimerDpc
 (
     PVOID SystemSpecific1,
     PVOID FunctionContext,
@@ -1898,7 +1902,7 @@ VOID ReconfigTimerDpc
     PVOID SystemSpecific3
 );
 
-VOID ReconfigTimerDpcIPv6
+VOID MPMAIN_ReconfigTimerDpcIPv6
 (
     PVOID SystemSpecific1,
     PVOID FunctionContext,
@@ -1916,7 +1920,7 @@ VOID TransmitTimerDpc
 
 #ifdef NDIS620_MINIPORT
 
-VOID SignalStateTimerDpc
+VOID MPMAIN_SignalStateTimerDpc
 (
     PVOID SystemSpecific1,
     PVOID FunctionContext,
@@ -1924,14 +1928,14 @@ VOID SignalStateTimerDpc
     PVOID SystemSpecific3
 );
 
-VOID MsisdnTimerDpc
+VOID MPMAIN_MsisdnTimerDpc
 (
     PVOID SystemSpecific1,
     PVOID FunctionContext,
     PVOID SystemSpecific2,
     PVOID SystemSpecific3
 );
-VOID RegisterPacketTimerDpc
+VOID MPMAIN_RegisterPacketTimerDpc
 (
     PVOID SystemSpecific1,
     PVOID FunctionContext,
@@ -1939,7 +1943,7 @@ VOID RegisterPacketTimerDpc
     PVOID SystemSpecific3
 );
 
-VOID SignalStateDisconnectTimerDpc
+VOID MPMAIN_SignalStateDisconnectTimerDpc
 (
     PVOID SystemSpecific1,
     PVOID FunctionContext,

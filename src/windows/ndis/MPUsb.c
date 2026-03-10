@@ -142,7 +142,7 @@ NTSTATUS MP_TxIRPComplete(PDEVICE_OBJECT pDO, PIRP pIrp, PVOID pContext)
         InsertTailList(&pAdapter->TxCompleteList, pList);
         NdisReleaseSpinLock(&pAdapter->TxLock);
 
-        MPWork_ScheduleWorkItem(pAdapter);
+        MPMAIN_ScheduleWorkItem( pAdapter );
     }
     else
     {
@@ -619,7 +619,7 @@ Tx_Exit:
         NDIS_SET_PACKET_STATUS(pNdisPacket, ndisSt);
         InsertTailList(&pAdapter->TxCompleteList, pList);
         NdisReleaseSpinLock(&pAdapter->TxLock);
-        MPWork_ScheduleWorkItem(pAdapter);
+        MPMAIN_ScheduleWorkItem(pAdapter);
         if (usbBuffer != NULL)
         {
             ExFreePool(usbBuffer);
@@ -1002,7 +1002,7 @@ NTSTATUS MP_RcIRPCompletion(
     }
     NdisReleaseSpinLock(&pAdapter->CtrlReadLock);
 
-    MPWork_ScheduleWorkItem(pAdapter);
+    MPMAIN_ScheduleWorkItem(pAdapter);
 
     IoFreeIrp(pIrp);
 
@@ -1233,7 +1233,7 @@ NDIS_STATUS MP_USBRequest
 
     InsertTailList(&pAdapter->OIDWaitingList, pList);
 
-    MPWork_ScheduleWorkItem(pAdapter);
+    MPMAIN_ScheduleWorkItem( pAdapter );   
 
     QCNET_DbgPrint
     (
@@ -1346,7 +1346,7 @@ NDIS_STATUS MP_USBSendControl
     }
     InterlockedIncrement(&(pAdapter->nBusyWrite));
     NdisReleaseSpinLock(&pAdapter->CtrlWriteLock);
-    MPWork_ScheduleWorkItem(pAdapter);
+    MPMAIN_ScheduleWorkItem( pAdapter );   
     return NDIS_STATUS_PENDING;
 }
 
@@ -2280,7 +2280,7 @@ NTSTATUS MP_RxIRPCompletionEx(PDEVICE_OBJECT pDO, PIRP pIrp, PVOID pContext)
             MP_DBG_LEVEL_ERROR,
             ("<%s> RxIRPCompletionEx: TEST - Rx Packet discarded, USB %d\n", pAdapter->PortName, pAdapter->nRxPendingInUsb)
         );
-        MPWork_ScheduleWorkItem(pAdapter);
+        MPMAIN_ScheduleWorkItem(pAdapter);
     }
     // #endif // QCUSB_DROP_DATA_TEST
 #endif // QCUSB_MUX_PROTOCOL
@@ -2424,7 +2424,7 @@ NTSTATUS MP_RxIRPCompletionEx(PDEVICE_OBJECT pDO, PIRP pIrp, PVOID pContext)
                     MP_DBG_LEVEL_FORCE,
                     ("<%s> RxIRPCompletionEx: reclaim RX NBL nBusyRx: %d\n", pAdapter->PortName, pAdapter->nBusyRx)
                 );
-                MPWork_ScheduleWorkItem(pAdapter);
+                MPMAIN_ScheduleWorkItem(pAdapter);
             }  // not chain
         }
     }
@@ -2770,7 +2770,7 @@ Tx_Exit:
 
     if (kicker == TRUE)
     {
-        MPWork_ScheduleWorkItem(pAdapter);
+    	MPMAIN_ScheduleWorkItem(pAdapter);
     }
 
     QCNET_DbgPrint
@@ -4049,7 +4049,7 @@ NTSTATUS MPUSB_TLPTxIRPComplete
 
     if (nPkt != 0)
     {
-        MPWork_ScheduleWorkItem(pAdapter);
+    	MPMAIN_ScheduleWorkItem(pAdapter);
     }
 
 #ifdef MP_QCQOS_ENABLED
@@ -4804,39 +4804,39 @@ VOID MPUSB_TLPTxPacket
         || (pAdapter->QMAPEnabledV3 == TRUE)
 #endif
 #endif
-        )
-    {
-        // stay for aggregation
-        QCNET_DbgPrint
-        (
+   )
+      {
+         // stay for aggregation
+         QCNET_DbgPrint
+         (
             MP_DBG_MASK_WRITE,
             MP_DBG_LEVEL_DETAIL,
             ("<%s> MPUSB_TLPTxPacket: stay for aggregation, restore item [%d] %dB(%d)\n",
-            pAdapter->PortName, tlpItem->Index, tlpItem->DataLength, tlpItem->AggregationCount)
-        );
-        NdisAcquireSpinLock(&pAdapter->TxLock);
-        InsertHeadList(&pAdapter->UplinkFreeBufferQueue, &tlpItem->List);
-        NdisReleaseSpinLock(&pAdapter->TxLock);
-
-        // Set the transmit timer
-        SetTransmitTimer(pAdapter);
-
-        if (pAdapter->MPQuickTx != 0)
-        {
+              pAdapter->PortName, tlpItem->Index, tlpItem->DataLength, tlpItem->AggregationCount)
+         );
+         NdisAcquireSpinLock(&pAdapter->TxLock);
+         InsertHeadList(&pAdapter->UplinkFreeBufferQueue, &tlpItem->List);
+         NdisReleaseSpinLock(&pAdapter->TxLock);
+   
+         // Set the transmit timer
+         SetTransmitTimer(pAdapter);     
+   
+         if (pAdapter->MPQuickTx != 0)
+         {
             NDIS_SET_PACKET_STATUS(pNdisPacket, NDIS_STATUS_SUCCESS);
             MPUSB_TLPIndicateCompleteTx(pAdapter, pNdisPacket, 1);
-        }
-
-        goto Tx_Exit;
-    }
-    else if ((tlpItem->AggregationCount < (MP_NUM_MBIM_UL_DATAGRAM_ITEMS_DEFAULT - 2)) && (pAdapter->MBIMULEnabled == TRUE))
-    {
-        // stay for aggregation
-        QCNET_DbgPrint
-        (
-            MP_DBG_MASK_WRITE,
-            MP_DBG_LEVEL_DETAIL,
-            ("<%s> MPUSB_TLPTxPacket: stay for aggregation, restore item [%d] %dB(%d)\n",
+         }
+   
+         goto Tx_Exit;
+   }
+   else if (( tlpItem->AggregationCount < (MP_NUM_MBIM_UL_DATAGRAM_ITEMS_DEFAULT - 2)) && (pAdapter->MBIMULEnabled == TRUE))
+   {
+       // stay for aggregation
+       QCNET_DbgPrint
+       (
+          MP_DBG_MASK_WRITE,
+          MP_DBG_LEVEL_DETAIL,
+          ("<%s> MPUSB_TLPTxPacket: stay for aggregation, restore item [%d] %dB(%d)\n",
             pAdapter->PortName, tlpItem->Index, tlpItem->DataLength, tlpItem->AggregationCount)
         );
         NdisAcquireSpinLock(&pAdapter->TxLock);
@@ -4868,8 +4868,8 @@ VOID MPUSB_TLPTxPacket
         InsertHeadList(&pAdapter->UplinkFreeBufferQueue, &tlpItem->List);
         NdisReleaseSpinLock(&pAdapter->TxLock);
 
-        // Set the transmit timer
-        SetTransmitTimer(pAdapter);
+       // Set the transmit timer
+       SetTransmitTimer(pAdapter);      
 
         if (pAdapter->MPQuickTx != 0)
         {
@@ -5042,7 +5042,7 @@ Tx_Exit:
             NDIS_SET_PACKET_STATUS(pNdisPacket, ndisSt);
             InsertTailList(&pAdapter->TxCompleteList, pList);
             NdisReleaseSpinLock(&pAdapter->TxLock);
-            MPWork_ScheduleWorkItem(pAdapter);
+         	MPMAIN_ScheduleWorkItem(pAdapter);
         }
         if (tlpItem != NULL)
         {
@@ -5223,7 +5223,7 @@ BOOLEAN MPUSB_TLPProcessPendingTxQueue(PMP_ADAPTER pAdapter)
 
     if (kicker)
     {
-        MPWork_ScheduleWorkItem(pAdapter);
+    	MPMAIN_ScheduleWorkItem( pAdapter );
     }
 
     QCNET_DbgPrint
@@ -6115,39 +6115,39 @@ VOID MPUSB_TLPTxPacketEx
         || (pAdapter->QMAPEnabledV3 == TRUE)
 #endif
 #endif
-        )
+   )
+   {
+    // stay for aggregation
+    QCNET_DbgPrint
+    (
+       MP_DBG_MASK_WRITE,
+       MP_DBG_LEVEL_DETAIL,
+       ("<%s> TLPTxPacketEx: stay for aggregation, restore item [%d] %dB(%d)\n",
+         pAdapter->PortName, tlpItem->Index, tlpItem->DataLength, tlpItem->AggregationCount)
+    );
+    NdisAcquireSpinLock(&pAdapter->TxLock);
+    InsertHeadList(&pAdapter->UplinkFreeBufferQueue, &tlpItem->List);
+    NdisReleaseSpinLock(&pAdapter->TxLock);
+    
+    // Set the transmit timer
+    SetTransmitTimer(pAdapter);
+    
+    if (pAdapter->MPQuickTx != 0)
     {
-        // stay for aggregation
-        QCNET_DbgPrint
-        (
-            MP_DBG_MASK_WRITE,
-            MP_DBG_LEVEL_DETAIL,
-            ("<%s> TLPTxPacketEx: stay for aggregation, restore item [%d] %dB(%d)\n",
-            pAdapter->PortName, tlpItem->Index, tlpItem->DataLength, tlpItem->AggregationCount)
-        );
-        NdisAcquireSpinLock(&pAdapter->TxLock);
-        InsertHeadList(&pAdapter->UplinkFreeBufferQueue, &tlpItem->List);
-        NdisReleaseSpinLock(&pAdapter->TxLock);
-
-        // Set the transmit timer
-        SetTransmitTimer(pAdapter);
-
-        if (pAdapter->MPQuickTx != 0)
-        {
-            ((PMPUSB_TX_CONTEXT_NBL)nbContext->NBL)->NdisStatus = NDIS_STATUS_SUCCESS;
-            MP_TxIRPCompleteEx(pAdapter->USBDo, NULL, nbContext, TRUE);
-        }
-        goto Tx_Exit;
-
+        ((PMPUSB_TX_CONTEXT_NBL)nbContext->NBL)->NdisStatus = NDIS_STATUS_SUCCESS;
+        MP_TxIRPCompleteEx(pAdapter->USBDo, NULL, nbContext, TRUE);
     }
-    else if ((tlpItem->AggregationCount < (MP_NUM_MBIM_UL_DATAGRAM_ITEMS_DEFAULT - 2)) && (pAdapter->MBIMULEnabled == TRUE))
-    {
-        // stay for aggregation
-        QCNET_DbgPrint
-        (
-            MP_DBG_MASK_WRITE,
-            MP_DBG_LEVEL_DETAIL,
-            ("<%s> TLPTxPacketEx: stay for aggregation, restore item [%d] %dB(%d)\n",
+    goto Tx_Exit;
+
+  }
+   else if (( tlpItem->AggregationCount < (MP_NUM_MBIM_UL_DATAGRAM_ITEMS_DEFAULT - 2)) && (pAdapter->MBIMULEnabled == TRUE))
+   {
+       // stay for aggregation
+       QCNET_DbgPrint
+       (
+          MP_DBG_MASK_WRITE,
+          MP_DBG_LEVEL_DETAIL,
+          ("<%s> TLPTxPacketEx: stay for aggregation, restore item [%d] %dB(%d)\n",
             pAdapter->PortName, tlpItem->Index, tlpItem->DataLength, tlpItem->AggregationCount)
         );
         NdisAcquireSpinLock(&pAdapter->TxLock);
@@ -6163,6 +6163,7 @@ VOID MPUSB_TLPTxPacketEx
             MP_TxIRPCompleteEx(pAdapter->USBDo, NULL, nbContext, TRUE);
         }
         goto Tx_Exit;
+
     }
     else if ((pAdapter->TLPEnabled == TRUE))
     {
@@ -6178,23 +6179,23 @@ VOID MPUSB_TLPTxPacketEx
         InsertHeadList(&pAdapter->UplinkFreeBufferQueue, &tlpItem->List);
         NdisReleaseSpinLock(&pAdapter->TxLock);
 
-        // Set the transmit timer
-        SetTransmitTimer(pAdapter);
-
-        if (pAdapter->MPQuickTx != 0)
-        {
-            ((PMPUSB_TX_CONTEXT_NBL)nbContext->NBL)->NdisStatus = NDIS_STATUS_SUCCESS;
-            MP_TxIRPCompleteEx(pAdapter->USBDo, NULL, nbContext, TRUE);
-        }
-        goto Tx_Exit;
-    }
-    else
-    {
-        if (pAdapter->MPQuickTx != 0)
-        {
-            ((PMPUSB_TX_CONTEXT_NBL)nbContext->NBL)->NdisStatus = NDIS_STATUS_SUCCESS;
-            MP_TxIRPCompleteEx(pAdapter->USBDo, NULL, nbContext, TRUE);
-        }
+      // Set the transmit timer
+      SetTransmitTimer(pAdapter);
+      
+      if (pAdapter->MPQuickTx != 0)
+      {
+          ((PMPUSB_TX_CONTEXT_NBL)nbContext->NBL)->NdisStatus = NDIS_STATUS_SUCCESS;
+          MP_TxIRPCompleteEx(pAdapter->USBDo, NULL, nbContext, TRUE);
+      }
+      goto Tx_Exit;
+   }
+   else
+   {
+      if (pAdapter->MPQuickTx != 0)
+      {
+         ((PMPUSB_TX_CONTEXT_NBL)nbContext->NBL)->NdisStatus = NDIS_STATUS_SUCCESS;
+         MP_TxIRPCompleteEx(pAdapter->USBDo, NULL, nbContext, TRUE);      
+      }
 
         if ((pAdapter->TLPEnabled == TRUE) ||
             (pAdapter->MBIMULEnabled == TRUE) ||
@@ -6484,7 +6485,7 @@ NTSTATUS MPUSB_TLPTxIRPCompleteEx
 
     if (nPkt != 0)
     {
-        MPWork_ScheduleWorkItem(pAdapter);
+    	MPMAIN_ScheduleWorkItem(pAdapter);
     }
 
 #ifdef MP_QCQOS_ENABLED
@@ -6663,7 +6664,7 @@ BOOLEAN MPUSB_DispatchQMI
             pAdapter->PortName, pAdapter->nBusyRx)
         );
         NdisReleaseSpinLock(&pAdapter->CtrlReadLock);
-        MPWork_ScheduleWorkItem(pAdapter);
+        MPMAIN_ScheduleWorkItem(pAdapter);
         return TRUE;  // drop the packet
     }
 
@@ -6687,7 +6688,7 @@ BOOLEAN MPUSB_DispatchQMI
     }
     NdisReleaseSpinLock(&pAdapter->CtrlReadLock);
 
-    MPWork_ScheduleWorkItem(pAdapter);
+    MPMAIN_ScheduleWorkItem(pAdapter);
 
     QCNET_DbgPrint
     (

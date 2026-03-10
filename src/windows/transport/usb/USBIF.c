@@ -1534,7 +1534,7 @@ NTSTATUS USBIF_DispatchFilter
                         }
                         if (irpStack->Parameters.Power.State.SystemState >= PowerSystemSleeping3)
                         {
-                            CleanupTxQueues(pAdapter);
+                     		MPMAIN_CleanupTxQueues(pAdapter);
 
                             if (pAdapter->IsMipderegSent != TRUE)
                             {
@@ -1603,7 +1603,7 @@ NTSTATUS USBIF_DispatchFilter
                         }
                         if (irpStack->Parameters.Power.State.SystemState >= PowerSystemSleeping3)
                         {
-                            CleanupTxQueues(pAdapter);
+                     		MPMAIN_CleanupTxQueues(pAdapter);
 
                             if (pAdapter->IsMipderegSent != TRUE)
                             {

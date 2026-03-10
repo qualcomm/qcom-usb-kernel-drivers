@@ -3926,6 +3926,14 @@ ULONG MPQMUX_ProcessWdsGetDataBearerResp
     PMP_OID_WRITE pOID
 );
 
+
+ULONG MPQMUX_ComposeDmsGetDeviceSerialNumReq
+(
+   PMP_ADAPTER   pAdapter,
+   NDIS_OID      Oid,
+   PMP_OID_WRITE pOID
+);
+
 ULONG MPQMUX_ProcessWmsGetMessageProtocolResp
 (
     PMP_ADAPTER   pAdapter,
@@ -3942,9 +3950,16 @@ USHORT MPQMUX_ComposeWmsGetStoreMaxSizeReqSend
 
 ULONG MPQMUX_ProcessWmsGetStoreMaxSizeResp
 (
-    PMP_ADAPTER   pAdapter,
-    PQMUX_MSG     qmux_msg,
-    PMP_OID_WRITE pOID
+   PMP_ADAPTER   pAdapter,
+   PQMUX_MSG    qmux_msg,
+   PMP_OID_WRITE pOID
+);
+
+ULONG MPQMUX_ComposeWmsGetSMSCAddressReq
+(
+   PMP_ADAPTER   pAdapter,
+   NDIS_OID      Oid,
+   PMP_OID_WRITE pOID
 );
 
 ULONG MPQMUX_ProcessWmsGetSMSCAddressResp
@@ -4073,6 +4088,13 @@ ULONG MPQMUX_ProcessWmsSetRouteResp
     PMP_OID_WRITE pOID
 );
 
+ULONG MPQMUX_ComposeDmsGetActivatedStatusReq
+(
+   PMP_ADAPTER   pAdapter,
+   NDIS_OID      Oid,
+   PMP_OID_WRITE pOID
+);
+
 ULONG MPQMUX_ProcessDmsGetActivatedStatusResp
 (
     PMP_ADAPTER   pAdapter,
@@ -4158,11 +4180,25 @@ ULONG MPQMUX_ProcessDmsUIMGetCkStatusResp
     PMP_OID_WRITE pOID
 );
 
+ULONG MPQMUX_ComposeDmsUIMVerifyPinReq
+(
+   PMP_ADAPTER   pAdapter,
+   NDIS_OID      Oid,
+   PMP_OID_WRITE pOID
+);
+
 ULONG MPQMUX_ProcessDmsUIMVerifyPinResp
 (
-    PMP_ADAPTER   pAdapter,
-    PQMUX_MSG     qmux_msg,
-    PMP_OID_WRITE pOID
+   PMP_ADAPTER   pAdapter,
+   PQMUX_MSG    qmux_msg,
+   PMP_OID_WRITE pOID
+);
+
+ULONG MPQMUX_ComposeDmsUIMSetPinProtectionReq
+(
+   PMP_ADAPTER   pAdapter,
+   NDIS_OID      Oid,
+   PMP_OID_WRITE pOID
 );
 
 ULONG MPQMUX_ProcessDmsUIMSetPinProtectionResp
@@ -4186,11 +4222,25 @@ ULONG MPQMUX_ProcessDmsUIMSetCkProtectionResp
     PMP_OID_WRITE pOID
 );
 
+ULONG MPQMUX_ComposeDmsUIMChangePinReq
+(
+   PMP_ADAPTER   pAdapter,
+   NDIS_OID      Oid,
+   PMP_OID_WRITE pOID
+);
+
 ULONG MPQMUX_ProcessDmsUIMChangePinResp
 (
-    PMP_ADAPTER   pAdapter,
-    PQMUX_MSG     qmux_msg,
-    PMP_OID_WRITE pOID
+   PMP_ADAPTER   pAdapter,
+   PQMUX_MSG    qmux_msg,
+   PMP_OID_WRITE pOID
+);
+
+ULONG MPQMUX_ComposeDmsUIMUnblockPinReq
+(
+   PMP_ADAPTER   pAdapter,
+   NDIS_OID      Oid,
+   PMP_OID_WRITE pOID
 );
 
 ULONG MPQMUX_ProcessDmsUIMUnblockPinResp
@@ -4278,11 +4328,25 @@ ULONG MPQMUX_ProcessNasPerformNetworkScanResp
     PMP_OID_WRITE pOID
 );
 
+ULONG MPQMUX_ComposeNasSetTechnologyPrefReq
+(
+   PMP_ADAPTER   pAdapter,
+   NDIS_OID      Oid,
+   PMP_OID_WRITE pOID
+);
+
 ULONG MPQMUX_ProcessNasSetTechnologyPrefResp
 (
-    PMP_ADAPTER   pAdapter,
-    PQMUX_MSG     qmux_msg,
-    PMP_OID_WRITE pOID
+   PMP_ADAPTER   pAdapter,
+   PQMUX_MSG    qmux_msg,
+   PMP_OID_WRITE pOID
+);
+
+ULONG MPQMUX_ComposeNasInitiateNwRegisterReq
+(
+   PMP_ADAPTER   pAdapter,
+   NDIS_OID      Oid,
+   PMP_OID_WRITE pOID
 );
 
 USHORT MPQMUX_ComposeNasInitiateNwRegisterReqSend
@@ -4457,16 +4521,14 @@ USHORT MPQMUX_ChkIPv6PktSrvcStatus
     PQCQMI        QMI
 );
 
-BOOLEAN ParseWdsPacketServiceStatus
-(
-    PMP_ADAPTER pAdapter,
-    PQMUX_MSG   qmux_msg,
-    UCHAR      *ConnectionStatus,
-    UCHAR      *ReconfigReqd,
-    USHORT     *CallEndReason,
-    USHORT     *CallEndReasonV,
-    UCHAR      *IpFamily
-);
+BOOLEAN ParseWdsPacketServiceStatus( 
+   PMP_ADAPTER pAdapter, 
+   PQMUX_MSG qmux_msg,
+   UCHAR *ConnectionStatus,
+   UCHAR *ReconfigReqd,
+   USHORT *CallEndReason,
+   USHORT *CallEndReasonV,
+   UCHAR *IpFamily);
 
 VOID MPQMUX_ProcessWdsPktSrvcStatusResp
 (
@@ -4515,9 +4577,15 @@ USHORT MPQMUX_ComposeWdsGetDefaultSettingsReqSend
 
 ULONG MPQMUX_ProcessWdsGetDefaultSettingsResp
 (
-    PMP_ADAPTER   pAdapter,
-    PQMUX_MSG     qmux_msg,
-    PMP_OID_WRITE pOID
+   PMP_ADAPTER   pAdapter,
+   PQMUX_MSG    qmux_msg,
+   PMP_OID_WRITE pOID
+);
+
+
+VOID GetReadyInfo
+( 
+   PMP_ADAPTER   pAdapter
 );
 
 VOID MPQMUX_SendDeRegistration

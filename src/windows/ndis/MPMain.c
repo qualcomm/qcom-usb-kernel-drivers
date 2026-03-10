@@ -92,9 +92,6 @@ GENERAL DESCRIPTION
 
 #endif   // EVENT_TRACING
 
-BOOLEAN queuesAreEmpty(PMP_ADAPTER, char *);
-VOID cleanupQueues(PMP_ADAPTER);
-
 MP_GLOBAL_DATA  GlobalData;
 NDIS_HANDLE     MyNdisHandle;
 LIST_ENTRY      MPUSB_FdoMap;
@@ -699,7 +696,7 @@ VOID MPMAIN_MiniportHaltEx(NDIS_HANDLE MiniportAdapterContext, NDIS_HALT_ACTION 
     }
 
     /* Clean up other queues if they are not empty */
-    cleanupQueues(pAdapter);
+    MPMAIN_CleanupQueues( pAdapter );
 
     //
     // Decrement the ref count which was incremented in MPINI_MiniportInitialize
@@ -726,7 +723,7 @@ VOID MPMAIN_MiniportHaltEx(NDIS_HANDLE MiniportAdapterContext, NDIS_HALT_ACTION 
         //
         // Are all the packets indicated up returned?
         //
-        if (bDone = queuesAreEmpty(pAdapter, "MPMAIN_MiniportHalt"))
+        if ( bDone = MPMAIN_QueuesAreEmpty( pAdapter, "MPMAIN_MiniportHalt" ) )
         {
             break;
         }
@@ -783,7 +780,7 @@ VOID MPMAIN_MiniportHaltEx(NDIS_HANDLE MiniportAdapterContext, NDIS_HALT_ACTION 
 
     MPMAIN_CancelMPThread(pAdapter);
     //Just to make sure that all the queues are empty
-    cleanupQueues(pAdapter);
+    MPMAIN_CleanupQueues(pAdapter);
 
 #ifdef NDIS50_MINIPORT
     //
@@ -846,7 +843,7 @@ NDIS_STATUS MPMAIN_MiniportReset(PBOOLEAN AddressingReset, NDIS_HANDLE MiniportA
         *AddressingReset = FALSE;
 
 #ifdef NDIS60_MINIPORT
-        if (queuesAreEmpty(pAdapter, "MPMAIN_MiniportResetEx"))
+        if (MPMAIN_QueuesAreEmpty(pAdapter, "MPMAIN_MiniportResetEx"))
         {
             pAdapter->ResetState = RST_STATE_COMPLETE;
             QCNET_DbgPrint
@@ -863,7 +860,7 @@ NDIS_STATUS MPMAIN_MiniportReset(PBOOLEAN AddressingReset, NDIS_HANDLE MiniportA
         //
         // Check to see if all the packets indicated up are returned.
         //
-        if (!queuesAreEmpty(pAdapter, "MPMAIN_MiniportReset"))
+        if ( !MPMAIN_QueuesAreEmpty( pAdapter, "MPMAIN_MiniportReset" ) )
         {
             pAdapter->ResetState = RST_STATE_START_CLEANUP;
 
@@ -893,7 +890,7 @@ NDIS_STATUS MPMAIN_MiniportReset(PBOOLEAN AddressingReset, NDIS_HANDLE MiniportA
 }  // MPMAIN_MiniportResetEx
 
 
-VOID ResetCompleteTimerDpc
+VOID MPMAIN_ResetCompleteTimerDpc
 (
     PVOID SystemSpecific1,
     PVOID FunctionContext,
@@ -975,7 +972,7 @@ VOID ResetCompleteTimerDpc
 #endif
 #endif
 
-            if (bDone = queuesAreEmpty(pAdapter, "Dpc"))
+         if ( bDone = MPMAIN_QueuesAreEmpty( pAdapter, "Dpc"  ) )
             {
                 pAdapter->ResetState = RST_STATE_QUEUES_EMPTY;
                 QcStatsIncrement(pAdapter, MP_CNT_TIMER, 3);
@@ -1133,7 +1130,7 @@ VOID ResetCompleteTimerDpc
 
             if (++pAdapter->nResetTimerCount <= RESET_TIMEOUT)
             {
-                if (MPWork_ScheduleWorkItem(pAdapter))
+            if ( MPMAIN_ScheduleWorkItem( pAdapter ) )
                 {
                     pAdapter->ResetState = RST_STATE_WAIT_USB;
                     QcStatsIncrement(pAdapter, MP_CNT_TIMER, 6);
@@ -1168,7 +1165,7 @@ VOID ResetCompleteTimerDpc
                 ("<%s> Dpc State: TIMEOUT - %d\n", pAdapter->PortName, pAdapter->nResetTimerCount)
             );
 
-            cleanupQueues(pAdapter);
+            MPMAIN_CleanupQueues( pAdapter );
 
             // Now set the adapter state and indicate the failure
             pAdapter->Flags &= ~fMP_RESET_IN_PROGRESS;
@@ -1247,7 +1244,7 @@ VOID ResetCompleteTimerDpc
     QcStatsDecrement(pAdapter, MP_CNT_TIMER, 2);
 }  // ResetCompleteTimerDpc
 
-VOID ReconfigTimerDpc
+VOID MPMAIN_ReconfigTimerDpc
 (
     PVOID SystemSpecific1,
     PVOID FunctionContext,
@@ -1295,7 +1292,7 @@ VOID ReconfigTimerDpc
 
 }  // ReconfigTimerDpc
 
-VOID ReconfigTimerDpcIPv6
+VOID MPMAIN_ReconfigTimerDpcIPv6
 (
     PVOID SystemSpecific1,
     PVOID FunctionContext,
@@ -1309,7 +1306,7 @@ VOID ReconfigTimerDpcIPv6
     QCNET_DbgPrint
     (
         MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
-        ("<%s> ---> ReconfigTimerDpcIPv6\n", pAdapter->PortName)
+       ("<%s> ---> MPMAIN_ReconfigTimerDpcIPv6\n", pAdapter->PortName)
     );
 
     NdisAcquireSpinLock(&pAdapter->QMICTLLock);
@@ -1317,7 +1314,7 @@ VOID ReconfigTimerDpcIPv6
     QCNET_DbgPrint
     (
         MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
-        ("<%s> ReconfigTimerDpcIPv6: indicating ConnStat CONNECT\n", pAdapter->PortName)
+       ("<%s> MPMAIN_ReconfigTimerDpcIPv6: indicating ConnStat CONNECT\n", pAdapter->PortName)
     );
     // Set indication
     KeSetEvent(&pAdapter->MPThreadMediaConnectEventIPv6, IO_NO_INCREMENT, FALSE);
@@ -1334,7 +1331,7 @@ VOID ReconfigTimerDpcIPv6
     QCNET_DbgPrint
     (
         MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
-        ("<%s> <--- ReconfigTimerDpcIPv6\n", pAdapter->PortName)
+       ("<%s> <--- MPMAIN_ReconfigTimerDpcIPv6\n", pAdapter->PortName)
     );
 
     NdisReleaseSpinLock(&pAdapter->QMICTLLock);
@@ -1343,14 +1340,14 @@ VOID ReconfigTimerDpcIPv6
 
 }  // ReconfigTimerDpcIPv6
 
-BOOLEAN queuesAreEmpty(PMP_ADAPTER pAdapter, char *caller)
+BOOLEAN MPMAIN_QueuesAreEmpty(PMP_ADAPTER pAdapter, char *caller)
 {
     BOOLEAN allQueuesClear = TRUE;
 
     QCNET_DbgPrint
     (
         MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
-        ("<%s> -->queuesAreEmpty\n", pAdapter->PortName)
+       ("<%s> -->MPMAIN_QueuesAreEmpty\n", pAdapter->PortName)
     );
 
     if (pAdapter->nBusyRx > 0)
@@ -1360,8 +1357,8 @@ BOOLEAN queuesAreEmpty(PMP_ADAPTER pAdapter, char *caller)
             MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
             ("<%s> %s: nBusyRx = %d F%d P%d (N%d F%d U%d)\n", pAdapter->PortName,
             caller, pAdapter->nBusyRx,
-            listDepth(&pAdapter->RxFreeList, &pAdapter->RxLock),
-            listDepth(&pAdapter->RxPendingList, &pAdapter->RxLock),
+            MPMAIN_ListDepth(&pAdapter->RxFreeList, &pAdapter->RxLock),
+            MPMAIN_ListDepth(&pAdapter->RxPendingList, &pAdapter->RxLock),
             pAdapter->nRxHeldByNdis, pAdapter->nRxFreeInMP, pAdapter->nRxPendingInUsb
         )
         );
@@ -1378,9 +1375,9 @@ BOOLEAN queuesAreEmpty(PMP_ADAPTER pAdapter, char *caller)
             MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
             ("<%s> %s: nBusyTx = %d P%d B%d C%d\n", pAdapter->PortName,
             caller, pAdapter->nBusyTx,
-            listDepth(&pAdapter->TxPendingList, &pAdapter->TxLock),
-            listDepth(&pAdapter->TxBusyList, &pAdapter->TxLock),
-            listDepth(&pAdapter->TxCompleteList, &pAdapter->TxLock)
+            MPMAIN_ListDepth(&pAdapter->TxPendingList, &pAdapter->TxLock),
+            MPMAIN_ListDepth(&pAdapter->TxBusyList, &pAdapter->TxLock),
+            MPMAIN_ListDepth(&pAdapter->TxCompleteList, &pAdapter->TxLock)
         )
         );
         allQueuesClear = FALSE;
@@ -1396,7 +1393,7 @@ BOOLEAN queuesAreEmpty(PMP_ADAPTER pAdapter, char *caller)
             MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
             ("<%s> %s: nBusyWrite = %d P%d \n", pAdapter->PortName,
             caller, pAdapter->nBusyWrite,
-            listDepth(&pAdapter->CtrlWriteList, &pAdapter->CtrlWriteLock)
+            MPMAIN_ListDepth(&pAdapter->CtrlWriteList, &pAdapter->CtrlWriteLock)
         )
         );
         allQueuesClear = FALSE;
@@ -1413,9 +1410,9 @@ BOOLEAN queuesAreEmpty(PMP_ADAPTER pAdapter, char *caller)
             MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
             ("<%s> %s: nBusyRCtrl = %d F%d P%d C%d\n", pAdapter->PortName,
             caller, pAdapter->nBusyRCtrl,
-            listDepth(&pAdapter->CtrlReadFreeList, &pAdapter->CtrlReadLock),
-            listDepth(&pAdapter->CtrlReadPendingList, &pAdapter->CtrlReadLock),
-            listDepth(&pAdapter->CtrlReadCompleteList, &pAdapter->CtrlReadLock)
+            MPMAIN_ListDepth(&pAdapter->CtrlReadFreeList, &pAdapter->CtrlReadLock),
+            MPMAIN_ListDepth(&pAdapter->CtrlReadPendingList, &pAdapter->CtrlReadLock),
+            MPMAIN_ListDepth(&pAdapter->CtrlReadCompleteList, &pAdapter->CtrlReadLock)
         )
         );
         allQueuesClear = FALSE;
@@ -1431,10 +1428,10 @@ BOOLEAN queuesAreEmpty(PMP_ADAPTER pAdapter, char *caller)
             MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
             ("<%s> %s: nBusyOID = %d F%d P%d W%d A%d\n", pAdapter->PortName,
             caller, pAdapter->nBusyOID,
-            listDepth(&pAdapter->OIDFreeList, &pAdapter->OIDLock),
-            listDepth(&pAdapter->OIDPendingList, &pAdapter->OIDLock),
-            listDepth(&pAdapter->OIDWaitingList, &pAdapter->OIDLock),
-            listDepth(&pAdapter->OIDAsyncList, &pAdapter->OIDLock)
+            MPMAIN_ListDepth(&pAdapter->OIDFreeList,    &pAdapter->OIDLock),
+            MPMAIN_ListDepth(&pAdapter->OIDPendingList, &pAdapter->OIDLock),
+            MPMAIN_ListDepth(&pAdapter->OIDWaitingList, &pAdapter->OIDLock),
+            MPMAIN_ListDepth(&pAdapter->OIDAsyncList, &pAdapter->OIDLock)
         )
         );
         allQueuesClear = FALSE;
@@ -1463,12 +1460,12 @@ BOOLEAN queuesAreEmpty(PMP_ADAPTER pAdapter, char *caller)
     QCNET_DbgPrint
     (
         MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
-        ("<%s> <--queuesAreEmpty: %d\n", pAdapter->PortName, allQueuesClear)
+       ("<%s> <--MPMAIN_QueuesAreEmpty: %d\n", pAdapter->PortName, allQueuesClear)
     );
     return allQueuesClear;
 }
 
-cleanupOIDWaitingQueue(PMP_ADAPTER pAdapter)
+VOID MPMAIN_CleanupOIDWaitingQueue(PMP_ADAPTER pAdapter)
 {
     NdisAcquireSpinLock(&pAdapter->OIDLock);
     while (!IsListEmpty(&pAdapter->OIDWaitingList))
@@ -1488,7 +1485,7 @@ cleanupOIDWaitingQueue(PMP_ADAPTER pAdapter)
     NdisReleaseSpinLock(&pAdapter->OIDLock);
 }
 
-VOID CleanupTxQueues(PMP_ADAPTER pAdapter)
+VOID MPMAIN_CleanupTxQueues(PMP_ADAPTER pAdapter)
 {
     PLIST_ENTRY pList;
 #ifdef NDIS620_MINIPORT
@@ -1569,7 +1566,7 @@ VOID CleanupTxQueues(PMP_ADAPTER pAdapter)
     }
 
 }  // CleanupTxQueues
-VOID cleanupQueues(PMP_ADAPTER pAdapter)
+VOID MPMAIN_CleanupQueues(PMP_ADAPTER pAdapter)
 {
     if (pAdapter->nBusyRx > 0)
     {
@@ -1595,7 +1592,7 @@ VOID cleanupQueues(PMP_ADAPTER pAdapter)
 
     }
 
-    CleanupTxQueues(pAdapter);
+   MPMAIN_CleanupTxQueues(pAdapter);
 #ifdef NDIS60_MINIPORT
     if (1)
     {
@@ -1718,7 +1715,7 @@ VOID cleanupQueues(PMP_ADAPTER pAdapter)
     QCNET_DbgPrint
     (
         MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
-        ("<%s> cleanupQueues results - \n", pAdapter->PortName)
+       ("<%s> MPMAIN_CleanupQueues results - \n", pAdapter->PortName)
     );
 
     QCNET_DbgPrint
@@ -1726,8 +1723,8 @@ VOID cleanupQueues(PMP_ADAPTER pAdapter)
         MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
         ("<%s>     nBusyRx = %d F%d P%d (N%d U%d F%d)\n",
         pAdapter->PortName, pAdapter->nBusyRx,
-        listDepth(&pAdapter->RxFreeList, &pAdapter->RxLock),
-        listDepth(&pAdapter->RxPendingList, &pAdapter->RxLock),
+        MPMAIN_ListDepth(&pAdapter->RxFreeList, &pAdapter->RxLock),
+        MPMAIN_ListDepth(&pAdapter->RxPendingList, &pAdapter->RxLock),
         pAdapter->nRxHeldByNdis, pAdapter->nRxPendingInUsb,
         pAdapter->nRxFreeInMP)
     );
@@ -1738,9 +1735,9 @@ VOID cleanupQueues(PMP_ADAPTER pAdapter)
         ("<%s> nBusyTx = %d P%d B%d C%d\n",
         pAdapter->PortName,
         pAdapter->nBusyTx,
-        listDepth(&pAdapter->TxPendingList, &pAdapter->TxLock),
-        listDepth(&pAdapter->TxBusyList, &pAdapter->TxLock),
-        listDepth(&pAdapter->TxCompleteList, &pAdapter->TxLock)
+        MPMAIN_ListDepth(&pAdapter->TxPendingList, &pAdapter->TxLock),
+        MPMAIN_ListDepth(&pAdapter->TxBusyList, &pAdapter->TxLock),
+        MPMAIN_ListDepth(&pAdapter->TxCompleteList, &pAdapter->TxLock)
     )
     );
     QCNET_DbgPrint
@@ -1748,9 +1745,9 @@ VOID cleanupQueues(PMP_ADAPTER pAdapter)
         MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
         ("<%s> nBusyRCtrl = %d F%d P%d C%d\n", pAdapter->PortName,
         pAdapter->nBusyRCtrl,
-        listDepth(&pAdapter->CtrlReadFreeList, &pAdapter->CtrlReadLock),
-        listDepth(&pAdapter->CtrlReadPendingList, &pAdapter->CtrlReadLock),
-        listDepth(&pAdapter->CtrlReadCompleteList, &pAdapter->CtrlReadLock)
+        MPMAIN_ListDepth(&pAdapter->CtrlReadFreeList, &pAdapter->CtrlReadLock),
+        MPMAIN_ListDepth(&pAdapter->CtrlReadPendingList, &pAdapter->CtrlReadLock),
+        MPMAIN_ListDepth(&pAdapter->CtrlReadCompleteList, &pAdapter->CtrlReadLock)
     )
     );
     QCNET_DbgPrint
@@ -1758,10 +1755,10 @@ VOID cleanupQueues(PMP_ADAPTER pAdapter)
         MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
         ("<%s> nBusyOID = %d F%d P%d W%d A%d\n", pAdapter->PortName,
         pAdapter->nBusyOID,
-        listDepth(&pAdapter->OIDFreeList, &pAdapter->OIDLock),
-        listDepth(&pAdapter->OIDPendingList, &pAdapter->OIDLock),
-        listDepth(&pAdapter->OIDWaitingList, &pAdapter->OIDLock),
-        listDepth(&pAdapter->OIDAsyncList, &pAdapter->OIDLock)
+        MPMAIN_ListDepth(&pAdapter->OIDFreeList, &pAdapter->OIDLock),
+        MPMAIN_ListDepth(&pAdapter->OIDPendingList, &pAdapter->OIDLock),
+        MPMAIN_ListDepth(&pAdapter->OIDWaitingList, &pAdapter->OIDLock),
+        MPMAIN_ListDepth(&pAdapter->OIDAsyncList, &pAdapter->OIDLock)
     )
     );
 }
@@ -1823,7 +1820,7 @@ BOOLEAN MPMAIN_MiniportCheckForHang(NDIS_HANDLE MiniportAdapterContext)
     return(FALSE);
 }
 
-int listDepth(PLIST_ENTRY listHead, PNDIS_SPIN_LOCK lock)
+int MPMAIN_ListDepth(PLIST_ENTRY listHead, PNDIS_SPIN_LOCK lock)
 {
     int depth;
     PLIST_ENTRY    thisEntry;
@@ -1844,13 +1841,13 @@ int listDepth(PLIST_ENTRY listHead, PNDIS_SPIN_LOCK lock)
     return depth;
 }
 
-BOOLEAN MPWork_ScheduleWorkItem(PMP_ADAPTER pAdapter)
+BOOLEAN MPMAIN_ScheduleWorkItem( PMP_ADAPTER pAdapter )
 {
 
     QCNET_DbgPrint
     (
         MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_TRACE,
-        ("<%s> MPWork_ScheduleWorkItem\n", pAdapter->PortName)
+       ("<%s> MPMAIN_ScheduleWorkItem\n", pAdapter->PortName)
     );
 
     KeSetEvent(&pAdapter->WorkThreadProcessEvent, IO_NO_INCREMENT, FALSE);
@@ -1933,7 +1930,7 @@ VOID MPMAIN_MiniportPnPEventNotify
             MPQOS_CancelQosThread(pAdapter);
 #endif // MP_QCQOS_ENABLED
 
-            CleanupTxQueues(pAdapter);
+          MPMAIN_CleanupTxQueues(pAdapter);
 
             // Clean up all Flow control queues
 #ifdef QCUSB_MUX_PROTOCOL
@@ -2311,7 +2308,7 @@ Exit:
         IoFreeIrp(pIrp);
     }
 
-    cleanupOIDWaitingQueue(pAdapter);
+   MPMAIN_CleanupOIDWaitingQueue( pAdapter );
 
     InterlockedDecrement(&pAdapter->RemovalInProgress);
 
@@ -3068,7 +3065,7 @@ BOOLEAN MPMAIN_InitializeQMI(PMP_ADAPTER pAdapter, INT QmiRetries)
 #endif // MP_QCQOS_ENABLED
 
                         // Query IPV4
-                        if (QCMAIN_IsDualIPSupported(pAdapter) == TRUE)
+               			if (MPMAIN_IsDualIPSupported(pAdapter) == TRUE)
                         {
                             MPQMUX_ComposeQMUXReq(pAdapter, NULL, QMUX_TYPE_WDS,
                                                   QMIWDS_SET_CLIENT_IP_FAMILY_PREF_REQ, (CUSTOMQMUX)MPQMUX_SetIPv4ClientIPFamilyPref, TRUE);
@@ -3083,7 +3080,7 @@ BOOLEAN MPMAIN_InitializeQMI(PMP_ADAPTER pAdapter, INT QmiRetries)
                         // Query IPV4/IPV6 tp confirm media still connected
                         MPQMUX_ComposeQMUXReq(pAdapter, NULL, QMUX_TYPE_WDS,
                                               QMIWDS_GET_PKT_SRVC_STATUS_REQ, NULL, TRUE);
-                        if ((QCMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL))
+              			if ((MPMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL))
                         {
                             MPQMUX_ComposeQMUXReq(pAdapter, NULL, QMUX_TYPE_WDS,
                                                   QMIWDS_GET_PKT_SRVC_STATUS_REQ, (CUSTOMQMUX)MPQMUX_ChkIPv6PktSrvcStatus, TRUE);
@@ -3118,7 +3115,7 @@ BOOLEAN MPMAIN_InitializeQMI(PMP_ADAPTER pAdapter, INT QmiRetries)
         if (retVal == TRUE)
         {
             pAdapter->QmiInitialized = TRUE;
-            MoveQMIRequests(pAdapter);
+      		MPMAIN_MoveQMIRequests(pAdapter);
             USBIF_UpdateSSR(pAdapter->USBDo, 0);
         }
 
@@ -3769,7 +3766,7 @@ VOID MPMAIN_MPThread(PVOID Context)
                         {
                             RtlZeroMemory((PVOID) & (pAdapter->IPSettings.IPV4), sizeof(pAdapter->IPSettings.IPV4));
                         }
-                        if ((QCMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL))
+               			if ((MPMAIN_IsDualIPSupported(pAdapter) == TRUE) && (pAdapter->WdsIpClientContext != NULL))
                         {
                             if (pAdapter->IPv6DataCall == 1)
                             {
@@ -3848,7 +3845,7 @@ VOID MPMAIN_MPThread(PVOID Context)
                 {
                     pAdapter->ulMediaConnectStatus = NdisMediaStateConnected;
                 }
-                MPWork_ScheduleWorkItem(pAdapter); // post data-read IRPs
+            	MPMAIN_ScheduleWorkItem(pAdapter); // post data-read IRPs
 
                 DisconnectedAllAdapters(pAdapter, &returnAdapter);
                 USBIF_PollDevice(returnAdapter->USBDo, TRUE);
@@ -3874,7 +3871,7 @@ VOID MPMAIN_MPThread(PVOID Context)
 
                 if (pAdapter->DisableTimerResolution == 0)
                 {
-                    SetTimerResolution(pAdapter, TRUE);
+               		MPMAIN_SetTimerResolution( pAdapter, TRUE );
                 }
 
 #ifdef NDIS620_MINIPORT
@@ -3891,7 +3888,7 @@ VOID MPMAIN_MPThread(PVOID Context)
                     ContextState.ContextState.VoiceCallState = WwanVoiceCallStateNone;
                     ContextState.ContextState.ConnectionId = pAdapter->WWanServiceConnectHandle;
                     ContextState.ContextState.ActivationState = WwanActivationStateActivated;
-                    MyNdisMIndicateStatus
+           			MPMAIN_NdisMIndicateStatus
                     (
                         pAdapter->AdapterHandle,
                         NDIS_STATUS_WWAN_CONTEXT_STATE,
@@ -3920,7 +3917,7 @@ VOID MPMAIN_MPThread(PVOID Context)
                     LinkState.XmitLinkSpeed = pAdapter->ulServingSystemRxRate;
                     LinkState.RcvLinkSpeed = pAdapter->ulServingSystemRxRate;
 
-                    MyNdisMIndicateStatus
+					MPMAIN_NdisMIndicateStatus
                     (
                         pAdapter->AdapterHandle,
                         NDIS_STATUS_LINK_STATE,
@@ -3938,7 +3935,7 @@ VOID MPMAIN_MPThread(PVOID Context)
                                       QMIWDS_GET_DATA_BEARER_REQ, NULL, TRUE);
 
 #else
-                MyNdisMIndicateStatus
+				MPMAIN_NdisMIndicateStatus
                 (
                     pAdapter->AdapterHandle,
                     NDIS_STATUS_MEDIA_CONNECT,
@@ -4577,7 +4574,7 @@ VOID MPMAIN_DetermineNdisVersion(VOID)
 
 }  // MPMAIN_DetermineNdisVersion
 
-VOID MyNdisMIndicateStatus
+VOID MPMAIN_NdisMIndicateStatus
 (
     NDIS_HANDLE  MiniportAdapterHandle,
     NDIS_STATUS  GeneralStatus,
@@ -4591,7 +4588,7 @@ VOID MyNdisMIndicateStatus
     (
         MP_DBG_MASK_OID_QMI,
         MP_DBG_LEVEL_INFO,
-        ("\n<%s> MyNdisMIndicateStatus oid 0x%x\n\n", gDeviceName, GeneralStatus)
+       ("\n<%s> MPMAIN_NdisMIndicateStatus oid 0x%x\n\n", gDeviceName, GeneralStatus)
     );
 
 #ifdef NDIS60_MINIPORT
@@ -4655,7 +4652,7 @@ NDIS_STATUS MPMAIN_MiniportPause
 
     pAdapter->Flags |= fMP_STATE_PAUSE;
 
-    CleanupTxQueues(pAdapter);
+    MPMAIN_CleanupTxQueues(pAdapter);
 
     while (TRUE)
     {
@@ -4764,9 +4761,9 @@ BOOLEAN MPMAIN_AreDataQueuesEmpty(PMP_ADAPTER pAdapter, PCHAR Caller)
             MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
             ("<%s> %s: nBusyTx = %d P%d B%d C%d\n", pAdapter->PortName,
             Caller, pAdapter->nBusyTx,
-            listDepth(&pAdapter->TxPendingList, &pAdapter->TxLock),
-            listDepth(&pAdapter->TxBusyList, &pAdapter->TxLock),
-            listDepth(&pAdapter->TxCompleteList, &pAdapter->TxLock)
+            MPMAIN_ListDepth(&pAdapter->TxPendingList, &pAdapter->TxLock),
+            MPMAIN_ListDepth(&pAdapter->TxBusyList, &pAdapter->TxLock),
+            MPMAIN_ListDepth(&pAdapter->TxCompleteList, &pAdapter->TxLock)
         )
         );
         allQueuesClear = FALSE;
@@ -4853,7 +4850,7 @@ NDIS_STATUS MPMAIN_MiniportSetOptions
     return NDIS_STATUS_SUCCESS;
 }  // MPMAIN_MiniportSetOptions
 
-BOOLEAN QCMAIN_IsDualIPSupported(PMP_ADAPTER pAdapter)
+BOOLEAN MPMAIN_IsDualIPSupported(PMP_ADAPTER pAdapter)
 {
     return (pAdapter->QMUXVersion[QMUX_TYPE_WDS].Major >= 1 && pAdapter->QMUXVersion[QMUX_TYPE_WDS].Minor >= 9);
 }  // QCMAIN_IsDualIPSupported
@@ -4900,7 +4897,7 @@ VOID MPMAIN_MediaDisconnect(PMP_ADAPTER pAdapter, BOOLEAN DisconnectAll)
             LinkState.PauseFunctions = NdisPauseFunctionsUnknown;
             LinkState.XmitLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
             LinkState.RcvLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
-            MyNdisMIndicateStatus
+            MPMAIN_NdisMIndicateStatus
             (
                 pAdapter->AdapterHandle,
                 NDIS_STATUS_LINK_STATE,
@@ -4909,7 +4906,7 @@ VOID MPMAIN_MediaDisconnect(PMP_ADAPTER pAdapter, BOOLEAN DisconnectAll)
             );
         }
 #else
-        MyNdisMIndicateStatus
+        MPMAIN_NdisMIndicateStatus
         (
             pAdapter->AdapterHandle,
             NDIS_STATUS_MEDIA_DISCONNECT,
@@ -4944,7 +4941,7 @@ VOID MPMAIN_MediaDisconnect(PMP_ADAPTER pAdapter, BOOLEAN DisconnectAll)
         {
             if (pAdapter->DisableTimerResolution == 0)
             {
-                SetTimerResolution(pAdapter, FALSE);
+             	MPMAIN_SetTimerResolution( pAdapter, FALSE );
             }
         }
     }
@@ -5030,7 +5027,7 @@ VOID MPMAIN_DisconnectNotification(PMP_ADAPTER pAdapter)
 
 #ifdef NDIS620_MINIPORT
 
-VOID SignalStateTimerDpc
+VOID MPMAIN_SignalStateTimerDpc
 (
     PVOID SystemSpecific1,
     PVOID FunctionContext,
@@ -5067,7 +5064,7 @@ VOID SignalStateTimerDpc
 
 }
 
-VOID SignalStateDisconnectTimerDpc
+VOID MPMAIN_SignalStateDisconnectTimerDpc
 (
     PVOID SystemSpecific1,
     PVOID FunctionContext,
@@ -5082,7 +5079,7 @@ VOID SignalStateDisconnectTimerDpc
     QCNET_DbgPrint
     (
         MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
-        ("<%s> ---> SignalStateDisconnectTimerDpc\n", pAdapter->PortName)
+       ("<%s> ---> MPMAIN_SignalStateDisconnectTimerDpc\n", pAdapter->PortName)
     );
 
     NdisAcquireSpinLock(&pAdapter->QMICTLLock);
@@ -5096,7 +5093,7 @@ VOID SignalStateDisconnectTimerDpc
     LinkState.PauseFunctions = NdisPauseFunctionsUnknown;
     LinkState.XmitLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
     LinkState.RcvLinkSpeed = NDIS_LINK_SPEED_UNKNOWN;
-    MyNdisMIndicateStatus
+    MPMAIN_NdisMIndicateStatus
     (
         pAdapter->AdapterHandle,
         NDIS_STATUS_LINK_STATE,
@@ -5110,7 +5107,7 @@ VOID SignalStateDisconnectTimerDpc
 
 }
 
-VOID MsisdnTimerDpc
+VOID MPMAIN_MsisdnTimerDpc
 (
     PVOID SystemSpecific1,
     PVOID FunctionContext,
@@ -5154,7 +5151,7 @@ VOID MsisdnTimerDpc
 
 }
 
-VOID RegisterPacketTimerDpc
+VOID MPMAIN_RegisterPacketTimerDpc
 (
     PVOID SystemSpecific1,
     PVOID FunctionContext,
@@ -5608,7 +5605,7 @@ VOID MPMAIN_PurgeFlowControlledPackets(PMP_ADAPTER pAdapter, BOOLEAN InQueueComp
 
     if (numQueued != 0)
     {
-        MPWork_ScheduleWorkItem(pAdapter);
+    	MPMAIN_ScheduleWorkItem(pAdapter);
     }
 
     QCNET_DbgPrint
@@ -5730,7 +5727,7 @@ VOID MPMAIN_QMAPPurgeFlowControlledPackets(PMP_ADAPTER pAdapter, BOOLEAN InQueue
 
     if (numQueued != 0)
     {
-        MPWork_ScheduleWorkItem(pAdapter);
+    	MPMAIN_ScheduleWorkItem(pAdapter);
     }
 
     QCNET_DbgPrint
@@ -5743,7 +5740,7 @@ VOID MPMAIN_QMAPPurgeFlowControlledPackets(PMP_ADAPTER pAdapter, BOOLEAN InQueue
 
 #endif // defined(QCMP_QMAP_V2_SUPPORT) || defined(QCMP_QMAP_V1_SUPPORT)
 
-BOOLEAN SetTimerResolution(PMP_ADAPTER pAdapter, BOOLEAN Flag)
+BOOLEAN MPMAIN_SetTimerResolution ( PMP_ADAPTER pAdapter, BOOLEAN Flag )
 {
     if (Flag == TRUE)
     {
@@ -5778,7 +5775,7 @@ BOOLEAN SetTimerResolution(PMP_ADAPTER pAdapter, BOOLEAN Flag)
     return TRUE;
 }
 
-BOOLEAN MoveQMIRequests(PMP_ADAPTER pAdapter)
+BOOLEAN MPMAIN_MoveQMIRequests( PMP_ADAPTER pAdapter )
 {
     NdisAcquireSpinLock(&pAdapter->CtrlWriteLock);
     while (!IsListEmpty(&pAdapter->CtrlWritePendingList))
@@ -5802,7 +5799,7 @@ BOOLEAN MoveQMIRequests(PMP_ADAPTER pAdapter)
                 (
                     MP_DBG_MASK_CONTROL,
                     MP_DBG_LEVEL_DETAIL,
-                    ("<%s> MoveQMIRequests: Client ID should never be 0\n", pAdapter->PortName)
+              	    ("<%s> MPMAIN_MoveQMIRequests: Client ID should never be 0\n", pAdapter->PortName)
                 );
             }
         }
@@ -5812,12 +5809,12 @@ BOOLEAN MoveQMIRequests(PMP_ADAPTER pAdapter)
             (
                 MP_DBG_MASK_CONTROL,
                 MP_DBG_LEVEL_DETAIL,
-                ("<%s> MoveQMIRequests: Unexpected Client ID/Type , Type:%d, Id:%d\n", pAdapter->PortName, QMI->QMIType, QMI->ClientId)
+           		("<%s> MPMAIN_MoveQMIRequests: Unexpected Client ID/Type , Type:%d, Id:%d\n", pAdapter->PortName, QMI->QMIType, QMI->ClientId)
             );
         }
         InsertTailList(&pAdapter->CtrlWriteList, &(QMIElement->QCWRITERequest));
     }
     NdisReleaseSpinLock(&pAdapter->CtrlWriteLock);
-    MPWork_ScheduleWorkItem(pAdapter);
+    MPMAIN_ScheduleWorkItem( pAdapter ); 
     return TRUE;
 }

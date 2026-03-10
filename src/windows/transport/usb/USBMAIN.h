@@ -885,10 +885,10 @@ typedef struct _DEVICE_EXTENSION
     PUSB_DEVICE_DESCRIPTOR        pUsbDevDesc;   // ptr since there is only 1 dev desc
     PUSB_CONFIGURATION_DESCRIPTOR pUsbConfigDesc;
     PUSBD_INTERFACE_INFORMATION   Interface[MAX_INTERFACE];
-    USBD_CONFIGURATION_HANDLE     ConfigurationHandle;
     PURB    UsbConfigUrb;
     BOOLEAN IsEcmModel;
     USHORT  usCommClassInterface;
+    USBD_CONFIGURATION_HANDLE ConfigurationHandle;
     CHAR    DevSerialNumber[256];  // to hold USB_STRING_DESCRIPTOR of the serial number
     ULONG   IfProtocol;
     _MUTEX  muPnPMutex;

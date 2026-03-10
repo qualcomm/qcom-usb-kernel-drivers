@@ -233,13 +233,13 @@ QCFilterAddDevice(
 
     QCFLT_DbgPrint(DBG_LEVEL_DETAIL, ("QCFilterAddDevice : Initialize RemoveLock\n"));
     IoInitializeRemoveLock(&QCdevExt->RemoveLock, POOL_TAG, 1, 100);
-    NTstatus = QCFilter_InitializeDeviceExt(QCdeviceObject);
+   NTstatus = QCFLT_InitializeDeviceExt( QCdeviceObject );
     if (NTstatus != STATUS_SUCCESS)
     {
         IoDeleteDevice(QCdeviceObject);
         return STATUS_UNSUCCESSFUL;
     }
-    NTstatus = QCFilter_StartFilterThread(QCdeviceObject);
+   NTstatus = QCFLT_StartFilterThread( QCdeviceObject );
     if (NTstatus != STATUS_SUCCESS)
     {
         IoDeleteDevice(QCdeviceObject);
@@ -668,6 +668,7 @@ QCFilterUnload(PDRIVER_OBJECT DriverObject)
 #ifdef EVENT_TRACING
     WPP_CLEANUP(DriverObject);
 #endif
+   return;
 }
 
 /****************************************************************************
@@ -862,7 +863,7 @@ QCFilterDeleteControlObject(PDEVICE_OBJECT    DeviceObject, PFILTER_DEVICE_INFO 
  * returns:  void
  *
  ****************************************************************************/
-VOID DispatchCancelQueued(PDEVICE_OBJECT DeviceObject, PIRP Irp)
+VOID QCFLT_DispatchCancelQueued(PDEVICE_OBJECT DeviceObject, PIRP Irp)
 {
     KIRQL irql = KeGetCurrentIrql();
     PDEVICE_EXTENSION pDevExt = DeviceObject->DeviceExtension;
@@ -900,7 +901,7 @@ VOID DispatchCancelQueued(PDEVICE_OBJECT DeviceObject, PIRP Irp)
             DBG_LEVEL_ERROR,
             ("<%s> DSP_Cxl: no action to active 0x%p\n", pDevExt->PortName, Irp)
         );
-        IoSetCancelRoutine(Irp, DispatchCancelQueued);
+      IoSetCancelRoutine(Irp, QCFLT_DispatchCancelQueued);
     }
 
     QcReleaseSpinLock(&pDevExt->FilterSpinLock, levelOrHandle);
@@ -1348,7 +1349,7 @@ UpdateRegistry:
  * returns:  STATUS_MORE_PROCESSING_REQUIRED
  *
  ****************************************************************************/
-NTSTATUS GetConfigurationCompletion(PDEVICE_OBJECT pDevObj, PIRP pIrp, PVOID pEvent)
+NTSTATUS QCFLT_GetConfigurationCompletion(PDEVICE_OBJECT pDevObj, PIRP pIrp, PVOID pEvent)
 {
 
     KeSetEvent((PKEVENT)pEvent, IO_NO_INCREMENT, FALSE);
@@ -1461,7 +1462,7 @@ QCFilterDispatchIo(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                         }
 
                         _IoMarkIrpPending(Irp);
-                        IoSetCancelRoutine(Irp, DispatchCancelQueued);
+                  IoSetCancelRoutine(Irp, QCFLT_DispatchCancelQueued);
 
                         status = STATUS_PENDING;
                         InsertTailList(&deviceExtension->DispatchQueue, &Irp->Tail.Overlay.ListEntry);
@@ -1504,7 +1505,7 @@ QCFilterDispatchIo(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                         }
 
                         _IoMarkIrpPending(Irp);
-                        IoSetCancelRoutine(Irp, DispatchCancelQueued);
+                  IoSetCancelRoutine(Irp, QCFLT_DispatchCancelQueued);
 
                         status = STATUS_PENDING;
                         InsertTailList(&deviceExtension->DispatchQueue, &Irp->Tail.Overlay.ListEntry);
@@ -1793,7 +1794,7 @@ Success:
                                     IoCopyCurrentIrpStackLocationToNext(Irp);
 
                                     IoSetCompletionRoutine(Irp,
-                                        (PIO_COMPLETION_ROUTINE)GetConfigurationCompletion,
+                                                (PIO_COMPLETION_ROUTINE) QCFLT_GetConfigurationCompletion,
                                         &event, TRUE, TRUE, TRUE);
 
                                     status = IoCallDriver(deviceExtension->NextLowerDriver, Irp);
@@ -1817,7 +1818,7 @@ Success:
                                         IoCopyCurrentIrpStackLocationToNext(Irp);
 
                                         IoSetCompletionRoutine(Irp,
-                                            (PIO_COMPLETION_ROUTINE)GetConfigurationCompletion,
+                                            (PIO_COMPLETION_ROUTINE) QCFLT_GetConfigurationCompletion,
                                             &event, TRUE, TRUE, TRUE);
 
                                         status = IoCallDriver(deviceExtension->NextLowerDriver, Irp);
@@ -1853,7 +1854,7 @@ Success:
                                         IoCopyCurrentIrpStackLocationToNext(Irp);
 
                                         IoSetCompletionRoutine(Irp,
-                                            (PIO_COMPLETION_ROUTINE)GetConfigurationCompletion,
+                                            (PIO_COMPLETION_ROUTINE) QCFLT_GetConfigurationCompletion,
                                             &event, TRUE, TRUE, TRUE);
 
                                         status = IoCallDriver(deviceExtension->NextLowerDriver, Irp);
@@ -2259,7 +2260,7 @@ VOID QCFLT_Wait(PDEVICE_EXTENSION pDevExt, LONGLONG WaitTime)
  *
  *********************************************************************/
 NTSTATUS
-QCFilter_InitializeDeviceExt(PDEVICE_OBJECT deviceObject)
+QCFLT_InitializeDeviceExt( PDEVICE_OBJECT deviceObject )
 {
     PDEVICE_EXTENSION pDevExt = deviceObject->DeviceExtension;
     NTSTATUS          ntStatus = STATUS_SUCCESS;
@@ -2984,14 +2985,14 @@ NTSTATUS getRegDwValueEntryData
     NTSTATUS ntStatus = STATUS_SUCCESS;
     PKEY_VALUE_FULL_INFORMATION pKeyValueInfo = NULL;
 
-    ntStatus = GetValueEntry(OpenRegKey, ValueEntryName, &pKeyValueInfo);
+   ntStatus = QCFLT_GetValueEntry( OpenRegKey, ValueEntryName, &pKeyValueInfo );
 
     if (!NT_SUCCESS(ntStatus))
     {
         goto getRegDwValueEntryData_Return;
     }
 
-    *pValueEntryData = GetDwordField(pKeyValueInfo);
+   *pValueEntryData = QCFLT_GetDwordField( pKeyValueInfo );
 
 getRegDwValueEntryData_Return:
 
@@ -3023,14 +3024,14 @@ NTSTATUS getRegSzValueEntryData
     NTSTATUS ntStatus = STATUS_SUCCESS;
     PKEY_VALUE_FULL_INFORMATION pKeyValueInfo = NULL;
 
-    ntStatus = GetValueEntry(OpenRegKey, ValueEntryName, &pKeyValueInfo);
+   ntStatus = QCFLT_GetValueEntry( OpenRegKey, ValueEntryName, &pKeyValueInfo );
 
     if (!NT_SUCCESS(ntStatus))
     {
         goto getRegSzValueEntryData_Return;
     }
 
-    GetSzField(pKeyValueInfo, pValueEntryData);
+   QCFLT_GetSzField( pKeyValueInfo, pValueEntryData);
 
 getRegSzValueEntryData_Return:
 
@@ -3056,7 +3057,7 @@ Returns:
    NT Status
 
 ************************************************************************/
-NTSTATUS GetValueEntry(HANDLE hKey, PWSTR FieldName, PKEY_VALUE_FULL_INFORMATION *pKeyValInfo)
+NTSTATUS QCFLT_GetValueEntry( HANDLE hKey, PWSTR FieldName, PKEY_VALUE_FULL_INFORMATION  *pKeyValInfo )
 {
     PKEY_VALUE_FULL_INFORMATION  pKeyValueInfo = NULL;
     UNICODE_STRING Keyname;
@@ -3081,7 +3082,7 @@ NTSTATUS GetValueEntry(HANDLE hKey, PWSTR FieldName, PKEY_VALUE_FULL_INFORMATION
         {
             *pKeyValInfo = NULL;
             ntStatus = STATUS_NO_MEMORY;
-            goto GetValueEntry_Return;
+            goto QCFLT_GetValueEntry_Return; 
         }
 
         ntStatus = ZwQueryValueKey(
@@ -3115,7 +3116,7 @@ NTSTATUS GetValueEntry(HANDLE hKey, PWSTR FieldName, PKEY_VALUE_FULL_INFORMATION
         }
     }// while
 
-GetValueEntry_Return:
+QCFLT_GetValueEntry_Return:
 
     return ntStatus;
 
@@ -3132,7 +3133,7 @@ Returns:
    ULONG value of the value entry
 
 ************************************************************************/
-ULONG GetDwordField(PKEY_VALUE_FULL_INFORMATION pKvi)
+ULONG QCFLT_GetDwordField( PKEY_VALUE_FULL_INFORMATION pKvi )
 {
     ULONG dwVal, *pVal;
 
@@ -3152,7 +3153,7 @@ Returns:
    Sz value of the value entry
 
 ************************************************************************/
-VOID GetSzField(PKEY_VALUE_FULL_INFORMATION pKvi, PCHAR ValueEntryDataSz)
+VOID QCFLT_GetSzField( PKEY_VALUE_FULL_INFORMATION pKvi, PCHAR ValueEntryDataSz  )
 {
     UNICODE_STRING unicodeStr;
     ANSI_STRING    ansiStr;

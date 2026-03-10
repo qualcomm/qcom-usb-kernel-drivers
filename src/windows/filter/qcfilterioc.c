@@ -224,7 +224,7 @@ ProcessDispatchIrp
  *
  ****************************************************************************/
 VOID
-ControlFilterThread(PVOID pContext)
+QCFLT_ControlFilterThread(PVOID pContext)
 {
     PDEVICE_OBJECT pDevobj = (PDEVICE_OBJECT)pContext;
     PDEVICE_EXTENSION pDevExt = pDevobj->DeviceExtension;
@@ -244,7 +244,7 @@ ControlFilterThread(PVOID pContext)
         QCFLT_DbgPrint
         (
             DBG_LEVEL_CRITICAL,
-            ("<%s> ControlFilterThread: wrong IRQL\n", pDevExt->PortName)
+         ("<%s> QCFLT_ControlFilterThread: wrong IRQL\n", pDevExt->PortName)
         );
     }
 
@@ -260,7 +260,7 @@ ControlFilterThread(PVOID pContext)
         QCFLT_DbgPrint
         (
             DBG_LEVEL_CRITICAL,
-            ("<%s> ControlFilterThread: STATUS_NO_MEMORY 1\n", pDevExt->PortName)
+            ("<%s> QCFLT_ControlFilterThread: STATUS_NO_MEMORY 1\n", pDevExt->PortName)
         );
         _closeHandle(pDevExt->FilterThread.hFilterThreadHandle, "D-1");
         PsTerminateSystemThread(STATUS_NO_MEMORY);
@@ -484,7 +484,7 @@ dispatch_wait:
  *
  ****************************************************************************/
 NTSTATUS
-QCFilter_StartFilterThread(PDEVICE_OBJECT devObj)
+QCFLT_StartFilterThread(PDEVICE_OBJECT devObj)
 {
     PDEVICE_EXTENSION pDevExt = devObj->DeviceExtension;
     NTSTATUS          ntStatus = STATUS_SUCCESS;
@@ -548,7 +548,7 @@ QCFilter_StartFilterThread(PDEVICE_OBJECT devObj)
             IN & objAttr,     // POBJECT_ATTRIBUTES  ObjectAttributes
             IN NULL,         // HANDLE  ProcessHandle
             OUT NULL,        // PCLIENT_ID  ClientId
-            IN(PKSTART_ROUTINE)ControlFilterThread,
+            IN (PKSTART_ROUTINE)QCFLT_ControlFilterThread,
             IN(PVOID)devObj
         );
         if (ntStatus != STATUS_SUCCESS)

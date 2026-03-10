@@ -348,7 +348,7 @@ BOOLEAN MPWork_ResolveRequests(PMP_ADAPTER pAdapter)
         if (pOID->OID.TransactionID == 0)
         {
             // This is a notification event so send it on to NDIS
-            MyNdisMIndicateStatus(
+            MPMAIN_NdisMIndicateStatus(
                 pAdapter->AdapterHandle,
                 pOID->OID.Status,
                 ((pOID->OID.indication.Num_bytes > 0) ? (PVOID)pOID->OID.Buffer : NULL),
