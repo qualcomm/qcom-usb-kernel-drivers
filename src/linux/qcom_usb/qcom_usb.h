@@ -38,10 +38,16 @@
 #include <linux/sched/signal.h>
 #endif
 
-// #define QCUSB_TEST_ONLY
-
 #include "qcom_event.h"
 #include "qtiDevInf.h"
+
+#ifndef RHEL_RELEASE_CODE
+#define RHEL_RELEASE_CODE 0
+#endif
+
+#ifndef RHEL_RELEASE_VERSION
+#define RHEL_RELEASE_VERSION(x,y) 0
+#endif
 
 #define BULK_URB_LIST            4
 #define QTIDEV_TX_TIMEOUT        2000   // in milliseconds
@@ -60,7 +66,7 @@
 
 #define QTIDEV_RX_NOTIFY_POOL_SZ 32
 #define QTIDEV_TX_BUF_POOL_SZ    32
-#define QTIDEV_DRIVER_NAME       "QTIDEV_QDSS_DPL_DIAG_Subsystem"
+#define QTIDEV_DRIVER_NAME       "QCOM_QDSS_DPL_DIAG_Subsystem"
 #define QTIDEV_USB_CLASS_NAME    "GobiUSB"
 #define QTIDEV_PORT_CLASS_NAME   "GobiPorts"
 //#define QTIDEV_SERIAL_CLASS_NAME   "GobiSerial"

@@ -1,7 +1,7 @@
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
 QCOM_USB_OUTPUTDIR=/lib/modules/$(shell uname -r)/kernel/drivers/usb/misc
-EXTRA_CFLAGS:= -U LPC_TEST_ONLY
+EXTRA_CFLAGS:= -U QCUSB_TEST_ONLY
 
 #obj-m := qcom_usb.o ../InfParser/qtiDevInf.o
 obj-m := qcom_usb.o

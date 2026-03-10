@@ -9,7 +9,7 @@ Enrolling public key on target system by adding the public key to the MOK list.
 
 Execute below command on bash terminal:
 
-sudo mokutil --import /opt/QTI/sign/Signkey_pub.der
+sudo mokutil --import /opt/qcom/QUD/sign/Signkey_pub.der
 
 You will be asked to enter and confirm a password for this MOK enrollment request.
 

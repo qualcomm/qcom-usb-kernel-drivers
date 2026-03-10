@@ -33,6 +33,14 @@
 #include <linux/sched/signal.h>
 #endif
 
+#ifndef RHEL_RELEASE_CODE
+#define RHEL_RELEASE_CODE 0
+#endif
+
+#ifndef RHEL_RELEASE_VERSION
+#define RHEL_RELEASE_VERSION(x,y) 0
+#endif
+
 #define MAX_MUX_DEVICES 3
 #define QMIDEV_MAX_VALUE_NAME 256            /**< Maximum length of string */
 
