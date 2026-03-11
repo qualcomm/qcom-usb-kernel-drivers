@@ -2297,8 +2297,8 @@ NTSTATUS QDBPNP_GetParentDeviceName(WDFDEVICE Device)
     IoSetCompletionRoutine
     (
         pIrp,
-        (PIO_COMPLETION_ROUTINE)QDBDSP_IrpIoCompletion,
-        (PVOID)pDevContext,
+        QDBDSP_IrpIoCompletion,
+        pDevContext,
         TRUE, TRUE, TRUE
     );
 

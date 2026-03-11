@@ -41,12 +41,6 @@ typedef struct _USB_NOTIFICATION_CONNECTION_SPEED
 
 NTSTATUS USBINT_InitInterruptPipe(IN PDEVICE_OBJECT pDevObj);
 VOID ReadInterruptPipe(IN PVOID pContext);
-NTSTATUS InterruptPipeCompletion
-(
-    IN PDEVICE_OBJECT DeviceObject,
-    IN PIRP           pIrp,
-    IN PVOID          pContext
-);
 NTSTATUS USBINT_CancelInterruptThread(PDEVICE_EXTENSION pDevExt, UCHAR cookie);
 NTSTATUS USBINT_StopInterruptService
 (
@@ -61,5 +55,7 @@ VOID USBINT_HandleSerialStateNotification(PDEVICE_EXTENSION pDevExt);
 VOID USBINT_HandleNetworkConnectionNotification(PDEVICE_EXTENSION pDevExt);
 VOID USBINT_HandleResponseAvailableNotification(PDEVICE_EXTENSION pDevExt);
 VOID USBINT_HandleConnectionSpeedChangeNotification(PDEVICE_EXTENSION pDevExt);
+
+IO_COMPLETION_ROUTINE InterruptPipeCompletion;
 
 #endif // USBINT_H

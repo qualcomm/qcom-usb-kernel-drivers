@@ -316,7 +316,7 @@ BOOLEAN MPIOC_LocalProcessing(PIRP Irp);
 
 #ifndef SECURITY_DESCRIPTOR_CONTROL
 typedef USHORT SECURITY_DESCRIPTOR_CONTROL, *PSECURITY_DESCRIPTOR_CONTROL;
-#endif 
+#endif
 
 #ifndef SECURITY_DESCRIPTOR
 typedef struct _SECURITY_DESCRIPTOR
@@ -337,12 +337,7 @@ NDIS_STATUS MPIOC_ResetDeviceSecurity
     PUNICODE_STRING DeviceLinkName
 );
 
-NTSTATUS MPIOC_GetPeerDeviceNameCompletion
-(
-    PDEVICE_OBJECT pDO,
-    PIRP           pIrp,
-    PVOID          pContext
-);
+IO_COMPLETION_ROUTINE MPIOC_GetPeerDeviceNameCompletion;
 
 NTSTATUS MPIOC_GetPeerDeviceName(PMP_ADAPTER pAdapter, PIRP Irp, ULONG BufLen);
 

@@ -68,12 +68,6 @@ BOOLEAN QCRD_StartReadTimeout
     ULONG readLength
 );
 
-VOID QCRD_ReadTimeoutDpc
-(
-    IN PKDPC Dpc,
-    IN PVOID DeferredContext,
-    IN PVOID SystemArgument1,
-    IN PVOID SystemArgument2
-);
+KDEFERRED_ROUTINE QCRD_ReadTimeoutDpc;
 
 #endif

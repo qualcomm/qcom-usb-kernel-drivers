@@ -14,12 +14,7 @@ GENERAL DESCRIPTION
 #ifndef QDBWT_H
 #define QDBWT_H
 
-VOID QDBWT_IoWrite
-(
-    WDFQUEUE   Queue,
-    WDFREQUEST Request,
-    size_t     Length
-);
+EVT_WDF_IO_QUEUE_IO_WRITE QDBWT_IoWrite;
 
 VOID QDBWT_WriteUSB
 (
@@ -28,12 +23,6 @@ VOID QDBWT_WriteUSB
     IN ULONG            Length
 );
 
-VOID QDBWT_WriteUSBCompletion
-(
-    WDFREQUEST                  Request,
-    WDFIOTARGET                 Target,
-    PWDF_REQUEST_COMPLETION_PARAMS CompletionParams,
-    WDFCONTEXT                  Context
-);
+EVT_WDF_REQUEST_COMPLETION_ROUTINE QDBWT_WriteUSBCompletion;
 
 #endif // QDBWT_H

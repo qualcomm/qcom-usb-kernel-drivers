@@ -24,7 +24,7 @@ GENERAL DESCRIPTION
 // EVENT_TRACING
 #ifdef EVENT_TRACING
 
-#include "MPWPP.h"               // Driver specific WPP Macros, Globals, etc 
+#include "MPWPP.h"               // Driver specific WPP Macros, Globals, etc
 #include "USBDSP.tmh"
 
 #endif   // EVENT_TRACING
@@ -1539,8 +1539,8 @@ void USBDSP_GetMUXInterface(PDEVICE_EXTENSION  pDevExt, UCHAR InterfaceNumber)
 
     IoSetCompletionRoutine(
         pIrp,
-        (PIO_COMPLETION_ROUTINE)USBDSP_GetMUXInterfaceCompletion,
-        (PVOID)pDevExt,
+        USBDSP_GetMUXInterfaceCompletion,
+        pDevExt,
         TRUE, TRUE, TRUE
     );
 
@@ -2331,7 +2331,7 @@ NTSTATUS USBDSP_Dispatch
             ntStatus = IoCallDriver(pUsbDevObject, Irp);
             QcIoReleaseRemoveLock(pDevExt->pRemoveLock, Irp, 0);
             goto USBDSP_Dispatch_Done; // the USBD stack took care of it
-            break;         // power           
+            break;         // power
         } // IRP_MJ_SYSTEM_CONTROL i.e. WMI
         default:
         {
@@ -2347,7 +2347,7 @@ NTSTATUS USBDSP_Dispatch
             // Bypass the IoCompleteRequest since the USBD stack took care of it
             QcIoReleaseRemoveLock(pDevExt->pRemoveLock, Irp, 0);
             goto USBDSP_Dispatch_Done;
-            break;  // power           
+            break;  // power
         }
     }// switch majorfunction
 

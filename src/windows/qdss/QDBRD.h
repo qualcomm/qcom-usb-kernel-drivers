@@ -14,12 +14,7 @@ GENERAL DESCRIPTION
 #ifndef QDBRD_H
 #define QDBRD_H
 
-VOID QDBRD_IoRead
-(
-    WDFQUEUE   Queue,
-    WDFREQUEST Request,
-    size_t     Length
-);
+EVT_WDF_IO_QUEUE_IO_READ QDBRD_IoRead;
 
 VOID QDBRD_ReadUSB
 (
@@ -28,13 +23,7 @@ VOID QDBRD_ReadUSB
     IN ULONG            Length
 );
 
-VOID QDBRD_ReadUSBCompletion
-(
-    WDFREQUEST                  Request,
-    WDFIOTARGET                 Target,
-    PWDF_REQUEST_COMPLETION_PARAMS CompletionParams,
-    WDFCONTEXT                  Context
-);
+EVT_WDF_REQUEST_COMPLETION_ROUTINE QDBRD_ReadUSBCompletion;
 
 NTSTATUS QDBRD_AllocateRequestsRx(PDEVICE_CONTEXT pDevContext);
 
@@ -48,13 +37,7 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index);
 
 NTSTATUS QDBRD_PipeDrainStop(PDEVICE_CONTEXT pDevContext);
 
-VOID QDBRD_PipeDrainCompletion
-(
-    WDFREQUEST                  Request,
-    WDFIOTARGET                 Target,
-    PWDF_REQUEST_COMPLETION_PARAMS CompletionParams,
-    WDFCONTEXT                  Context
-);
+EVT_WDF_REQUEST_COMPLETION_ROUTINE QDBRD_PipeDrainCompletion;
 
 VOID QDBRD_ProcessDrainedDPLBlock(PDEVICE_CONTEXT pDevContext, PVOID Buffer, ULONG Length);
 

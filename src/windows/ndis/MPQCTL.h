@@ -109,7 +109,7 @@ typedef struct _QMICTL_SET_INSTANCE_ID_RESP_MSG
     UCHAR  TLV2Type;        // QCTLV_TYPE_REQUIRED_PARAMETER
     USHORT TLV2Length;      // 0x0002
     USHORT QMI_ID;          // Upper byte is assigned by MSM,
-                            // lower assigned by host 
+                            // lower assigned by host
 } QMICTL_SET_INSTANCE_ID_RESP_MSG, *PQMICTL_SET_INSTANCE_ID_RESP_MSG;
 
 typedef struct _QMICTL_GET_VERSION_REQ_MSG
@@ -384,12 +384,7 @@ NDIS_STATUS MPQCTL_Request
     PVOID       Context
 );
 
-NTSTATUS MPQCTL_SendIRPCompletion
-(
-    PDEVICE_OBJECT pDO,
-    PIRP           pIrp,
-    PVOID          pContext
-);
+IO_COMPLETION_ROUTINE MPQCTL_SendIRPCompletion;
 
 NDIS_STATUS MPQCTL_SendQMICTLRequest
 (
@@ -433,12 +428,6 @@ NDIS_STATUS MPQCTL_SetDataFormat
 (
     PMP_ADAPTER pAdapter,
     PVOID       Context   // Adapter
-);
-
-NDIS_STATUS MPQCTL_CtlSync
-(
-   PMP_ADAPTER pAdapter,
-   PVOID       Context   // Adapter
 );
 
 // ============= Internal Functions ==============
@@ -527,19 +516,6 @@ VOID MPQCTL_HandleSetDataFormatRsp
     PQMICTL_TRANSACTION_ITEM item
 );
 
-PVOID MPQCTL_HandleCtlSyncReq
-(
-   PMP_ADAPTER pAdapter,
-   PUCHAR      TransactionId,
-   PULONG      MsgLen
-);
-
-VOID MPQCTL_HandleCtlSyncRsp
-(
-   PMP_ADAPTER              pAdapter,
-   PQCQMI                   qmi
-);
-
 VOID MPQCTL_HandleRevokeClientIdInd
 (
     PMP_ADAPTER              pAdapter,
@@ -559,24 +535,6 @@ NDIS_STATUS MPQCTL_RemoveOldTransactionItem
 );
 
 #pragma pack(pop)
-NDIS_STATUS MPQCTL_SendQMICTLSync
-(
-    PMP_ADAPTER pAdapter
-);
-
-PVOID MPQCTL_HandleSyncReq
-(
-    PMP_ADAPTER pAdapter,
-    PUCHAR      TransactionId,
-    PULONG      MsgLen
-);
-
-VOID MPQCTL_HandleSyncRsp
-(
-    PMP_ADAPTER              pAdapter,
-    PQCQMI                   qmi,
-    PQMICTL_TRANSACTION_ITEM item
-);
 
 VOID MPQCTL_HandleSyncInd
 (

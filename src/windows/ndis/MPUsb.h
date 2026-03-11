@@ -12,6 +12,19 @@ GENERAL DESCRIPTION
 #ifndef _MPUSB_H
 #define _MPUSB_H
 
+IO_COMPLETION_ROUTINE MP_TxIRPComplete;
+IO_COMPLETION_ROUTINE MP_RxIRPCompletion;
+IO_COMPLETION_ROUTINE MP_RcIRPCompletion;
+IO_COMPLETION_ROUTINE MP_WcIRPCompletion;
+IO_COMPLETION_ROUTINE MP_CleanUpIRPCompletion;
+IO_COMPLETION_ROUTINE MP_SendControlCompletion;
+IO_COMPLETION_ROUTINE MP_SendCustomCommandCompletion;
+IO_COMPLETION_ROUTINE MPUSB_LoopbackIRPCompletion;
+IO_COMPLETION_ROUTINE MP_TxIRPCompleteExStub;
+IO_COMPLETION_ROUTINE MP_RxIRPCompletionEx;
+IO_COMPLETION_ROUTINE MPUSB_TLPTxIRPComplete;
+IO_COMPLETION_ROUTINE MPUSB_TLPTxIRPCompleteEx;
+
 #ifdef QCUSB_MUX_PROTOCOL
 #ifdef QMI_OVER_DATA
 
@@ -72,13 +85,6 @@ NDIS_STATUS MP_USBSendControlRequest
     ULONG       BufferLength
 );
 
-NTSTATUS MP_SendControlCompletion
-(
-    PDEVICE_OBJECT pDO,
-    PIRP           pIrp,
-    PVOID          pContext
-);
-
 NDIS_STATUS MP_USBSendCustomCommand
 (
     PMP_ADAPTER pAdapter,
@@ -86,13 +92,6 @@ NDIS_STATUS MP_USBSendCustomCommand
     PVOID       Buffer,
     ULONG       BufferLength,
     ULONG *pReturnBufferLength
-);
-
-NTSTATUS MP_SendCustomCommandCompletion
-(
-    PDEVICE_OBJECT pDO,
-    PIRP           pIrp,
-    PVOID          pContext
 );
 
 ULONG MPUSB_CopyNdisPacketToBuffer
@@ -128,8 +127,6 @@ VOID MPUSB_ArpResponse
 #ifdef NDIS60_MINIPORT
 
 VOID MP_USBPostPacketReadEx(PMP_ADAPTER pAdapter, PLIST_ENTRY pList);
-
-NTSTATUS MP_RxIRPCompletionEx(PDEVICE_OBJECT pDO, PIRP pIrp, PVOID pContext);
 
 PMPUSB_RX_NBL MPUSB_FindRxRequest(PMP_ADAPTER pAdapter, PIRP Irp);
 
@@ -194,13 +191,6 @@ VOID MPUSB_PurgeTLPQueues(PMP_ADAPTER pAdapter, BOOLEAN FreeMemory);
 
 INT MPUSB_AggregationAvailable(PMP_ADAPTER pAdapter, BOOLEAN UseSpinLock, ULONG SizeofPacket);
 
-NTSTATUS MPUSB_TLPTxIRPComplete
-(
-    PDEVICE_OBJECT pDO,
-    PIRP           pIrp,
-    PVOID          pContext
-);
-
 VOID MPUSB_TLPTxPacket
 (
     PMP_ADAPTER  pAdapter,
@@ -226,13 +216,6 @@ NDIS_STATUS MP_RequestDeviceID
 
 VOID MPUSB_PurgeTLPQueuesEx(PMP_ADAPTER pAdapter, BOOLEAN FreeMemory);
 
-NTSTATUS MPUSB_TLPTxIRPCompleteEx
-(
-    PDEVICE_OBJECT pDO,
-    PIRP           pIrp,
-    PVOID          pContext
-);
-
 VOID MPUSB_TLPTxPacketEx
 (
     PMP_ADAPTER  pAdapter,
@@ -240,8 +223,6 @@ VOID MPUSB_TLPTxPacketEx
     BOOLEAN      IsQosPacket,
     PLIST_ENTRY  pList
 );
-
-BOOLEAN MPUSB_TLPProcessPendingTxQueueEx(PMP_ADAPTER pAdapter);
 
 #endif
 

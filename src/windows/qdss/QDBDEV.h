@@ -16,15 +16,8 @@ GENERAL DESCRIPTION
 #define QDSS_DEBUG_FILE L"\\DEBUG"
 #define QDSS_DPL_FILE   L"\\DPL"
 
-VOID QDBDEV_EvtDeviceFileCreate
-(
-    WDFDEVICE     Device,    // handle to a framework device object
-    WDFREQUEST    Request,   // handle to request object representing file creation req
-    WDFFILEOBJECT FileObject // handle to a framework file obj describing a file
-);
-
-VOID QDBDEV_EvtDeviceFileClose(WDFFILEOBJECT FileObject);
-
-VOID QDBDEV_EvtDeviceFileCleanup(WDFFILEOBJECT FileObject);
+EVT_WDF_DEVICE_FILE_CREATE QDBDEV_EvtDeviceFileCreate;
+EVT_WDF_FILE_CLOSE QDBDEV_EvtDeviceFileClose;
+EVT_WDF_FILE_CLEANUP QDBDEV_EvtDeviceFileCleanup;
 
 #endif // QDBDEV_H

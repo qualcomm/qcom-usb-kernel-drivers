@@ -394,11 +394,13 @@ __drv_dispatchType(IRP_MJ_READ)
 __drv_dispatchType(IRP_MJ_WRITE)
 DRIVER_DISPATCH QCFilterDispatchIo;
 
-PCHAR QCPnPMinorFunctionString(UCHAR MinorFunction);
+DRIVER_CANCEL QCFLT_DispatchCancelQueued;
 
-NTSTATUS QCFilterStartCompletionRoutine(PDEVICE_OBJECT DeviceObject, PIRP Irp, PVOID Context);
+IO_COMPLETION_ROUTINE QCFilterStartCompletionRoutine;
 
-NTSTATUS QCFilterQueryCapabilitiesCompletionRoutine(PDEVICE_OBJECT DeviceObject, PIRP Irp, PVOID Context);
+IO_COMPLETION_ROUTINE QCFLT_CallUSBD_Completion;
+
+IO_COMPLETION_ROUTINE QCFLT_GetConfigurationCompletion;
 
 NTSTATUS
 QCFilterCreateControlObject(PDEVICE_OBJECT DeviceObject, PFILTER_DEVICE_INFO pFilterDeviceInfo);

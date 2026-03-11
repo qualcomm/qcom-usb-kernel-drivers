@@ -25,13 +25,13 @@ GENERAL DESCRIPTION
 // EVENT_TRACING
 #ifdef EVENT_TRACING
 
-#include "MPWPP.h"               // Driver specific WPP Macros, Globals, etc 
+#include "MPWPP.h"               // Driver specific WPP Macros, Globals, etc
 #include "MPUsb.tmh"
 
 #endif  // EVENT_TRACING
 
-#undef USE_MDL 
-//#define USE_MDL 
+#undef USE_MDL
+//#define USE_MDL
 
 #ifndef USE_MDL
 
@@ -156,7 +156,7 @@ NTSTATUS MP_TxIRPComplete(PDEVICE_OBJECT pDO, PIRP pIrp, PVOID pContext)
     }
 
 #ifdef USE_MDL
-    // Free the Mdls that were created to 
+    // Free the Mdls that were created to
     // RWD ??? It may be sufficient to free the to Mdl here
     pCurMdl = pIrp->MdlAddress;
 
@@ -695,7 +695,7 @@ NTSTATUS MP_RxIRPCompletion(
 
     if ((!NT_SUCCESS(pIrp->IoStatus.Status)) ||
         (pAdapter->PacketFilter == 0) ||
-        (pAdapter->ToPowerDown == TRUE))  // no filter 
+        (pAdapter->ToPowerDown == TRUE))  // no filter
     {
         // This was not a successful receive so just relink this receive to the free list
         InsertTailList(&pAdapter->RxFreeList, pList);
@@ -792,10 +792,10 @@ NTSTATUS MP_RxIRPCompletion(
                 KeSetEvent(&pAdapter->MPThreadDLPauseEvent, IO_NO_INCREMENT, FALSE);
             }
         }
-#endif // #ifdef QCUSB_MUX_PROTOCOL        
+#endif // #ifdef QCUSB_MUX_PROTOCOL
     }
 #ifdef USE_MDL
-    // Free the Mdls that were created to 
+    // Free the Mdls that were created to
     // RWD ??? It may be sufficient to free the to Mdl here
     pCurMdl = pIrp->MdlAddress;
     while (pCurMdl)
@@ -919,8 +919,8 @@ void MP_USBPostPacketRead(PMP_ADAPTER  pAdapter, PLIST_ENTRY  pList)
 
     IoSetCompletionRoutine(
         pIrp,
-        (PIO_COMPLETION_ROUTINE)MP_RxIRPCompletion,
-        (PVOID)pAdapter,
+        MP_RxIRPCompletion,
+        pAdapter,
         TRUE, TRUE, TRUE
     );
 
@@ -1062,8 +1062,8 @@ void MP_USBPostControlRead
 
     IoSetCompletionRoutine(
         pIrp,
-        (PIO_COMPLETION_ROUTINE)MP_RcIRPCompletion,
-        (PVOID)pAdapter,
+        MP_RcIRPCompletion,
+        pAdapter,
         TRUE, TRUE, TRUE
     );
 
@@ -1233,7 +1233,7 @@ NDIS_STATUS MP_USBRequest
 
     InsertTailList(&pAdapter->OIDWaitingList, pList);
 
-    MPMAIN_ScheduleWorkItem( pAdapter );   
+    MPMAIN_ScheduleWorkItem( pAdapter );
 
     QCNET_DbgPrint
     (
@@ -1294,8 +1294,8 @@ void MP_USBCleanUp(PMP_ADAPTER pAdapter)
 
     IoSetCompletionRoutine(
         pIrp,
-        (PIO_COMPLETION_ROUTINE)MP_CleanUpIRPCompletion,
-        (PVOID)pAdapter,
+        MP_CleanUpIRPCompletion,
+        pAdapter,
         TRUE, TRUE, TRUE
     );
 
@@ -1346,7 +1346,7 @@ NDIS_STATUS MP_USBSendControl
     }
     InterlockedIncrement(&(pAdapter->nBusyWrite));
     NdisReleaseSpinLock(&pAdapter->CtrlWriteLock);
-    MPMAIN_ScheduleWorkItem( pAdapter );   
+    MPMAIN_ScheduleWorkItem( pAdapter );
     return NDIS_STATUS_PENDING;
 }
 
@@ -1425,8 +1425,8 @@ NDIS_STATUS MP_USBSendControlRequest
     IoSetCompletionRoutine
     (
         pIrp,
-        (PIO_COMPLETION_ROUTINE)MP_SendControlCompletion,
-        (PVOID)pAdapter,
+        MP_SendControlCompletion,
+        pAdapter,
         TRUE, TRUE, TRUE
     );
     returnAdapter = FindStackDeviceObject(pAdapter);
@@ -1550,8 +1550,8 @@ NDIS_STATUS MP_USBSendCustomCommand
     IoSetCompletionRoutine
     (
         pIrp,
-        (PIO_COMPLETION_ROUTINE)MP_SendCustomCommandCompletion,
-        (PVOID)pAdapter,
+        MP_SendCustomCommandCompletion,
+        pAdapter,
         TRUE, TRUE, TRUE
     );
 
@@ -2059,8 +2059,8 @@ VOID MPUSB_ArpResponse
     IoSetCompletionRoutine
     (
         pIrp,
-        (PIO_COMPLETION_ROUTINE)MPUSB_LoopbackIRPCompletion,
-        (PVOID)pAdapter,
+        MPUSB_LoopbackIRPCompletion,
+        pAdapter,
         TRUE, TRUE, TRUE
     );
 
@@ -2151,8 +2151,8 @@ VOID MP_USBPostPacketReadEx(PMP_ADAPTER pAdapter, PLIST_ENTRY pList)
     IoSetCompletionRoutine
     (
         pIrp,
-        (PIO_COMPLETION_ROUTINE)MP_RxIRPCompletionEx,
-        (PVOID)pAdapter,
+        MP_RxIRPCompletionEx,
+        pAdapter,
         TRUE, TRUE, TRUE
     );
 
@@ -2403,7 +2403,7 @@ NTSTATUS MP_RxIRPCompletionEx(PDEVICE_OBJECT pDO, PIRP pIrp, PVOID pContext)
                 pAdapter->AdapterHandle,
                 nbl,
                 NDIS_DEFAULT_PORT_NUMBER,
-                1,  // NumberOfNetBufferLists 
+                1,  // NumberOfNetBufferLists
                 rxFlags   // flags
             );
 
@@ -4817,16 +4817,16 @@ VOID MPUSB_TLPTxPacket
          NdisAcquireSpinLock(&pAdapter->TxLock);
          InsertHeadList(&pAdapter->UplinkFreeBufferQueue, &tlpItem->List);
          NdisReleaseSpinLock(&pAdapter->TxLock);
-   
+
          // Set the transmit timer
-         SetTransmitTimer(pAdapter);     
-   
+         SetTransmitTimer(pAdapter);
+
          if (pAdapter->MPQuickTx != 0)
          {
             NDIS_SET_PACKET_STATUS(pNdisPacket, NDIS_STATUS_SUCCESS);
             MPUSB_TLPIndicateCompleteTx(pAdapter, pNdisPacket, 1);
          }
-   
+
          goto Tx_Exit;
    }
    else if (( tlpItem->AggregationCount < (MP_NUM_MBIM_UL_DATAGRAM_ITEMS_DEFAULT - 2)) && (pAdapter->MBIMULEnabled == TRUE))
@@ -4869,7 +4869,7 @@ VOID MPUSB_TLPTxPacket
         NdisReleaseSpinLock(&pAdapter->TxLock);
 
        // Set the transmit timer
-       SetTransmitTimer(pAdapter);      
+       SetTransmitTimer(pAdapter);
 
         if (pAdapter->MPQuickTx != 0)
         {
@@ -5128,7 +5128,7 @@ BOOLEAN MPUSB_TLPProcessPendingTxQueue(PMP_ADAPTER pAdapter)
                         List
                     );
 
-#if 0               
+#if 0
                     MPUSB_CompleteNetBufferList
                     (
                         pAdapter,
@@ -5141,13 +5141,13 @@ BOOLEAN MPUSB_TLPProcessPendingTxQueue(PMP_ADAPTER pAdapter)
                     NdisReleaseSpinLock(&pAdapter->TxLock);
                     ((PMPUSB_TX_CONTEXT_NBL)txNb->NBL)->NdisStatus = NDIS_STATUS_FAILURE;
                     MP_TxIRPCompleteEx(pAdapter->USBDo, NULL, txNb, TRUE);
-#else               
+#else
                     PNDIS_PACKET pNdisPacket;
                     pNdisPacket = ListItemToPacket(pList);
                     NDIS_SET_PACKET_STATUS(pNdisPacket, NDIS_STATUS_FAILURE);
                     InsertTailList(&pAdapter->TxCompleteList, pList);
                     NdisReleaseSpinLock(&pAdapter->TxLock);
-#endif               
+#endif
                 }
                 else
                 {
@@ -5199,7 +5199,7 @@ BOOLEAN MPUSB_TLPProcessPendingTxQueue(PMP_ADAPTER pAdapter)
         (pAdapter->TLPEnabled == FALSE) && (pAdapter->MBIMULEnabled == FALSE) &&
         (pAdapter->QMAPEnabledV1 == FALSE)
         && (pAdapter->QMAPEnabledV4 == FALSE)
-#ifdef QCUSB_MUX_PROTOCOL                        
+#ifdef QCUSB_MUX_PROTOCOL
 #if defined(QCMP_QMAP_V2_SUPPORT)
         && (pAdapter->QMAPEnabledV2 == FALSE)
         && (pAdapter->QMAPEnabledV3 == FALSE)
@@ -5313,7 +5313,7 @@ VOID MPUSB_PurgeTLPQueuesEx(PMP_ADAPTER pAdapter, BOOLEAN FreeMemory)
             {
                 headOfList = RemoveHeadList(&tlpItem->PacketList);
                 nbContext = CONTAINING_RECORD(headOfList, MPUSB_TX_CONTEXT_NB, List);
-#if 0            
+#if 0
                 if (nblContext->AbortFlag != 0)
                 {
                     MPUSB_CompleteNetBufferList
@@ -5350,7 +5350,7 @@ VOID MPUSB_PurgeTLPQueuesEx(PMP_ADAPTER pAdapter, BOOLEAN FreeMemory)
         PLIST_ENTRY  pList;
         pList = RemoveHeadList(&pAdapter->TxBusyList);
         nbContext = CONTAINING_RECORD(pList, MPUSB_TX_CONTEXT_NB, List);
-#if 0      
+#if 0
         if (nblContext->AbortFlag != 0)
         {
             MPUSB_CompleteNetBufferList
@@ -5384,7 +5384,7 @@ VOID MPUSB_PurgeTLPQueuesEx(PMP_ADAPTER pAdapter, BOOLEAN FreeMemory)
         PLIST_ENTRY  pList;
         pList = RemoveHeadList(&pAdapter->TxPendingList);
         nbContext = CONTAINING_RECORD(pList, MPUSB_TX_CONTEXT_NB, List);
-#if 0      
+#if 0
         if (nblContext->AbortFlag != 0)
         {
             MPUSB_CompleteNetBufferList
@@ -6128,10 +6128,10 @@ VOID MPUSB_TLPTxPacketEx
     NdisAcquireSpinLock(&pAdapter->TxLock);
     InsertHeadList(&pAdapter->UplinkFreeBufferQueue, &tlpItem->List);
     NdisReleaseSpinLock(&pAdapter->TxLock);
-    
+
     // Set the transmit timer
     SetTransmitTimer(pAdapter);
-    
+
     if (pAdapter->MPQuickTx != 0)
     {
         ((PMPUSB_TX_CONTEXT_NBL)nbContext->NBL)->NdisStatus = NDIS_STATUS_SUCCESS;
@@ -6181,7 +6181,7 @@ VOID MPUSB_TLPTxPacketEx
 
       // Set the transmit timer
       SetTransmitTimer(pAdapter);
-      
+
       if (pAdapter->MPQuickTx != 0)
       {
           ((PMPUSB_TX_CONTEXT_NBL)nbContext->NBL)->NdisStatus = NDIS_STATUS_SUCCESS;
@@ -6194,14 +6194,14 @@ VOID MPUSB_TLPTxPacketEx
       if (pAdapter->MPQuickTx != 0)
       {
          ((PMPUSB_TX_CONTEXT_NBL)nbContext->NBL)->NdisStatus = NDIS_STATUS_SUCCESS;
-         MP_TxIRPCompleteEx(pAdapter->USBDo, NULL, nbContext, TRUE);      
+         MP_TxIRPCompleteEx(pAdapter->USBDo, NULL, nbContext, TRUE);
       }
 
         if ((pAdapter->TLPEnabled == TRUE) ||
             (pAdapter->MBIMULEnabled == TRUE) ||
             (pAdapter->QMAPEnabledV1 == TRUE)
             || (pAdapter->QMAPEnabledV4 == TRUE)
-#ifdef QCUSB_MUX_PROTOCOL                        
+#ifdef QCUSB_MUX_PROTOCOL
 #if defined(QCMP_QMAP_V2_SUPPORT)
             || (pAdapter->QMAPEnabledV2 == TRUE)
             || (pAdapter->QMAPEnabledV3 == TRUE)
@@ -6416,7 +6416,7 @@ NTSTATUS MPUSB_TLPTxIRPCompleteEx
         nPkt++;
         if (NT_SUCCESS(pIrp->IoStatus.Status))
         {
-#if 0      
+#if 0
             MPUSB_CompleteNetBufferList
             (
                 pAdapter,
@@ -6431,7 +6431,7 @@ NTSTATUS MPUSB_TLPTxIRPCompleteEx
         }
         else
         {
-#if 0      
+#if 0
             MPUSB_CompleteNetBufferList
             (
                 pAdapter,
@@ -7054,5 +7054,5 @@ ULONG GetNextTxPacketSize(PMP_ADAPTER pAdapter, PLIST_ENTRY listEntry)
         &dwPacketLength
     );
     return dwPacketLength;
-#endif   
+#endif
 }

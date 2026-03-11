@@ -97,4 +97,6 @@ NTSTATUS QCPNP_GetStringDescriptor
     BOOLEAN        MatchPrefix
 );
 
+IO_COMPLETION_ROUTINE QCPNP_GenericCompletion;
+
 #endif // USBPNP_H

@@ -41,4 +41,6 @@ BOOLEAN QCDSP_ToProcessIrp
 );
 void USBDSP_GetMUXInterface(PDEVICE_EXTENSION  pDevExt, UCHAR InterfaceNumber);
 
+IO_COMPLETION_ROUTINE USBDSP_GetMUXInterfaceCompletion;
+
 #endif // USBDSP_H

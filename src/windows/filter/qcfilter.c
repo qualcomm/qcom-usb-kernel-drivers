@@ -361,7 +361,7 @@ QCFilterDispatchPnp(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                 KeInitializeEvent(&event, NotificationEvent, FALSE);
                 IoCopyCurrentIrpStackLocationToNext(Irp);
                 IoSetCompletionRoutine(Irp,
-                    (PIO_COMPLETION_ROUTINE)QCFilterStartCompletionRoutine,
+                    QCFilterStartCompletionRoutine,
                     &event,
                     TRUE,
                     TRUE,
@@ -1797,7 +1797,7 @@ Success:
                                     IoCopyCurrentIrpStackLocationToNext(Irp);
 
                                     IoSetCompletionRoutine(Irp,
-                                                (PIO_COMPLETION_ROUTINE) QCFLT_GetConfigurationCompletion,
+                                                QCFLT_GetConfigurationCompletion,
                                         &event, TRUE, TRUE, TRUE);
 
                                     status = IoCallDriver(deviceExtension->NextLowerDriver, Irp);
@@ -1821,7 +1821,7 @@ Success:
                                         IoCopyCurrentIrpStackLocationToNext(Irp);
 
                                         IoSetCompletionRoutine(Irp,
-                                            (PIO_COMPLETION_ROUTINE) QCFLT_GetConfigurationCompletion,
+                                            QCFLT_GetConfigurationCompletion,
                                             &event, TRUE, TRUE, TRUE);
 
                                         status = IoCallDriver(deviceExtension->NextLowerDriver, Irp);
@@ -1857,7 +1857,7 @@ Success:
                                         IoCopyCurrentIrpStackLocationToNext(Irp);
 
                                         IoSetCompletionRoutine(Irp,
-                                            (PIO_COMPLETION_ROUTINE) QCFLT_GetConfigurationCompletion,
+                                            QCFLT_GetConfigurationCompletion,
                                             &event, TRUE, TRUE, TRUE);
 
                                         status = IoCallDriver(deviceExtension->NextLowerDriver, Irp);
