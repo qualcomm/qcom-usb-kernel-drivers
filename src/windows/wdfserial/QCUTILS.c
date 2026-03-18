@@ -292,7 +292,7 @@ BOOLEAN QCUTIL_IsIoQueueEmpty
         NULL,
         NULL
     );
-    return (WDF_IO_QUEUE_IDLE(queueStatus)) ? TRUE : FALSE;
+    return ((queueStatus & WdfIoQueueNoRequests) != 0);
 }
 
 

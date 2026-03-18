@@ -177,7 +177,7 @@ VOID QCSER_ProcessNewUartState
 
         pDevContext->CurrUartState &= US_BITS_MODEM;
         ulNewEvent &= pDevContext->WaitMask;
-        QCSER_CompleteWomRequest(pDevContext, STATUS_SUCCESS, pDevContext->WaitMask);
+        QCSER_CompleteWomRequest(pDevContext, STATUS_SUCCESS, ulNewEvent);
     }
 
     QCSER_DbgPrint
