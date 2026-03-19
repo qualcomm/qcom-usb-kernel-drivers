@@ -1436,39 +1436,13 @@ NTSTATUS QCPNP_EvtDevicePrepareHardware
                 0x0409
             );
 
-            if (!NT_SUCCESS(status))
-            {
-                QCSER_DbgPrint
-                (
-                    QCSER_DBG_MASK_CONTROL,
-                    QCSER_DBG_LEVEL_ERROR,
-                    ("<%ws> QCPNP_EvtDevicePrepareHardware: USB ProductInfo query FAILED: 0x%x\n", pDevContext->PortName, status)
-                );
-                ExFreePoolWithTag(buffer, '2gaT');
-                // Continue with device initialization despite this failure
-            }
-            else
-            {
-                buffer[strLen] = L'\0';
-                status = QCMAIN_SetDriverRegistryStringW(VEN_DEV_DESC, buffer, pDevContext);
-                if (!NT_SUCCESS(status))
-                {
-                    QCSER_DbgPrint
-                    (
-                        QCSER_DBG_MASK_CONTROL,
-                        (QCSER_DBG_LEVEL_ERROR),
-                        ("<%ws> QCPNP_EvtDevicePrepareHardware: USB ProductInfo: set FAILED: 0x%x\n", pDevContext->PortName, status)
-                    );
-                }
-                else {
-                    QCSER_DbgPrint
-                    (
-                        QCSER_DBG_MASK_CONTROL,
-                        QCSER_DBG_LEVEL_DETAIL,
-                        ("<%ws> QCPNP_EvtDevicePrepareHardware USB ProductInfo: %ws, status: 0x%x, strlen: %llu\n", pDevContext->PortName, buffer, status, strLen)
-                    );
-                }
-            }
+            buffer[strLen] = L'\0';
+            QCSER_DbgPrint
+            (
+                QCSER_DBG_MASK_CONTROL,
+                QCSER_DBG_LEVEL_DETAIL,
+                ("<%ws> QCPNP_EvtDevicePrepareHardware USB ProductInfo: %ws, status: 0x%x, strlen: %llu\n", pDevContext->PortName, buffer, status, strLen)
+            );
             ExFreePoolWithTag(buffer, '2gaT');
         } // End printing usb device info as debug message
     }
