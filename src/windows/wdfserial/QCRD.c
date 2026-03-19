@@ -582,7 +582,7 @@ void QCRD_ReadRequestHandlerThread
                                 if (QCRD_StartReadTimeout(pDevContext, (ULONG)requestParam.Parameters.Read.Length) == FALSE)
                                 {
                                     // timeout immediately
-                                    WdfRequestComplete(pendingTimeoutRequest, STATUS_TIMEOUT);
+                                    WdfRequestComplete(pendingTimeoutRequest, STATUS_SUCCESS);
                                     QCSER_DbgPrint
                                     (
                                         QCSER_DBG_MASK_READ,
