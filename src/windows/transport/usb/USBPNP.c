@@ -1437,7 +1437,7 @@ NTSTATUS USBPNP_SelectInterfaces
                              pDevExt->Interface[pDevExt->usCommClassInterface]
                              ->Pipes[pDevExt->InterruptPipe].EndpointAddress,
                              pDevExt->HighSpeedUsbOk, pDevExt->bmAttributes);
-                    DbgPrint("Driver Version %s\n", QC_NET_PRODUCT_VERSION_STRING);
+                    DbgPrint("Driver Version %s\n", QCOM_USB_DRIVERS_PRODUCT_VERSION_STRING);
                     DbgPrint("   |============================|\n");
                 }
                 else
@@ -1457,7 +1457,7 @@ NTSTATUS USBPNP_SelectInterfaces
                              pDevExt->Interface[pDevExt->DataInterface]
                              ->Pipes[pDevExt->BulkPipeOutput].EndpointAddress,
                              pDevExt->HighSpeedUsbOk, pDevExt->bmAttributes);
-                    DbgPrint("Driver Version %s\n", QC_NET_PRODUCT_VERSION_STRING);
+                    DbgPrint("Driver Version %s\n", QCOM_USB_DRIVERS_PRODUCT_VERSION_STRING);
                     DbgPrint("   |===============================|\n");
                 }
 
