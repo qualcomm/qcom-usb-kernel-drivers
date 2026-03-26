@@ -12,7 +12,7 @@ Signature   = "$Windows NT$"
 Class       = Net
 ClassGUID   = {4d36e972-e325-11ce-bfc1-08002be10318}
 Provider    = %QCOM%
-DriverVer   = 04/14/2025,4.0.9.2
+DriverVer   = 03/25/2026,1.0.0.0
 Catalogfile = qcwwan.cat
 PnpLockdown = 1
 
@@ -1959,8 +1959,9 @@ qcwwan.CopyFiles = 12
 ; Localizable Strings
 ;
 [Strings]
-QcomSrcDisk = "QUALCOMM USB Driver Disk"
-QCOM                       = "Qualcomm"                      
+QcomSrcDisk                 = "Qualcomm Driver Installation Disk"
+QCOM                        = "Qualcomm Technologies, Inc."
+qcwwan.Service.DispName     = "Qualcomm USB-NDIS WWAN Miniport Driver"
 qcwwan.DeviceDesc           = "Qualcomm HS-USB WWAN Adapter"
 qcwwan.DeviceDesc7001       = "Qualcomm HS-USB WWAN Adapter 7001"
 qcwwan.DeviceDesc7002       = "Qualcomm HS-USB WWAN Adapter 7002"
@@ -2307,4 +2308,3 @@ qcwwan.DeviceDesc91125      = "Qualcomm HS-USB WWAN Adapter 9112"
 qcwwan.DeviceDesc912C2      = "Qualcomm HS-USB WWAN Adapter 912C"
 qcwwan.DeviceDesc912D2      = "Qualcomm HS-USB WWAN Adapter 912D"
 qcwwan.DeviceDesc920D0      = "Qualcomm Gobi 3000 HS-USB Mobile Broadband Adapter 920D"
-qcwwan.Service.DispName     = "Qualcomm USB-NDIS WWAN miniport"
