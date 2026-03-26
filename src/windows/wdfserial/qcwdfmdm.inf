@@ -10,14 +10,14 @@
 [Version]
 Signature   = "$WINDOWS NT$"
 Class       = Modem
-Provider    = %QUALCOMM%
+Provider    = %QCOM%
 ClassGUID   = {4D36E96D-E325-11CE-BFC1-08002BE10318}
-DriverVer   = 11/11/2025,1.0.4.0
+DriverVer   = 03/25/2026,1.0.0.0
 CatalogFile = qcwdfserial.cat
 PnpLockDown = 1
 
 [Manufacturer]
-%QUALCOMM%=Models, NTx86, NTamd64, NTarm, NTarm64
+%QCOM%=Models, NTx86, NTamd64, NTarm, NTarm64
 
 [SourceDisksNames]
 1000 = %QcomSrcDisk%,"",,\
@@ -833,7 +833,7 @@ ExcludeFromSelect = *
 %QUALCOMM920D2% = Modem2, USB\VID_05C6&PID_920D&MI_02
 
 [Modem2.NT]
-CopyFiles=QCUsbDriverFiles
+CopyFiles = QCUsbDriverFiles
 AddReg = All, MfgAddReg, Modem1.AddReg, USB
 
 [QCUsbDriverFiles]
@@ -847,17 +847,17 @@ AddService = Modem, 0x00000002, SystemModemService
 AddService = qcwdfserial, 0x00000000, QC_USBSerialService
 
 [SystemModemService]
-DisplayName = %SystemServiceName%
-ServiceType = 1
-StartType = 3
-ErrorControl = 1
+DisplayName   = %SystemServiceName%
+ServiceType   = 1
+StartType     = 3
+ErrorControl  = 1
 ServiceBinary = %12%\modem.sys
 
 [QC_USBSerialService]
-DisplayName = %QCUSBSER%
-ServiceType = 1
-StartType = 3
-ErrorControl = 0
+DisplayName   = %qcwdfserService%
+ServiceType   = 1
+StartType     = 3
+ErrorControl  = 0
 ServiceBinary = %12%\qcwdfserial.sys
 
 [Modem2.NT.HW]
@@ -870,10 +870,10 @@ HKR,"WDF","WdfDirectedPowerTransitionEnable",0x00010001,1
 HKR,,"LowerFilters",0x00010000,qcwdfserial
 
 [Strings]
+QCOM = "Qualcomm Technologies, Inc."
+qcwdfserService = "Qualcomm USB Serial Driver"
+QcomSrcDisk = "Qualcomm Driver Installation Disk"
 SystemServiceName = "Windows Modem Driver"
-QCUSBSER = "Qualcomm USB Device for Legacy Serial Communication"
-QcomSrcDisk = "QUALCOMM USB Driver Disk"
-QUALCOMM   = "Qualcomm Incorporated"
 QUALCOMM00 = "Qualcomm USB CDC Modem 3100"
 QUALCOMM01 = "Qualcomm USB CDC Modem 3196"
 QUALCOMM02 = "Qualcomm USB Modem 3197"
