@@ -4,7 +4,7 @@
 #define STRINGIFY(s) #s
 #define QCSTR(str) STRINGIFY(str) 
 #define QIK_INSTALLER_VERSION 1.0.159.4 //Latest version of QIK tool
-#define QIK_PACKAGE_VERSION 1.00.93.0 //Install Shield version and QIK package version
+#define QIK_PACKAGE_VERSION 1.00.94.2 //Install Shield version and QIK package version
 #define QC_FILTER_FILE_VERSION 1,0,1,4
 #define QC_FILTER_PRODUCT_VERSION 1.0.1.4
 #define QC_FILTER_FILE_VERSION_STRING QCSTR(QC_FILTER_FILE_VERSION)
