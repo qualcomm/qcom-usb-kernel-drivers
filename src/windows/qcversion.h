@@ -22,3 +22,7 @@
 #define QDB_USB_FILE_VERSION_STRING QCSTR(QDB_USB_FILE_VERSION)
 #define QDB_USB_PRODUCT_VERSION_STRING QCSTR(QDB_USB_PRODUCT_VERSION)
 #define QC_ADB_VERSION 1.0.1.6
+
+#define QC_USB_DRIVERS_COMPANY_NAME "Qualcomm Technologies, Inc."
+#define QC_USB_DRIVERS_PRODUCT_NAME "Qualcomm USB Kernel Drivers"
+#define QC_USB_DRIVERS_COPYRIGHT "Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries."
