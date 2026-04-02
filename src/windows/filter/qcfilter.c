@@ -114,9 +114,12 @@ DriverEntry(PDRIVER_OBJECT  driverObject, PUNICODE_STRING registryPath)
     RtlZeroMemory(gDeviceName, 255);
     if ((strlen(p) == 0) || (strlen(p) >= 255)) // invalid name
     {
-        strcpy(gDeviceName, (char *)"filter_unknown");
+        strcpy_s(gDeviceName, sizeof(gDeviceName), (char *)"filter_unknown");
     }
-    strcpy(gDeviceName, p);
+    else
+    {
+        strcpy_s(gDeviceName, sizeof(gDeviceName), p);
+    }
 
     // Free the allocated string
     RtlFreeAnsiString(&asDevName);
@@ -358,7 +361,7 @@ QCFilterDispatchPnp(PDEVICE_OBJECT DeviceObject, PIRP Irp)
                 KeInitializeEvent(&event, NotificationEvent, FALSE);
                 IoCopyCurrentIrpStackLocationToNext(Irp);
                 IoSetCompletionRoutine(Irp,
-                    (PIO_COMPLETION_ROUTINE)QCFilterStartCompletionRoutine,
+                    QCFilterStartCompletionRoutine,
                     &event,
                     TRUE,
                     TRUE,
@@ -744,7 +747,7 @@ QCFilterCreateControlObject(PDEVICE_OBJECT    DeviceObject, PFILTER_DEVICE_INFO 
         deviceExtension->Self = pFilterDeviceInfo->pControlDeviceObject;
         deviceExtension->DriverObject = DeviceObject->DriverObject;
         deviceExtension->FidoDeviceObject = DeviceObject;
-        strcpy(deviceExtension->PortName, pDevExt->PortName);
+        strcpy_s(deviceExtension->PortName, sizeof(deviceExtension->PortName), pDevExt->PortName);
         deviceExtension->DebugMask = pDevExt->DebugMask;
         deviceExtension->DebugLevel = pDevExt->DebugLevel;
         pDevExt->ControlDeviceObject = pFilterDeviceInfo->pControlDeviceObject;
@@ -1794,7 +1797,7 @@ Success:
                                     IoCopyCurrentIrpStackLocationToNext(Irp);
 
                                     IoSetCompletionRoutine(Irp,
-                                                (PIO_COMPLETION_ROUTINE) QCFLT_GetConfigurationCompletion,
+                                                QCFLT_GetConfigurationCompletion,
                                         &event, TRUE, TRUE, TRUE);
 
                                     status = IoCallDriver(deviceExtension->NextLowerDriver, Irp);
@@ -1818,7 +1821,7 @@ Success:
                                         IoCopyCurrentIrpStackLocationToNext(Irp);
 
                                         IoSetCompletionRoutine(Irp,
-                                            (PIO_COMPLETION_ROUTINE) QCFLT_GetConfigurationCompletion,
+                                            QCFLT_GetConfigurationCompletion,
                                             &event, TRUE, TRUE, TRUE);
 
                                         status = IoCallDriver(deviceExtension->NextLowerDriver, Irp);
@@ -1854,7 +1857,7 @@ Success:
                                         IoCopyCurrentIrpStackLocationToNext(Irp);
 
                                         IoSetCompletionRoutine(Irp,
-                                            (PIO_COMPLETION_ROUTINE) QCFLT_GetConfigurationCompletion,
+                                            QCFLT_GetConfigurationCompletion,
                                             &event, TRUE, TRUE, TRUE);
 
                                         status = IoCallDriver(deviceExtension->NextLowerDriver, Irp);
@@ -2416,7 +2419,7 @@ QCFLT_AddControlDevice
 
     QcAcquireSpinLock(&Control_DeviceLock, &levelOrHandle);
 
-    pIocDev = ExAllocatePool(NonPagedPool, sizeof(FILTER_DEVICE_LIST));
+    pIocDev = _ExAllocatePool(NonPagedPoolNx, sizeof(FILTER_DEVICE_LIST), 'coip');
     if (pIocDev == NULL)
     {
         QCFLT_DbgPrint
@@ -2427,10 +2430,9 @@ QCFLT_AddControlDevice
         QcReleaseSpinLock(&Control_DeviceLock, levelOrHandle);
         return STATUS_UNSUCCESSFUL;
     }
-    RtlZeroMemory(pIocDev, sizeof(FILTER_DEVICE_LIST));
     pIocDev->pAdapter = pFilterDeviceInfo->pAdapter;
 
-    pIocDev->DeviceName.Buffer = (PWSTR)_ExAllocatePool(NonPagedPool, pFilterDeviceInfo->pDeviceName->Length, "NAME");
+    pIocDev->DeviceName.Buffer = (PWSTR)_ExAllocatePool(NonPagedPoolNx, pFilterDeviceInfo->pDeviceName->Length, 'eman');
     if (pIocDev->DeviceName.Buffer == NULL)
     {
         QCFLT_DbgPrint
@@ -2445,7 +2447,7 @@ QCFLT_AddControlDevice
         RtlCopyUnicodeString(&pIocDev->DeviceName, pFilterDeviceInfo->pDeviceName);
     }
 
-    pIocDev->DeviceLinkName.Buffer = (PWSTR)_ExAllocatePool(NonPagedPool, pFilterDeviceInfo->pDeviceLinkName->Length, "NAME");
+    pIocDev->DeviceLinkName.Buffer = (PWSTR)_ExAllocatePool(NonPagedPoolNx, pFilterDeviceInfo->pDeviceLinkName->Length, 'eman');
     if (pIocDev->DeviceLinkName.Buffer == NULL)
     {
         QCFLT_DbgPrint
@@ -2960,7 +2962,7 @@ NTSTATUS QCFLT_VendorRegistryProcess
     _closeHandle(hRegKey, "PNP-2");
 
     // Store the correct device name
-    sprintf(pDevExt->PortName, "%s%d", gDeviceName, gDeviceIndex);
+    sprintf_s(pDevExt->PortName, sizeof(pDevExt->PortName), "%s%d", gDeviceName, gDeviceIndex);
     InterlockedIncrement(&gDeviceIndex);
 
     return STATUS_SUCCESS;
@@ -3005,45 +3007,6 @@ getRegDwValueEntryData_Return:
     return ntStatus;
 }
 
-/******************************************************************************************
-* Function Name: getRegSzValueEntryData
-* Arguments:
-*
-*  IN HANDLE OpenRegKey,
-*  IN PWSTR ValueEntryName,
-*  OUT PULONG pValueEntryData
-*
-*******************************************************************************************/
-NTSTATUS getRegSzValueEntryData
-(
-    IN HANDLE OpenRegKey,
-    IN PWSTR ValueEntryName,
-    OUT PCHAR pValueEntryData
-)
-{
-    NTSTATUS ntStatus = STATUS_SUCCESS;
-    PKEY_VALUE_FULL_INFORMATION pKeyValueInfo = NULL;
-
-   ntStatus = QCFLT_GetValueEntry( OpenRegKey, ValueEntryName, &pKeyValueInfo );
-
-    if (!NT_SUCCESS(ntStatus))
-    {
-        goto getRegSzValueEntryData_Return;
-    }
-
-   QCFLT_GetSzField( pKeyValueInfo, pValueEntryData);
-
-getRegSzValueEntryData_Return:
-
-    if (pKeyValueInfo)
-    {
-        _ExFreePool(pKeyValueInfo);
-        pKeyValueInfo = NULL;
-    }
-
-    return ntStatus;
-}
-
 /************************************************************************
 Routine Description:
    Return a KEY_VALUE information from an open registry node
@@ -3074,15 +3037,15 @@ NTSTATUS QCFLT_GetValueEntry( HANDLE hKey, PWSTR FieldName, PKEY_VALUE_FULL_INFO
     while (1)
     {
         pKeyValueInfo = (PKEY_VALUE_FULL_INFORMATION)_ExAllocatePool(
-            NonPagedPool,
+            NonPagedPoolNx,
             ulBuffLength,
-            "GetValueEntry - 2");
+            'vyek');
 
         if (pKeyValueInfo == NULL)
         {
             *pKeyValInfo = NULL;
             ntStatus = STATUS_NO_MEMORY;
-            goto QCFLT_GetValueEntry_Return; 
+            goto QCFLT_GetValueEntry_Return;
         }
 
         ntStatus = ZwQueryValueKey(
@@ -3144,28 +3107,6 @@ ULONG QCFLT_GetDwordField( PKEY_VALUE_FULL_INFORMATION pKvi )
 
 /************************************************************************
 Routine Description:
-   Return a Sz value from an open registry node
-
-Arguments:
-   pKvi -- node key information
-
-Returns:
-   Sz value of the value entry
-
-************************************************************************/
-VOID QCFLT_GetSzField( PKEY_VALUE_FULL_INFORMATION pKvi, PCHAR ValueEntryDataSz  )
-{
-    UNICODE_STRING unicodeStr;
-    ANSI_STRING    ansiStr;
-    PWSTR strPtr = (PWSTR)((PCHAR)pKvi + pKvi->DataOffset);
-    RtlInitUnicodeString(&unicodeStr, strPtr);
-    RtlUnicodeStringToAnsiString(&ansiStr, &unicodeStr, TRUE);
-    strcpy(ValueEntryDataSz, ansiStr.Buffer);
-    RtlFreeAnsiString(&ansiStr);
-}
-
-/************************************************************************
-Routine Description:
    Return void
 
 ************************************************************************/
@@ -3216,13 +3157,12 @@ VOID QCFLT_PrintBytes
 
     buffer = (char *)Buf;
 
-    dbgOutputBuffer = ExAllocatePool(NonPagedPool, myTextSize);
+    dbgOutputBuffer = _ExAllocatePool(NonPagedPoolNx, myTextSize, 'ogbd');
     if (dbgOutputBuffer == NULL)
     {
         return;
     }
 
-    RtlZeroMemory(dbgOutputBuffer, myTextSize);
     cBuf = dbgOutputBuffer;
     buf = dbgOutputBuffer + 128;
     p = buf;
@@ -3233,18 +3173,18 @@ VOID QCFLT_PrintBytes
         len = PktLen;
     }
 
-    sprintf(p, "\r\n\t   --- <%s> DATA %u/%u BYTES ---\r\n", info, len, PktLen);
+    sprintf_s(p, (size_t)(myTextSize - (p - dbgOutputBuffer)), "\r\n\t   --- <%s> DATA %u/%u BYTES ---\r\n", info, len, PktLen);
     p += strlen(p);
 
     for (i = 1; i <= len; i++)
     {
         if (i % 16 == 1)
         {
-            sprintf(p, "  %04u:  ", i - 1);
+            sprintf_s(p, (size_t)(myTextSize - (p - dbgOutputBuffer)), "  %04u:  ", i - 1);
             p += 9;
         }
 
-        sprintf(p, "%02X ", (UCHAR)buffer[i - 1]);
+        sprintf_s(p, (size_t)(myTextSize - (p - dbgOutputBuffer)), "%02X ", (UCHAR)buffer[i - 1]);
         if (isprint(buffer[i - 1]) && (!isspace(buffer[i - 1])))
         {
             *cp = buffer[i - 1]; // sprintf(cp, "%c", buffer[i-1]);
@@ -3267,11 +3207,11 @@ VOID QCFLT_PrintBytes
         {
             if (i % 64 == 0)
             {
-                sprintf(p, " %c  %s\r\n\r\n", SPLIT_CHAR, cBuf);
+                sprintf_s(p, (size_t)(myTextSize - (p - dbgOutputBuffer)), " %c  %s\r\n\r\n", SPLIT_CHAR, cBuf);
             }
             else
             {
-                sprintf(p, " %c  %s\r\n", SPLIT_CHAR, cBuf);
+                sprintf_s(p, (size_t)(myTextSize - (p - dbgOutputBuffer)), " %c  %s\r\n", SPLIT_CHAR, cBuf);
             }
 
             QCFLT_DbgPrint
@@ -3305,7 +3245,7 @@ VOID QCFLT_PrintBytes
         {
             *p++ = ' '; // sprintf(p++, " ");
         }
-        sprintf(p, " %c  %s\r\n\t   --- <%s> END OF DATA BYTES(%u/%uB) ---\n",
+        sprintf_s(p, (size_t)(myTextSize - (p - dbgOutputBuffer)), " %c  %s\r\n\t   --- <%s> END OF DATA BYTES(%u/%uB) ---\n",
             SPLIT_CHAR, cBuf, info, len, PktLen);
         QCFLT_DbgPrint
         (
@@ -3315,7 +3255,7 @@ VOID QCFLT_PrintBytes
     }
     else
     {
-        sprintf(buf, "\r\n\t   --- <%s> END OF DATA BYTES(%u/%uB) ---\n", info, len, PktLen);
+        sprintf_s(buf, (size_t)(myTextSize - (buf - dbgOutputBuffer)), "\r\n\t   --- <%s> END OF DATA BYTES(%u/%uB) ---\n", info, len, PktLen);
         QCFLT_DbgPrint
         (
             DBG_LEVEL_VERBOSE,

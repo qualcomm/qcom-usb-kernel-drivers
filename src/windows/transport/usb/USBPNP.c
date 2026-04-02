@@ -30,7 +30,7 @@ GENERAL DESCRIPTION
 // EVENT_TRACING
 #ifdef EVENT_TRACING
 
-#include "MPWPP.h"               // Driver specific WPP Macros, Globals, etc 
+#include "MPWPP.h"               // Driver specific WPP Macros, Globals, etc
 #include "USBPNP.tmh"
 
 #endif   // EVENT_TRACING
@@ -585,8 +585,8 @@ NTSTATUS QCPNP_GetParentDeviceName(PDEVICE_EXTENSION pDevExt)
     IoSetCompletionRoutine
     (
         pIrp,
-        (PIO_COMPLETION_ROUTINE)QCPNP_GenericCompletion,
-        (PVOID)pDevExt,
+        QCPNP_GenericCompletion,
+        pDevExt,
         TRUE, TRUE, TRUE
     );
 
@@ -2211,7 +2211,7 @@ NTSTATUS USBPNP_InitDevExt
     pDevExt->IoBusyMask = 0;
     pDevExt->SelectiveSuspendIdleTime = 10;  // chage it to 5 by default
     pDevExt->SelectiveSuspendInMili = FALSE;
-    pDevExt->InServiceSelectiveSuspension = FALSE;  // disable for 5G data for now -- TODO 
+    pDevExt->InServiceSelectiveSuspension = FALSE;  // disable for 5G data for now -- TODO
     pDevExt->bRemoteWakeupEnabled = FALSE;  // hardcode for now
     pDevExt->bDeviceSelfPowered = FALSE;
     pDevExt->PowerManagementEnabled = TRUE;
@@ -2235,7 +2235,7 @@ NTSTATUS USBPNP_InitDevExt
         );
     }
 
-#endif 
+#endif
 
 USBPNP_InitDevExt_Return:
     if (pucNewReadBuffer)

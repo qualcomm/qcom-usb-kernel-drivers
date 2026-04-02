@@ -126,13 +126,7 @@ NTSTATUS QCPNP_RegisterDevName
     ULONG       BufferLength
 );
 
-void QCPNP_RegisterDevNameCompletion
-(
-    WDFREQUEST  Request,
-    WDFIOTARGET Target,
-    PWDF_REQUEST_COMPLETION_PARAMS Params,
-    WDFCONTEXT  Context
-);
+EVT_WDF_REQUEST_COMPLETION_ROUTINE QCPNP_RegisterDevNameCompletion;
 
 NTSTATUS QCPNP_RegisterWmiPowerGuid
 (

@@ -251,9 +251,9 @@ QCFLT_ControlFilterThread(PVOID pContext)
     // allocate a wait block array for the multiple wait
     pwbArray = _ExAllocatePool
     (
-        NonPagedPool,
+        NonPagedPoolNx,
         (QCFLT_FILTER_EVENT_COUNT + 1) * sizeof(KWAIT_BLOCK),
-        "Flt.pwbArray"
+        'abwp'
     );
     if (pwbArray == NULL)
     {

@@ -32,24 +32,13 @@ NTSTATUS QDBPNP_SetStamp
     BOOLEAN        Startup
 );
 
-NTSTATUS QDBPNP_EvtDriverDeviceAdd
-(
-    WDFDRIVER        Driver,
-    PWDFDEVICE_INIT  DeviceInit
-);
-
-VOID QDBPNP_EvtDriverCleanupCallback(WDFOBJECT Object);
-
-VOID QDBPNP_EvtDeviceCleanupCallback(WDFOBJECT Object);
+EVT_WDF_DRIVER_DEVICE_ADD QDBPNP_EvtDriverDeviceAdd;
+EVT_WDF_OBJECT_CONTEXT_CLEANUP QDBPNP_EvtDriverCleanupCallback;
+EVT_WDF_OBJECT_CONTEXT_CLEANUP QDBPNP_EvtDeviceCleanupCallback;
 
 VOID QDBPNP_WaitForDrainToStop(PDEVICE_CONTEXT pDevContext);
 
-NTSTATUS QDBPNP_EvtDevicePrepareHW
-(
-    WDFDEVICE    Device,
-    WDFCMRESLIST ResourceList,
-    WDFCMRESLIST ResourceListTranslated
-);
+EVT_WDF_DEVICE_PREPARE_HARDWARE QDBPNP_EvtDevicePrepareHW;
 
 NTSTATUS QDBPNP_EnumerateDevice(IN WDFDEVICE Device);
 

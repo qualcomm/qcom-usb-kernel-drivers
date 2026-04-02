@@ -14,6 +14,14 @@ GENERAL DESCRIPTION
 
 #include "USBMAIN.h"
 
+IO_COMPLETION_ROUTINE QCPWR_SystemPowerRequestCompletion;
+IO_COMPLETION_ROUTINE QCPWR_DevicePowerDownIrpCompletion;
+IO_COMPLETION_ROUTINE QCPWR_DevicePowerUpIrpCompletion;
+IO_COMPLETION_ROUTINE QCPWR_WaitWakeCompletion;
+IO_COMPLETION_ROUTINE QCPWR_IdleNotificationIrpCompletion;
+IO_COMPLETION_ROUTINE USBPWR_GetSysPowerIrpCompletion;
+IO_COMPLETION_ROUTINE USBPWR_ExWdmDevNotifyCompletion;
+
 #define QCUSB_SS_IDLE_MIN         3  // seconds
 #define QCUSB_SS_IDLE_MAX       120  // seconds
 #define QCUSB_SS_IDLE_DEFAULT     5  // seconds
@@ -144,13 +152,6 @@ NTSTATUS QCPWR_SetDevicePowerState
     DEVICE_POWER_STATE PowerState
 );
 
-NTSTATUS QCPWR_SystemPowerRequestCompletion
-(
-    PDEVICE_OBJECT    DeviceObject,
-    PIRP              Irp,
-    PDEVICE_EXTENSION pDevExt
-);
-
 VOID QCPWR_RequestDevicePowerIrp
 (
     PDEVICE_EXTENSION pDevExt,
@@ -166,20 +167,6 @@ VOID QCPWR_TopDevicePowerIrpCompletionRoutine
     POWER_STATE PowerState,
     PVOID Context,
     PIO_STATUS_BLOCK IoStatus
-);
-
-NTSTATUS QCPWR_DevicePowerUpIrpCompletion
-(
-    PDEVICE_OBJECT    DeviceObject,
-    PIRP              Irp,
-    PDEVICE_EXTENSION pDevExt
-);
-
-NTSTATUS QCPWR_DevicePowerDownIrpCompletion
-(
-    PDEVICE_OBJECT    DeviceObject,
-    PIRP              Irp,
-    PDEVICE_EXTENSION pDevExt
 );
 
 NTSTATUS QCPWR_DecreaseDevicePower
@@ -243,13 +230,6 @@ VOID QCPWR_TopDeviceSetPowerIrpCompletionRoutine
     PIO_STATUS_BLOCK IoStatus
 );
 
-NTSTATUS QCPWR_IdleNotificationIrpCompletion
-(
-    PDEVICE_OBJECT          DeviceObject,
-    PIRP                    Irp,
-    PUSB_IDLE_CALLBACK_INFO IdleCallbackInfo
-);
-
 VOID QCPWR_GetOutOfIdleState(PDEVICE_EXTENSION pDevExt);
 
 NTSTATUS QCPWR_IdleNotificationIrpCompletionEpisode
@@ -274,13 +254,6 @@ VOID QCPWR_CancelIdleNotificationIrp(PDEVICE_EXTENSION pDevExt, UCHAR Cookie);
 //          Wait-Wake
 // ========================================================
 VOID QCPWR_ProcessWaitWake(PDEVICE_EXTENSION pDevExt, PIRP Irp);
-
-NTSTATUS QCPWR_WaitWakeCompletion
-(
-    PDEVICE_OBJECT    DeviceObject,
-    PIRP              Irp,
-    PDEVICE_EXTENSION pDevExt
-);
 
 VOID QCPWR_RegisterWaitWakeIrp(PDEVICE_EXTENSION  pDevExt, UCHAR Cookie);
 

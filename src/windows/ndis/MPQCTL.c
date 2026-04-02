@@ -19,7 +19,7 @@ GENERAL DESCRIPTION
 // EVENT_TRACING
 #ifdef EVENT_TRACING
 
-#include "MPWPP.h"               // Driver specific WPP Macros, Globals, etc 
+#include "MPWPP.h"               // Driver specific WPP Macros, Globals, etc
 #include "MPQCTL.tmh"
 
 #endif   // EVENT_TRACING
@@ -830,7 +830,7 @@ NDIS_STATUS MPQCTL_SetDataFormat
     }
 
 #endif // MP_QCQOS_ENABLED
-#endif 
+#endif
 
     QCNET_DbgPrint
     (
@@ -1262,8 +1262,8 @@ NDIS_STATUS MPQCTL_SendQMICTLRequest
     IoSetCompletionRoutine
     (
         pIrp,
-        (PIO_COMPLETION_ROUTINE)MPQCTL_SendIRPCompletion,
-        (PVOID)pAdapter, // Context,
+        MPQCTL_SendIRPCompletion,
+        pAdapter, // Context,
         TRUE, TRUE, TRUE
     );
 
@@ -1543,7 +1543,7 @@ VOID MPQCTL_HandleGetVersionRsp
                         preamble->LabelLength
                     );
 
-                    pAddendumVer += sizeof(UCHAR); //label length field 
+                    pAddendumVer += sizeof(UCHAR); //label length field
                     pAddendumVer += preamble->LabelLength; // skip the label
                     numInstances = *((PUCHAR)pAddendumVer);
                     pAddendumVer += sizeof(UCHAR); // advance to the version section
@@ -1642,7 +1642,7 @@ VOID MPQCTL_HandleGetVersionRsp
         pAdapter->MPEnableQMAPV2 = 0;
         pAdapter->MPEnableQMAPV3 = 0;
 #endif
-#endif      
+#endif
     }
     if ((pAdapter->QMUXVersion[QMUX_TYPE_WDS_ADMIN].Major >= 1) &&
         (pAdapter->QMUXVersion[QMUX_TYPE_WDS_ADMIN].Minor >= 19))
@@ -2045,7 +2045,7 @@ PVOID MPQCTL_HandleSetDataFormatReq
     {
         *MsgLen += sizeof(QMICTL_SET_DATA_FORMAT_TLV_LINK_PROT);
     }
-#endif // QC_IP_MODE      
+#endif // QC_IP_MODE
 
 #ifdef QCMP_UL_TLP
     if (pAdapter->MPEnableTLP != 0) // registry setting

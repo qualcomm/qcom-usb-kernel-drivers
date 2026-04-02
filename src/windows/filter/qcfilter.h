@@ -173,7 +173,7 @@ typedef enum _QC_DEVICE_PNP_STATE
            } \
         }
 
-#define _ExAllocatePool(a,b,c) ExAllocatePool(a,b)
+#define _ExAllocatePool(a,b,c) ExAllocatePoolZero(a,b,c)
 #define _ExFreePool(_a) { ExFreePool(_a); _a=NULL; }
 
 #define _freeBuf(_a) \
@@ -394,11 +394,13 @@ __drv_dispatchType(IRP_MJ_READ)
 __drv_dispatchType(IRP_MJ_WRITE)
 DRIVER_DISPATCH QCFilterDispatchIo;
 
-PCHAR QCPnPMinorFunctionString(UCHAR MinorFunction);
+DRIVER_CANCEL QCFLT_DispatchCancelQueued;
 
-NTSTATUS QCFilterStartCompletionRoutine(PDEVICE_OBJECT DeviceObject, PIRP Irp, PVOID Context);
+IO_COMPLETION_ROUTINE QCFilterStartCompletionRoutine;
 
-NTSTATUS QCFilterQueryCapabilitiesCompletionRoutine(PDEVICE_OBJECT DeviceObject, PIRP Irp, PVOID Context);
+IO_COMPLETION_ROUTINE QCFLT_CallUSBD_Completion;
+
+IO_COMPLETION_ROUTINE QCFLT_GetConfigurationCompletion;
 
 NTSTATUS
 QCFilterCreateControlObject(PDEVICE_OBJECT DeviceObject, PFILTER_DEVICE_INFO pFilterDeviceInfo);
@@ -448,18 +450,9 @@ NTSTATUS getRegDwValueEntryData
     OUT PULONG pValueEntryData
 );
 
-NTSTATUS getRegSzValueEntryData
-(
-    IN HANDLE OpenRegKey,
-    IN PWSTR ValueEntryName,
-    OUT PCHAR pValueEntryData
-);
-
 NTSTATUS QCFLT_GetValueEntry( HANDLE hKey, PWSTR FieldName, PKEY_VALUE_FULL_INFORMATION  *pKeyValInfo );
 
 ULONG QCFLT_GetDwordField( PKEY_VALUE_FULL_INFORMATION pKvi );
-
-VOID QCFLT_GetSzField(PKEY_VALUE_FULL_INFORMATION pKvi, PCHAR ValueEntryDataSz);
 
 BOOLEAN USBPNP_ValidateConfigDescriptor
 (

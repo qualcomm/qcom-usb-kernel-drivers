@@ -22,7 +22,7 @@ GENERAL DESCRIPTION
 // EVENT_TRACING
 #ifdef EVENT_TRACING
 
-#include "MPWPP.h"               // Driver specific WPP Macros, Globals, etc 
+#include "MPWPP.h"               // Driver specific WPP Macros, Globals, etc
 #include "USBPWR.tmh"
 
 #endif   // EVENT_TRACING
@@ -94,7 +94,7 @@ VOID QCPWR_PowrerManagement
                         IoSetCompletionRoutine
                         (
                             Irp,
-                            (PIO_COMPLETION_ROUTINE)QCPWR_SystemPowerRequestCompletion,
+                            QCPWR_SystemPowerRequestCompletion,
                             pDevExt, TRUE, TRUE, TRUE
                         );
                     }
@@ -124,7 +124,7 @@ VOID QCPWR_PowrerManagement
                         IoSetCompletionRoutine
                         (
                             Irp,
-                            (PIO_COMPLETION_ROUTINE)QCPWR_DevicePowerDownIrpCompletion,
+                            QCPWR_DevicePowerDownIrpCompletion,
                             pDevExt, TRUE, TRUE, TRUE
                         );
                     }
@@ -183,7 +183,7 @@ VOID QCPWR_PowrerManagement
                     IoSetCompletionRoutine
                     (
                         Irp,
-                        (PIO_COMPLETION_ROUTINE)QCPWR_SystemPowerRequestCompletion,
+                        QCPWR_SystemPowerRequestCompletion,
                         pDevExt, TRUE, TRUE, TRUE
                     );
 
@@ -949,7 +949,7 @@ NTSTATUS QCPWR_SetDevicePowerState
             IoSetCompletionRoutine
             (
                 Irp,
-                (PIO_COMPLETION_ROUTINE)QCPWR_DevicePowerUpIrpCompletion,
+                QCPWR_DevicePowerUpIrpCompletion,
                 pDevExt,
                 TRUE, TRUE, TRUE
             );
@@ -1083,7 +1083,7 @@ NTSTATUS QCPWR_DecreaseDevicePower
     IoSetCompletionRoutine
     (
         Irp,
-        (PIO_COMPLETION_ROUTINE)QCPWR_DevicePowerDownIrpCompletion,
+        QCPWR_DevicePowerDownIrpCompletion,
         pDevExt,
         TRUE, TRUE, TRUE
     );
@@ -2436,7 +2436,7 @@ VOID QCPWR_ProcessWaitWake(PDEVICE_EXTENSION pDevExt, PIRP Irp)
     IoSetCompletionRoutine
     (
         Irp,
-        (PIO_COMPLETION_ROUTINE)QCPWR_WaitWakeCompletion,
+        QCPWR_WaitWakeCompletion,
         pDevExt,
         TRUE, TRUE, TRUE
     );
@@ -3732,7 +3732,7 @@ VOID USBPWR_StopExWdmDeviceMonitor(PDEVICE_EXTENSION pDevExt)
         IoUnregisterPlugPlayNotification(pDevExt->ExWdmIfNotificationEntry);
         pDevExt->ExWdmIfNotificationEntry = NULL;
     }
-} // USBPWR_StopExWdmDeviceMonitor 
+} // USBPWR_StopExWdmDeviceMonitor
 
 NTSTATUS USBPWR_DeviceInterfaceChange
 (
@@ -4270,8 +4270,8 @@ SYSTEM_POWER_STATE USBPWR_GetSystemPowerState
     IoSetCompletionRoutine
     (
         pIrp,
-        (PIO_COMPLETION_ROUTINE)USBPWR_GetSysPowerIrpCompletion,
-        (PVOID)pDevExt,
+        USBPWR_GetSysPowerIrpCompletion,
+        pDevExt,
         TRUE, TRUE, TRUE
     );
 
@@ -4339,8 +4339,8 @@ NTSTATUS USBPWR_RegisterXwdmNotification(PDEVICE_EXTENSION pDevExt)
     IoSetCompletionRoutine
     (
         pIrp,
-        (PIO_COMPLETION_ROUTINE)USBPWR_ExWdmDevNotifyCompletion,
-        (PVOID)pDevExt,
+        USBPWR_ExWdmDevNotifyCompletion,
+        pDevExt,
         TRUE, TRUE, TRUE
     );
 

@@ -433,7 +433,7 @@ NTSTATUS QDBDSP_GetParentId
     IoSetCompletionRoutine
     (
         pIrp,
-        (PIO_COMPLETION_ROUTINE)QDBDSP_IrpIoCompletion,
+        QDBDSP_IrpIoCompletion,
         (PVOID)pDevContext,
         TRUE, TRUE, TRUE
     );

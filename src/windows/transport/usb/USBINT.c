@@ -19,7 +19,7 @@ GENERAL DESCRIPTION
 // EVENT_TRACING
 #ifdef EVENT_TRACING
 
-#include "MPWPP.h"               // Driver specific WPP Macros, Globals, etc 
+#include "MPWPP.h"               // Driver specific WPP Macros, Globals, etc
 #include "USBINT.tmh"
 
 #endif   // EVENT_TRACING
@@ -366,8 +366,8 @@ VOID ReadInterruptPipe(IN PVOID pContext)
             IoSetCompletionRoutine
             (
                 pIrp,
-                (PIO_COMPLETION_ROUTINE)InterruptPipeCompletion,
-                (PVOID)pDevExt,
+                InterruptPipeCompletion,
+                pDevExt,
                 TRUE,
                 TRUE,
                 TRUE
@@ -999,7 +999,7 @@ wait_for_completion:
     if (pIrp != NULL)
     {
         IoReuseIrp(pIrp, STATUS_SUCCESS);
-        IoFreeIrp(pIrp); // free irp 
+        IoFreeIrp(pIrp); // free irp
     }
     if (pwbArray != NULL)
     {
