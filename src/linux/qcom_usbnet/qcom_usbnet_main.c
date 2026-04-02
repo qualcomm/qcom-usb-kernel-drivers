@@ -1857,9 +1857,7 @@ static void cdc_ncm_txpath_bh(unsigned long param)
 {
     struct usbnet *dev = (struct usbnet *)param;
     sGobiUSBNet *pGobiDev = (sGobiUSBNet *)dev->data[0];
-    struct rm_cdc_ncm_ctx *ctx;
-
-    ctx = &pGobiDev->tx_aggr_ctx;
+    struct rm_cdc_ncm_ctx *ctx = &pGobiDev->tx_aggr_ctx;
 
    spin_lock_bh(&ctx->mtx);
    if (ctx->tx_timer_pending != 0) {
@@ -2871,11 +2869,14 @@ int GobiUSBNetProbe(
    pGobiDev->ULAggregationMaxSize = pGobiDev->tx_aggr_ctx.tx_max;
    pGobiDev->ULAggregationMaxDatagram = pGobiDev->tx_aggr_ctx.tx_max_datagrams;
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(6, 15, 0))
+   hrtimer_setup(&pGobiDev->tx_aggr_ctx.tx_timer, &cdc_ncm_tx_timer_cb,
+                 CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+#else
    hrtimer_init(&pGobiDev->tx_aggr_ctx.tx_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
    pGobiDev->tx_aggr_ctx.tx_timer.function = &cdc_ncm_tx_timer_cb;
-   //TODO:: you can use tasklet_init and can use tasklet_hi_schedule instead tasklet_schedule
-   pGobiDev->tx_aggr_ctx.bh.data = (unsigned long)pDev;
-   pGobiDev->tx_aggr_ctx.bh.func = cdc_ncm_txpath_bh;
+#endif
+   tasklet_init(&pGobiDev->tx_aggr_ctx.bh, cdc_ncm_txpath_bh, (unsigned long)pDev);
    atomic_set(&pGobiDev->tx_aggr_ctx.stop, 0);
 
    spin_lock_init(&pGobiDev->tx_aggr_ctx.mtx);
