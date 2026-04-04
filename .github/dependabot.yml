@@ -4,9 +4,9 @@
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2
-name: Dependabots scan
 updates:
   - package-ecosystem: "github-actions" # See documentation for possible values
     directory: "/" # This points to .github/workflows
     schedule:
       interval: "daily"
+
