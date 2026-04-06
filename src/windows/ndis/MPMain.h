@@ -18,6 +18,13 @@ GENERAL DESCRIPTION
 #include <windef.h>
 #include <wwan.h>
 #include <ndiswwan.h>
+// Compatibility defines for deprecated 5G data class constants (removed in newer WDK)
+#ifndef WWAN_DATA_CLASS_5G_EPC
+#define WWAN_DATA_CLASS_5G_EPC      WWAN_DATA_CLASS_5G    // 0x00000040
+#endif
+#ifndef WWAN_DATA_CLASS_5G_5GC
+#define WWAN_DATA_CLASS_5G_5GC      0x00000080            // retired, now WWAN_DATA_CLASS_UNUSED
+#endif
 #endif //NDIS620_MINIPORT
 #include "MPParam.h"
 #include "MPQMI.h"
