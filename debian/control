@@ -9,8 +9,8 @@ Rules-Requires-Root: no
 Package: qcom-usb-drivers-dkms
 Architecture: all
 Depends: ${misc:Depends}, dkms, linux-headers-generic | linux-headers-amd64 | linux-headers-arm64
-Conflicts: qcom-usb-userspace-drivers, qcom-usb-userspace-drivers-dkms
-Replaces: qcom-usb-userspace-drivers, qcom-usb-userspace-drivers-dkms
+Conflicts: qcom-usb-userspace-driver
+Replaces: qcom-usb-userspace-driver
 Description: Qualcomm USB kernel drivers (DKMS)
  DKMS package for Qualcomm USB kernel drivers including:
   * qtiDevInf  - INF file parser for device enumeration
