@@ -13,9 +13,12 @@ The project is organized to facilitate easy compilation, testing, and integratio
 
 ```
 /
+├─ debian/                # Debian packaging files for .deb package build
 ├─ docs/                  # Architecture diagrams and design documents
 ├─ src/                   # Qualcomm USB kernel driver for windows and linux platform
-├─ examples/              # samples scripts
+├─ examples/              # Sample scripts
+├─ build-deb.sh           # Build script for generating the .deb package
+├─ dkms.conf              # DKMS configuration for kernel module management
 ├─ README.md              # This file
 └─ ...                    # Other files and directories
 ```
@@ -33,6 +36,7 @@ The project is organized to facilitate easy compilation, testing, and integratio
 
 - GNU Make, GCC/Clang.
 - Kernel headers for the target kernel version (`linux-headers-$(uname -r)`).
+- For deb package build: `debhelper`, `dkms`, `dpkg-dev`, `dh-dkms`.
   
 ### Build Steps
 
@@ -86,9 +90,51 @@ pnputil /add-driver <build_path/driver_name.inf> /install
   ```bash
   pnputil /delete-driver oemxx.inf /uninstall /force
   ```
-#### Linux command:
-  Navigate to folder `src/linux`
-    
+
+#### Linux — Debian Package (Recommended)
+
+The recommended way to install on Debian/Ubuntu systems is via the `.deb` package, which uses DKMS to automatically build kernel modules for the running kernel and handles install, uninstall, upgrade, and version control.
+
+- Build the package
+```bash
+# Install build dependencies (one-time)
+sudo apt-get install debhelper dkms dpkg-dev dh-dkms
+
+# Build
+./build-deb.sh
+```
+
+- Installation
+```bash
+sudo dpkg -i ../qcom-usb-drivers-dkms_<version>_all.deb
+```
+
+- Uninstallation
+```bash
+sudo dpkg -r qcom-usb-drivers-dkms
+```
+
+- Check installed version
+```bash
+dpkg -s qcom-usb-drivers-dkms | grep Version
+dkms status
+```
+
+- Upgrade
+
+  Simply install a newer `.deb` — it automatically removes the old version and installs the new one.
+
+**What the deb package does:**
+- Builds all 4 kernel modules (`qtiDevInf`, `qcom_usb`, `qcom_usbnet`, `qcom-serial`) via DKMS
+- Automatically rebuilds modules when the kernel is updated
+- Installs udev rules and blacklists conflicting in-tree modules
+- Handles cleanup of pre-existing manual installs
+- Loads modules immediately after installation
+
+#### Linux — Manual Install (Alternative)
+
+Navigate to folder `src/linux`
+
 - Installation
 ```bash
 sudo ./qcom_drivers.sh install
@@ -97,7 +143,8 @@ sudo ./qcom_drivers.sh install
 ```bash
 sudo ./qcom_drivers.sh uninstall
 ```
-For more guidance on build process, FAQ's and troubleshooting, please refer to [README](./src/linux/README.md) document. 
+
+For more guidance on build process, FAQ's and troubleshooting, please refer to [README](./src/linux/README.md) document.
 
 ## Contributing
 
