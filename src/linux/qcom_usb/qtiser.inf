@@ -526,6 +526,8 @@ ExcludeFromSelect = *
 %QTIDevice913C0%  = QportInstall00, USB\VID_05C6&PID_913C&MI_00
 %QTIDevice912C5%  = QportInstall00, USB\VID_05C6&PID_912C&MI_05
 %QTIDevice912D5%  = QportInstall00, USB\VID_05C6&PID_912D&MI_05
+%QTIDevice91462%  = QportInstall00, USB\VID_05C6&PID_9146&MI_02
+%QTIDevice91466%  = QportInstall00, USB\VID_05C6&PID_9146&MI_06
 
 [QTISerialPort.NTamd64.6.1]
 %QTIDevice00% = QportInstall00, USB\VID_05C6&PID_3197&MI_01
@@ -999,6 +1001,8 @@ ExcludeFromSelect = *
 %QTIDevice913C0%  = QportInstall00, USB\VID_05C6&PID_913C&MI_00
 %QTIDevice912C5%  = QportInstall00, USB\VID_05C6&PID_912C&MI_05
 %QTIDevice912D5%  = QportInstall00, USB\VID_05C6&PID_912D&MI_05
+%QTIDevice91462%  = QportInstall00, USB\VID_05C6&PID_9146&MI_02
+%QTIDevice91466%  = QportInstall00, USB\VID_05C6&PID_9146&MI_06
 
 [QTISerialPort.NTx86.10.0]
 %QTIDevice00% = QportInstall00, USB\VID_05C6&PID_3197&MI_01
@@ -1471,6 +1475,8 @@ ExcludeFromSelect = *
 %QTIDevice913C0%  = QportInstall00, USB\VID_05C6&PID_913C&MI_00
 %QTIDevice912C5%  = QportInstall00, USB\VID_05C6&PID_912C&MI_05
 %QTIDevice912D5%  = QportInstall00, USB\VID_05C6&PID_912D&MI_05
+%QTIDevice91462%  = QportInstall00, USB\VID_05C6&PID_9146&MI_02
+%QTIDevice91466%  = QportInstall00, USB\VID_05C6&PID_9146&MI_06
 
 [QTISerialPort.NTamd64.10.0]
 %QTIDevice00% = QportInstall00, USB\VID_05C6&PID_3197&MI_01
@@ -1942,6 +1948,8 @@ ExcludeFromSelect = *
 %QTIDevice913C0%  = QportInstall00, USB\VID_05C6&PID_913C&MI_00
 %QTIDevice912C5%  = QportInstall00, USB\VID_05C6&PID_912C&MI_05
 %QTIDevice912D5%  = QportInstall00, USB\VID_05C6&PID_912D&MI_05
+%QTIDevice91462%  = QportInstall00, USB\VID_05C6&PID_9146&MI_02
+%QTIDevice91466%  = QportInstall00, USB\VID_05C6&PID_9146&MI_06
 
 [QTISerialPort.NTarm.10.0]
 %QTIDevice00% = QportInstall05, USB\VID_05C6&PID_3197&MI_01
@@ -2413,6 +2421,8 @@ ExcludeFromSelect = *
 %QTIDevice913C0%  = QportInstall00, USB\VID_05C6&PID_913C&MI_00
 %QTIDevice912C5%  = QportInstall00, USB\VID_05C6&PID_912C&MI_05
 %QTIDevice912D5%  = QportInstall00, USB\VID_05C6&PID_912D&MI_05
+%QTIDevice91462%  = QportInstall05, USB\VID_05C6&PID_9146&MI_02
+%QTIDevice91466%  = QportInstall05, USB\VID_05C6&PID_9146&MI_06
 
 [QTISerialPort.NTarm64.10.0]
 %QTIDevice00% = QportInstall05, USB\VID_05C6&PID_3197&MI_01
@@ -2883,6 +2893,8 @@ ExcludeFromSelect = *
 %QTIDevice91350%  = QportInstall05, USB\VID_05C6&PID_9135&MI_00
 %QTIDevice91360%  = QportInstall05, USB\VID_05C6&PID_9136&MI_00
 %QTIDevice913C0%  = QportInstall00, USB\VID_05C6&PID_913C&MI_00
+%QTIDevice91462%  = QportInstall05, USB\VID_05C6&PID_9146&MI_02
+%QTIDevice91466%  = QportInstall05, USB\VID_05C6&PID_9146&MI_06
 
 [QportInstall00.NT]
 CopyFiles=QTIUsbDriverFiles
@@ -3444,4 +3456,6 @@ QTIDevice91350 = "QTI HS-USB Diagnostics 9135"
 QTIDevice91360 = "QTI HS-USB Diagnostics 9136"
 QTIDevice913C0 = "QTI HS-USB Diagnostics 913C"
 QTIDevice912C5 = "QTI IPC Router 912C"
-QTIDevice912C5 = "QTI IPC Router 912D"
+QTIDevice912D5 = "QTI IPC Router 912D"
+QTIDevice91462 = "QTI HS-USB Diagnostics 9146"
+QTIDevice91466 = "QTI HS-USB NMEA 9146"
