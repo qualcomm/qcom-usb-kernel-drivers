@@ -516,6 +516,8 @@ ExcludeFromSelect = *
 %QcomDevice91452%  = QportInstall00, USB\VID_05C6&PID_9145&MI_02
 %QcomDevice91453%  = QportInstall00, USB\VID_05C6&PID_9145&MI_03
 %QcomDevice91454%  = QportInstall00, USB\VID_05C6&PID_9145&MI_04
+%QcomDevice914602% = QportInstall00, USB\VID_05C6&PID_9146&MI_02
+%QcomDevice914606% = QportInstall00, USB\VID_05C6&PID_9146&MI_06
 
 [QcomSerialPort.NTamd64]
 %QcomDevice00% = QportInstall00, USB\VID_05C6&PID_3197&MI_01
@@ -1002,6 +1004,8 @@ ExcludeFromSelect = *
 %QcomDevice91452%  = QportInstall00, USB\VID_05C6&PID_9145&MI_02
 %QcomDevice91453%  = QportInstall00, USB\VID_05C6&PID_9145&MI_03
 %QcomDevice91454%  = QportInstall00, USB\VID_05C6&PID_9145&MI_04
+%QcomDevice914602% = QportInstall00, USB\VID_05C6&PID_9146&MI_02
+%QcomDevice914606% = QportInstall00, USB\VID_05C6&PID_9146&MI_06
 
 [QcomSerialPort.NTarm]
 %QcomDevice00% = QportInstall05, USB\VID_05C6&PID_3197&MI_01
@@ -1488,6 +1492,8 @@ ExcludeFromSelect = *
 %QcomDevice91452%  = QportInstall00, USB\VID_05C6&PID_9145&MI_02
 %QcomDevice91453%  = QportInstall00, USB\VID_05C6&PID_9145&MI_03
 %QcomDevice91454%  = QportInstall00, USB\VID_05C6&PID_9145&MI_04
+%QcomDevice914602% = QportInstall05, USB\VID_05C6&PID_9146&MI_02
+%QcomDevice914606% = QportInstall05, USB\VID_05C6&PID_9146&MI_06
 
 [QcomSerialPort.NTarm64]
 %QcomDevice00% = QportInstall05, USB\VID_05C6&PID_3197&MI_01
@@ -1974,6 +1980,8 @@ ExcludeFromSelect = *
 %QcomDevice91452%  = QportInstall00, USB\VID_05C6&PID_9145&MI_02
 %QcomDevice91453%  = QportInstall00, USB\VID_05C6&PID_9145&MI_03
 %QcomDevice91454%  = QportInstall00, USB\VID_05C6&PID_9145&MI_04
+%QcomDevice914602% = QportInstall05, USB\VID_05C6&PID_9146&MI_02
+%QcomDevice914606% = QportInstall05, USB\VID_05C6&PID_9146&MI_06
 
 [QportInstall00.NT]
 CopyFiles=QCUsbDriverFiles
@@ -2582,4 +2590,6 @@ QcomDevice91441 = "Qualcomm HS-USB MDM Diagnostics 9144"
 QcomDevice91452 = "Qualcomm HS-USB NMEA 9145"
 QcomDevice91453 = "Qualcomm HS-USB Diagnostics 9145"
 QcomDevice91454 = "Qualcomm HS-USB MDM Diagnostics 9145"
+QcomDevice914602  = "Qualcomm HS-USB Diagnostics 9146"
+QcomDevice914606  = "Qualcomm HS-USB NMEA 9146"
 
