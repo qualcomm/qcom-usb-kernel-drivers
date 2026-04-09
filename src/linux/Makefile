@@ -23,7 +23,7 @@ ifeq ($(SECUREBOOT),SecureBoot enabled)
 	$(KHEADERS)/scripts/sign-file sha256 $(DEST_SIGN_PATH)/Signkey.priv $(DEST_SIGN_PATH)/Signkey_pub.der ./InfParser/qtiDevInf.ko
 # 	$(KHEADERS)/scripts/sign-file sha256 $(DEST_SIGN_PATH)/Signkey.priv $(DEST_SIGN_PATH)/Signkey_pub.der ./qcom_serial/qcom_serial.ko
 	$(KHEADERS)/scripts/sign-file sha256 $(DEST_SIGN_PATH)/Signkey.priv $(DEST_SIGN_PATH)/Signkey_pub.der ./qcom_usb/qcom_usb.ko
-	$(KHEADERS)/scripts/sign-file sha256 $(DEST_SIGN_PATH)/Signkey.priv $(DEST_SIGN_PATH)/Signkey_pub.der ./qcom_net/qcom_usbnet.ko
+	$(KHEADERS)/scripts/sign-file sha256 $(DEST_SIGN_PATH)/Signkey.priv $(DEST_SIGN_PATH)/Signkey_pub.der ./qcom_usbnet/qcom_usbnet.ko
 endif
 
 install: build
