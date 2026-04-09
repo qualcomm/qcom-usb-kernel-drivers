@@ -1,0 +1,30 @@
+#!/bin/bash
+# Pre-removal script for qcom-usb-drivers-dkms
+set -e
+
+case "$1" in
+    remove|upgrade|deconfigure)
+        # Unload Qualcomm modules (reverse dependency order: serial depends on qtiDevInf)
+        for mod in qcom-serial qcom_usbnet qcom_usb qtiDevInf; do
+            if lsmod | grep -qw "${mod//-/_}"; then
+                rmmod "$mod" 2>/dev/null || true
+            fi
+        done
+
+        # Restore blacklisted in-tree modules
+        # (the blacklist config file is removed automatically with the package)
+        depmod -a 2>/dev/null || true
+        ;;
+
+    failed-upgrade)
+        ;;
+
+    *)
+        echo "prerm called with unknown argument '$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0
