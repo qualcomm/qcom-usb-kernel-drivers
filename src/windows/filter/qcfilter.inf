@@ -12,7 +12,7 @@ Signature   = "$WINDOWS NT$"
 Class       = USB
 Provider    = %QUALCOMM%
 ClassGUID   = {36FC9E60-C465-11CF-8056-444553540000}
-DriverVer   = 07/14/2025,1.0.1.3
+DriverVer   = 03/25/2026,1.0.0.0
 CatalogFile = qcfilter.cat
 PnpLockdown = 1
 
@@ -2298,7 +2298,6 @@ CopyFiles = qcfilter5.NT.Copy
 AddReg    = qcfilterAddReg5
 
 [qcfilterAddReg2]
-
 ; Support Muxing
 HKR,, QCDeviceMuxEnable, 0x00010001, 0x00000001
 
@@ -2312,7 +2311,6 @@ HKR,, QCDeviceNumIf, 0x00010001, 0x00000001
 HKR,, QCDeviceNumMuxIf, 0x00010001, 0x00000007
 
 [qcfilterAddReg3]
-
 ; Support Muxing
 HKR,, QCDeviceMuxEnable, 0x00010001, 0x00000001
 
@@ -2326,7 +2324,6 @@ HKR,, QCDeviceNumIf, 0x00010001, 0x00000001
 HKR,, QCDeviceNumMuxIf, 0x00010001, 0x00000007
 
 [qcfilterAddReg4]
-
 ; Support Muxing
 HKR,, QCDeviceMuxEnable, 0x00010001, 0x00000001
 
@@ -2340,7 +2337,6 @@ HKR,, QCDeviceNumIf, 0x00010001, 0x00000001
 HKR,, QCDeviceNumMuxIf, 0x00010001, 0x00000007
 
 [qcfilterAddReg5]
-
 ; Support Muxing
 HKR,, QCDeviceMuxEnable, 0x00010001, 0x00000001
 
@@ -2474,8 +2470,9 @@ ErrorControl   = 1
 ServiceBinary  = %12%\qcusbfilter.sys                            
 
 [Strings]
-QUALCOMM                    = "Qualcomm Incorporated"
-QcomSrcDisk                 = "Qualcomm USB Driver Disk"
+QUALCOMM                    = "Qualcomm Technologies, Inc."
+QcomSrcDisk                 = "Qualcomm Driver Installation Disk"
+qcfilter.SvcDesc            = "Qualcomm USB Composite Device Filter Driver"
 qcfilter.DeviceDesc         = "Qualcomm USB Composite Device 7000"
 qcfilter.DeviceDesc7000     = "Qualcomm USB Composite Device 7000"
 qcfilter.DeviceDesc7001     = "Qualcomm USB Composite Device 7001"
@@ -2750,5 +2747,4 @@ qcfilter.DeviceDesc9141     = "Qualcomm USB Composite Device 9141"
 qcfilter.DeviceDesc9142     = "Qualcomm USB Composite Device 9142"
 qcfilter.DeviceDesc9143     = "Qualcomm USB Composite Device 9143"
 qcfilter.DeviceDesc9144     = "Qualcomm USB Composite Device 9144"
-qcfilter.DeviceDesc9145    = "Qualcomm USB Composite Device 9145"
-qcfilter.SvcDesc            = "Qualcomm USB Composite Device Filter Driver"
+qcfilter.DeviceDesc9145     = "Qualcomm USB Composite Device 9145"
