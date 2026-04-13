@@ -3112,6 +3112,18 @@ NTSTATUS QCPNP_ResetUsbPipe
 )
 {
     NTSTATUS status = STATUS_SUCCESS;
+
+    if (usbPipe == NULL)
+    {
+        QCSER_DbgPrint
+        (
+            QCSER_DBG_MASK_CIRP,
+            QCSER_DBG_LEVEL_ERROR,
+            ("<%ws> QCPNP_ResetUsbPipe called with NULL pipe, skipping\n", pDevContext->PortName)
+        );
+        return STATUS_SUCCESS;
+    }
+
     WDFIOTARGET ioTarget = WdfUsbTargetPipeGetIoTarget(usbPipe);
     WDF_REQUEST_SEND_OPTIONS syncReqOptions;
     WDF_REQUEST_SEND_OPTIONS_INIT(&syncReqOptions, 0);
