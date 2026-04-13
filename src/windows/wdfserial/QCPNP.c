@@ -3798,10 +3798,9 @@ VOID QCPNP_RetrieveServiceConfig(PDEVICE_CONTEXT pDevContext)
         ("<%ws> QCPNP_RetrieveServiceConfig\n", pDevContext->PortName)
     );
 
-    status = WdfRegistryOpenKey
+    status = WdfDriverOpenParametersRegistryKey
     (
-        NULL,
-        &gServicePath,
+        WdfDeviceGetDriver(device),
         KEY_READ,
         WDF_NO_OBJECT_ATTRIBUTES,
         &key
@@ -3812,7 +3811,7 @@ VOID QCPNP_RetrieveServiceConfig(PDEVICE_CONTEXT pDevContext)
         (
             QCSER_DBG_MASK_CONTROL,
             QCSER_DBG_LEVEL_CRITICAL,
-            ("<%ws> QCPNP_RetrieveServiceConfig device regkey open FAILED status: 0x%x\n", pDevContext->PortName, status)
+            ("<%ws> QCPNP_RetrieveServiceConfig Parameters regkey open FAILED status: 0x%x\n", pDevContext->PortName, status)
         );
         goto exit;
     }
@@ -3847,6 +3846,7 @@ VOID QCPNP_RetrieveServiceConfig(PDEVICE_CONTEXT pDevContext)
         &selectiveSuspendIdleTime,
         pDevContext
     );
+
     if (status == STATUS_SUCCESS)
     {
         if (QCUTIL_IsHighSpeedDevice(pDevContext) == TRUE)
