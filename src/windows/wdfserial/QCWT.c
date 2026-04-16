@@ -403,7 +403,7 @@ void QCWT_WriteRequestHandlerThread
                         WDF_REQUEST_PARAMETERS_INIT(&writeParam);
                         WdfRequestGetParameters(request, &writeParam);
                         QCWT_EvtIoWrite(pDevContext->WriteQueue, request, writeParam.Parameters.Write.Length);
-                        if (gVendorConfig.EnableZeroLengthPacket && (writeParam.Parameters.Write.Length % pDevContext->wMaxPktSize == 0))
+                        if (gVendorConfig.EnableZeroLengthPacket && (pDevContext->wMaxPktSize != 0) && (writeParam.Parameters.Write.Length % pDevContext->wMaxPktSize == 0))
                         {
 #ifdef QCUSB_MUX_PROTOCOL
                             if (pDevContext->DeviceFunction != QCUSB_DEV_FUNC_LPC)
