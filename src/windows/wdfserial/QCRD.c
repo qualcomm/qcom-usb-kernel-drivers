@@ -132,8 +132,8 @@ void QCRD_ReadRequestHandlerThread
     PREQUEST_CONTEXT pReqContext;
     PDEVICE_CONTEXT  pDevContext = pContext;
     ULONG            devErrCnt = 0;
-    WDFIOTARGET      ioTarget = WdfUsbTargetPipeGetIoTarget(pDevContext->BulkIN);
-    PKWAIT_BLOCK     pWaitBlock = ExAllocatePoolUninitialized(NonPagedPoolNx, (READ_THREAD_RESUME_EVENT_COUNT) * sizeof(KWAIT_BLOCK), '3gaT');
+    WDFIOTARGET      ioTarget = NULL;
+    PKWAIT_BLOCK     pWaitBlock = NULL;
     BOOLEAN          bRunning = TRUE;
     BOOLEAN          bDeviceOpened = FALSE;
     BOOLEAN          bDeviceAwaken = FALSE;
@@ -143,6 +143,22 @@ void QCRD_ReadRequestHandlerThread
     PREAD_BUFFER_PARAM pBufferParam;        // for read urbs
     WDF_REQUEST_PARAMETERS requestParam;    // for application requests
     PRING_BUFFER rxBuffer = &pDevContext->ReadRingBuffer;
+
+    if (pDevContext->BulkIN == NULL)
+    {
+        QCSER_DbgPrint
+        (
+            QCSER_DBG_MASK_READ,
+            QCSER_DBG_LEVEL_ERROR,
+            ("<%ws> RIRP: QCRD_ReadRequestHandlerThread ERROR no USB pipe for read, exiting\n", pDevContext->PortName)
+        );
+        KeSetEvent(&pDevContext->ReadThreadStartedEvent, IO_NO_INCREMENT, FALSE);
+        PsTerminateSystemThread(STATUS_SUCCESS);
+        return;
+    }
+
+    ioTarget = WdfUsbTargetPipeGetIoTarget(pDevContext->BulkIN);
+    pWaitBlock = ExAllocatePoolUninitialized(NonPagedPoolNx, (READ_THREAD_RESUME_EVENT_COUNT) * sizeof(KWAIT_BLOCK), '3gaT');
 
     if (pWaitBlock == NULL)
     {
