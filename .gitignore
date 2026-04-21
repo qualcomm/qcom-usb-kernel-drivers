@@ -30,3 +30,7 @@
 [Rr]elease/
 
 RCa*
+*.ddf
+*.sys
+*.pdb
+build/target/
