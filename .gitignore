@@ -33,4 +33,8 @@
 [Rr]elease_EXE/
 
 RCa*
+*.ddf
+*.sys
+*.pdb
+build/target/
 src/linux/build
