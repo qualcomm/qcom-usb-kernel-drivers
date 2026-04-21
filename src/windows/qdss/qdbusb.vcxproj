@@ -242,6 +242,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" />
+	<FilesToPackage Include="$(OutDir)$(TargetName).pdb" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="QDBDEV.c" />

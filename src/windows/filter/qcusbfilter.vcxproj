@@ -292,6 +292,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" />
+	<FilesToPackage Include="$(OutDir)$(TargetName).pdb" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\qcversion.h" />
