@@ -541,6 +541,26 @@ void QCRD_ReadRequestHandlerThread
                 {
                     KeSetEvent(&pDevContext->ReadRequestArriveEvent, IO_NO_INCREMENT, FALSE);
                 }
+
+                // QUD-1837: Re-arm ReadIntervalTimeout timer when new data arrives
+                // and a request is pending in the timeout queue. This resets the
+                // inter-byte gap timer so the request completes only after the
+                // device stops sending data for ReadIntervalTimeout milliseconds.
+                if (pDevContext->ReadTimeout.bUseReadInterval &&
+                    !QCUTIL_IsIoQueueEmpty(pDevContext->TimeoutReadQueue) &&
+                    pDevContext->Timeouts.ReadIntervalTimeout > 0)
+                {
+                    LARGE_INTEGER riTimeoutValue;
+                    riTimeoutValue.QuadPart = -10000LL * (LONGLONG)pDevContext->Timeouts.ReadIntervalTimeout;
+                    KeSetTimer(&pDevContext->ReadTimer, riTimeoutValue, &pDevContext->ReadTimeoutDpc);
+                    QCSER_DbgPrint
+                    (
+                        QCSER_DBG_MASK_READ,
+                        QCSER_DBG_LEVEL_DETAIL,
+                        ("<%ws> RIRP: QCRD_ReadRequestHandlerThread re-armed ReadIntervalTimeout timer (%lu ms)\n",
+                        pDevContext->PortName, pDevContext->Timeouts.ReadIntervalTimeout)
+                    );
+                }
                 break;
             }
             case READ_THREAD_REQUEST_ARRIVE_EVENT:
@@ -554,8 +574,82 @@ void QCRD_ReadRequestHandlerThread
                 KeClearEvent(&pDevContext->ReadRequestArriveEvent);
                 if (bDeviceOpened && bDeviceAwaken)
                 {
+                    // QUD-1837: When ReadIntervalTimeout is configured (cases 9/10),
+                    // do NOT drain the ring buffer into the pending request. The
+                    // request must stay in TimeoutReadQueue and only complete when
+                    // the inter-byte gap timer (ReadIntervalTimeout) expires.
+                    // COMPLETION_EVENT keeps the timer re-armed while data streams in;
+                    // REQUEST_TIMEOUT_EVENT delivers buffered data when the gap occurs.
+                    BOOLEAN useReadInterval = (pDevContext->ReadTimeout.bUseReadInterval &&
+                                               pDevContext->Timeouts.ReadIntervalTimeout > 0 &&
+                                               pDevContext->Timeouts.ReadIntervalTimeout != MAXULONG);
+
+                    if (useReadInterval)
+                    {
+                        // If a new request is sitting in ReadQueue, move it to
+                        // TimeoutReadQueue and arm the RI timer so it waits for
+                        // the inter-byte gap instead of completing immediately.
+                        if (QCUTIL_IsIoQueueEmpty(pDevContext->TimeoutReadQueue))
+                        {
+                            status = WdfIoQueueRetrieveNextRequest(pDevContext->ReadQueue, &pendingTimeoutRequest);
+                            if (NT_SUCCESS(status) && pendingTimeoutRequest != NULL)
+                            {
+                                status = WdfRequestForwardToIoQueue(pendingTimeoutRequest, pDevContext->TimeoutReadQueue);
+                                if (!NT_SUCCESS(status))
+                                {
+                                    WdfRequestComplete(pendingTimeoutRequest, status);
+                                    QCSER_DbgPrint
+                                    (
+                                        QCSER_DBG_MASK_READ,
+                                        QCSER_DBG_LEVEL_ERROR,
+                                        ("<%ws> RIRP: QCRD_ReadRequestHandlerThread RI forward to timeout queue FAILED request: 0x%p, status: 0x%x\n",
+                                        pDevContext->PortName, pendingTimeoutRequest, status)
+                                    );
+                                }
+                                else
+                                {
+                                    QCSER_DbgPrint
+                                    (
+                                        QCSER_DBG_MASK_READ,
+                                        QCSER_DBG_LEVEL_DETAIL,
+                                        ("<%ws> RIRP: QCRD_ReadRequestHandlerThread RI forwarded request to timeout queue: 0x%p\n",
+                                        pDevContext->PortName, pendingTimeoutRequest)
+                                    );
+                                }
+                                pendingTimeoutRequest = NULL;
+                            }
+                        }
+
+                        // Arm / re-arm the ReadIntervalTimeout inter-byte gap timer
+                        // ONLY if data has already arrived in the ring buffer. Per
+                        // MSDN, ReadIntervalTimeout is an inter-byte gap timer and
+                        // must not start counting until after the first byte arrives.
+                        // If no data is buffered yet, ReadFile must block until
+                        // data arrives; COMPLETION_EVENT will arm the timer on
+                        // first data arrival.
+                        if (!QCUTIL_IsIoQueueEmpty(pDevContext->TimeoutReadQueue) &&
+                            QCUTIL_RingBufferBytesUsed(rxBuffer) > 0)
+                        {
+                            LARGE_INTEGER riTimeoutValue;
+                            riTimeoutValue.QuadPart = -10000LL * (LONGLONG)pDevContext->Timeouts.ReadIntervalTimeout;
+                            KeCancelTimer(&pDevContext->ReadTimer);
+                            KeClearEvent(&pDevContext->ReadRequestTimeoutEvent);
+                            KeSetTimer(&pDevContext->ReadTimer, riTimeoutValue, &pDevContext->ReadTimeoutDpc);
+                            QCSER_DbgPrint
+                            (
+                                QCSER_DBG_MASK_READ,
+                                QCSER_DBG_LEVEL_DETAIL,
+                                ("<%ws> RIRP: QCRD_ReadRequestHandlerThread RI arm inter-byte timer (%lu ms), ring bytes: %llu\n",
+                                pDevContext->PortName, pDevContext->Timeouts.ReadIntervalTimeout, QCUTIL_RingBufferBytesUsed(rxBuffer))
+                            );
+                        }
+
+                        // Intentionally skip the ring-buffer drain loop; data
+                        // will be delivered by REQUEST_TIMEOUT_EVENT when the
+                        // inter-byte gap timer expires.
+                    }
                     // serve the pending application requests
-                    if (QCUTIL_RingBufferBytesUsed(rxBuffer) == 0)
+                    else if (QCUTIL_RingBufferBytesUsed(rxBuffer) == 0)
                     {
                         QCSER_DbgPrint
                         (
@@ -877,7 +971,57 @@ void QCRD_ReadRequestHandlerThread
                     QCSER_DBG_LEVEL_TRACE,
                     ("<%ws> RIRP: QCRD_ReadRequestHandlerThread READ_THREAD_REQUEST_TIMEOUT_EVENT triggered\n", pDevContext->PortName)
                 );
-                QCUTIL_IoQueuePopAndComplete(pDevContext->TimeoutReadQueue, STATUS_TIMEOUT, 0);
+
+                // QUD-1837: When ReadIntervalTimeout fires, deliver whatever data
+                // is available in the ring buffer as a partial read with STATUS_SUCCESS,
+                // rather than completing with STATUS_TIMEOUT and 0 bytes.
+                if (pDevContext->ReadTimeout.bUseReadInterval &&
+                    QCUTIL_RingBufferBytesUsed(rxBuffer) > 0)
+                {
+                    WDFREQUEST timeoutRequest = NULL;
+                    status = WdfIoQueueRetrieveNextRequest(pDevContext->TimeoutReadQueue, &timeoutRequest);
+                    if (NT_SUCCESS(status) && timeoutRequest != NULL)
+                    {
+                        WDF_REQUEST_PARAMETERS riRequestParam;
+                        WDF_REQUEST_PARAMETERS_INIT(&riRequestParam);
+                        WdfRequestGetParameters(timeoutRequest, &riRequestParam);
+
+                        size_t riAvailable = QCUTIL_RingBufferBytesUsed(rxBuffer);
+                        size_t riRequested = riRequestParam.Parameters.Read.Length;
+                        size_t riBytesCopied = 0;
+                        PUCHAR riOutputBuffer = NULL;
+
+                        WdfRequestRetrieveOutputBuffer(timeoutRequest, riRequested, &riOutputBuffer, NULL);
+                        status = QCUTIL_RingBufferRead(rxBuffer, riOutputBuffer, riRequested, &riBytesCopied);
+                        if (NT_SUCCESS(status) && riBytesCopied > 0)
+                        {
+                            WdfRequestCompleteWithInformation(timeoutRequest, STATUS_SUCCESS, riBytesCopied);
+                            QCSER_DbgPrint
+                            (
+                                QCSER_DBG_MASK_READ,
+                                QCSER_DBG_LEVEL_DETAIL,
+                                ("<%ws> RIRP: QCRD_ReadRequestHandlerThread ReadIntervalTimeout partial read completed, bytes: %llu (requested: %llu, available: %llu)\n",
+                                pDevContext->PortName, riBytesCopied, riRequested, riAvailable)
+                            );
+                        }
+                        else
+                        {
+                            WdfRequestCompleteWithInformation(timeoutRequest, STATUS_TIMEOUT, 0);
+                            QCSER_DbgPrint
+                            (
+                                QCSER_DBG_MASK_READ,
+                                QCSER_DBG_LEVEL_ERROR,
+                                ("<%ws> RIRP: QCRD_ReadRequestHandlerThread ReadIntervalTimeout ring buffer read FAILED status: 0x%x\n",
+                                pDevContext->PortName, status)
+                            );
+                        }
+                        pDevContext->AmountInInQueue = QCUTIL_RingBufferBytesUsed(rxBuffer);
+                    }
+                }
+                else
+                {
+                    QCUTIL_IoQueuePopAndComplete(pDevContext->TimeoutReadQueue, STATUS_TIMEOUT, 0);
+                }
                 break;
             }
             case READ_THREAD_SCAN_WAIT_MASK_EVENT:
