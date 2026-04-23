@@ -1,0 +1,25 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.32630.194
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "qdcfg", "qdcfg.vcxproj", "{9130613B-D0F3-E81D-DD33-A6DF52E015FC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9130613B-D0F3-E81D-DD33-A6DF52E015FC}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9130613B-D0F3-E81D-DD33-A6DF52E015FC}.Debug|Win32.Build.0 = Debug|Win32
+		{9130613B-D0F3-E81D-DD33-A6DF52E015FC}.Release|Win32.ActiveCfg = Release|Win32
+		{9130613B-D0F3-E81D-DD33-A6DF52E015FC}.Release|Win32.Build.0 = Release|Win32
+		{9130613B-D0F3-E81D-DD33-A6DF52E015FC}.Release|Win32.Deploy.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {2C2C1340-8000-45E7-A499-F5386B9342AB}
+	EndGlobalSection
+EndGlobal
