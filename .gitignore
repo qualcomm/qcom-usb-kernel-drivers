@@ -10,6 +10,7 @@
 *.symvers
 *.cache.mk
 
+*.aps
 *.obj
 *.pdb
 *.idb
@@ -28,6 +29,8 @@
 [Ll]ogs/
 [Dd]ebug/
 [Rr]elease/
+[Dd]ebug_EXE/
+[Rr]elease_EXE/
 
 RCa*
 *.ddf
