@@ -23,7 +23,7 @@ ExcludeFromSelect = *
 %QCOM% = QCOM, NTx86.6.1, NTamd64.6.1, NTx86.10.0, NTamd64.10.0, NTarm64.10.0
 
 [SourceDisksNames]
-1000 = %QcomSrcDisk%,"",,\
+1000 = %QcomSrcDisk%,,,\
 
 [SourceDisksFiles]
 qcusbwwan.sys = 1000
