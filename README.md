@@ -14,7 +14,8 @@ The project is organized to facilitate easy compilation, testing, and integratio
 ```
 /
 ├─ debian/                # Debian packaging files for .deb package build
-├─ docs/                  # Architecture diagrams and design documents
+├─ docs/                  # Architecture diagrams, design documents and the Linux install guide
+├─ scripts/               # Preflight installer tooling (check-install-env.sh, known-good-configs.json)
 ├─ src/                   # Qualcomm USB kernel driver for windows and linux platform
 ├─ examples/              # Sample scripts
 ├─ build-deb.sh           # Build script for generating the .deb package
@@ -95,12 +96,25 @@ pnputil /add-driver <build_path/driver_name.inf> /install
 
 The recommended way to install on Debian/Ubuntu systems is via the `.deb` package, which uses DKMS to automatically build kernel modules for the running kernel and handles install, uninstall, upgrade, and version control.
 
+> **Before you start:** run the preflight environment analyzer to detect
+> distro/kernel/Secure Boot/dependency issues and classify your system as
+> `pass` / `partial` / `fail` / `unknown`:
+>
+> ```bash
+> sudo bash scripts/check-install-env.sh
+> ```
+>
+> A full walkthrough with a troubleshooting matrix is available in
+> [`docs/linux/install-guide.md`](./docs/linux/install-guide.md). The
+> `build-deb.sh` script below runs the preflight automatically; set
+> `SKIP_PREFLIGHT=1` to bypass it.
+
 - Build the package
 ```bash
 # Install build dependencies (one-time)
 sudo apt-get install debhelper dkms dpkg-dev dh-dkms
 
-# Build
+# Build (runs preflight automatically)
 ./build-deb.sh
 ```
 

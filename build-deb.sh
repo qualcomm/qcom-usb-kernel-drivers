@@ -8,6 +8,23 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Optional preflight environment check (QUD-1773). Set SKIP_PREFLIGHT=1 to
+# bypass. Preflight failures (exit 2) abort the build; warnings are shown
+# but allow the build to continue so CI and opt-in-unsupported developers
+# are not blocked.
+if [ -z "${SKIP_PREFLIGHT:-}" ] && [ -x "$SCRIPT_DIR/scripts/check-install-env.sh" ]; then
+    echo "Running install environment preflight (set SKIP_PREFLIGHT=1 to bypass)..."
+    set +e
+    bash "$SCRIPT_DIR/scripts/check-install-env.sh" --no-color
+    preflight_rc=$?
+    set -e
+    if [ "$preflight_rc" -ge 2 ]; then
+        echo "Preflight reported a hard failure (exit $preflight_rc). Fix the"
+        echo "items above, or re-run with SKIP_PREFLIGHT=1 to force a build."
+        exit "$preflight_rc"
+    fi
+fi
+
 PKG_VERSION=$(grep '#define DRIVER_VERSION' src/linux/version.h | awk '{print $3}' | tr -d '"')
 echo "Building qcom-usb-drivers-dkms version $PKG_VERSION"
 
