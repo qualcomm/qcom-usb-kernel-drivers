@@ -1,0 +1,20 @@
+#
+# qcom-diag.rules -- udev rules for the Qcom always-on logging pipeline.
+#
+# Installs to /etc/udev/rules.d/99-qcom-diag.rules and grants members of the
+# 'qcom-diag' group permission to trigger ftrace snapshots via the qcomlogd
+# control socket.
+#
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+# Make the qcomlogd control socket group-readable by 'qcom-diag'.
+# (qcomlog runs setgid on the socket; this rule just ensures the group exists
+#  for systems that don't run the install helper.)
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="qcom_drivers", GROUP="qcom-diag", MODE="0660"
+
+# Optional: re-apply ftrace instance configuration if the instance disappears
+# (can happen on some older kernels after all events are removed).
+ACTION=="change", SUBSYSTEM=="module", KERNEL=="qcom_serial|qcom_usb|qcom_usbnet", \
+    RUN+="/usr/local/sbin/qcomlog _reapply"

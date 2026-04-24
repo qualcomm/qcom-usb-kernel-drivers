@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  QcomDrivers.wprp
+
+  Windows Performance Recorder profile for the Qualcomm USB kernel drivers.
+  Mirrors the providers enrolled in the 'QcomDrivers' AutoLogger session.
+
+  Usage:
+    wpr.exe -start QcomDrivers.wprp -filemode
+    # reproduce the issue
+    wpr.exe -stop  C:\temp\qcom.etl
+
+  Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+  SPDX-License-Identifier: BSD-3-Clause
+-->
+<WindowsPerformanceRecorder Version="1.0" Author="Qualcomm" Comments="Qcom USB kernel driver trace">
+  <Profiles>
+
+    <EventCollector Id="EC_QcomDrivers" Name="QcomDrivers">
+      <BufferSize Value="64"/>
+      <Buffers Value="16"/>
+    </EventCollector>
+
+    <!-- qcwdfserial / qcfilter / qcusbnet / qdbusb all share this GUID today -->
+    <EventProvider Id="EP_Qcom_QCUSB" Name="5F02CA82-B28B-4a95-BA2C-FBED52DDD3DC" Level="4">
+      <Keywords>
+        <!-- everything except the two noisiest data keywords -->
+        <Keyword Value="0xFFFFFFFFFFF9FF3F"/>
+      </Keywords>
+    </EventProvider>
+
+    <Profile Id="QcomDrivers.Verbose.File"
+             Name="QcomDrivers"
+             Description="Qcom USB kernel drivers - Verbose (file mode)"
+             LoggingMode="File"
+             DetailLevel="Verbose">
+      <Collectors>
+        <EventCollectorId Value="EC_QcomDrivers">
+          <EventProviders>
+            <EventProviderId Value="EP_Qcom_QCUSB"/>
+          </EventProviders>
+        </EventCollectorId>
+      </Collectors>
+    </Profile>
+
+    <Profile Id="QcomDrivers.Light.File"
+             Name="QcomDrivers"
+             Description="Qcom USB kernel drivers - Light (file mode)"
+             LoggingMode="File"
+             DetailLevel="Light"
+             Base="QcomDrivers.Verbose.File"/>
+
+  </Profiles>
+</WindowsPerformanceRecorder>

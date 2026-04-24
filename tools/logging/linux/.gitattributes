@@ -1,0 +1,4 @@
+qcomlog              text eol=lf
+qcomlog.conf         text eol=lf
+qcomlogd.service     text eol=lf
+qcom-diag.rules      text eol=lf
