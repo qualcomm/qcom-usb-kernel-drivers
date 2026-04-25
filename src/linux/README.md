@@ -1,3 +1,59 @@
+## Installing Qualcomm USB Kernel Drivers on Linux
+
+### Debian Package Installation (Recommended)
+
+The recommended way to install on Debian/Ubuntu systems is via the `.deb` package. It uses DKMS to automatically build, install, and manage the kernel modules.
+
+#### Build the Package
+
+```bash
+# Install build dependencies (one-time)
+sudo apt-get install debhelper dkms dpkg-dev dh-dkms linux-headers-$(uname -r)
+
+# Build from the repository root
+./build-deb.sh
+```
+
+The version is read from `src/linux/version.h` and automatically synced to all packaging files.
+
+#### Install
+
+```bash
+sudo dpkg -i ../qcom-usb-drivers-dkms_<version>_all.deb
+```
+
+#### Uninstall
+
+```bash
+sudo dpkg -r qcom-usb-drivers-dkms
+```
+
+#### Upgrade
+
+Install the newer `.deb` directly — it automatically removes the old version, builds, and installs the new modules:
+
+```bash
+sudo dpkg -i ../qcom-usb-drivers-dkms_<new_version>_all.deb
+```
+
+#### Check Status
+
+```bash
+dpkg -s qcom-usb-drivers-dkms | grep Version
+dkms status
+lsmod | grep qti
+```
+
+#### What the Package Does
+
+- Builds 4 kernel modules via DKMS: `qtiDevInf`, `qcom_usb`, `qcom_usbnet`, `qcom-serial`
+- Automatically rebuilds modules when the kernel is updated
+- Blacklists conflicting in-tree modules (`qcserial`, `qmi_wwan`, `cdc_wdm`, `option`, `usb_wwan`)
+- Installs udev rules for device permissions
+- Cleans up pre-existing manual installs during installation
+- Loads modules immediately after installation
+
+---
 
 ## Building, Installing, and Uninstalling QUD Driver Modules (Without qcom_drivers.sh)
 
@@ -35,7 +91,7 @@ Then execute:
 #### Note
 
 - Modifying qcom_drivers.sh is not recommended, as it is reserved for full installation and uninstallation workflows.
-- For complete installations, dependency handling, conflict resolution, and thorough cleanup, we recommend using qcom_driver.sh
+- For complete installations, dependency handling, conflict resolution, and thorough cleanup, we recommend using the deb package or qcom_driver.sh
 
 
 
@@ -97,4 +153,4 @@ Step 3: If installation is successful, verify QUD status once again!
 ```bash
 lsmod | grep qti 
 ```
-(you will see GobiNet, qtiDevInf, qdssdiag). If drivers are not present. Verify “/lib/modules/`uname -r`/kernel/drivers/net/usb” location for GobiNet, qtiDevInf, qdssdiag driver.
+(you will see GobiNet, qtiDevInf, qdssdiag). If drivers are not present. Verify "/lib/modules/`uname -r`/kernel/drivers/net/usb" location for GobiNet, qtiDevInf, qdssdiag driver.

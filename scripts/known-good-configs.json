@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/qualcomm/qcom-usb-kernel-drivers/scripts/known-good-configs.json",
+  "title": "Qualcomm USB Kernel Drivers - Known-Good Install Configurations",
+  "description": "Curated list of distro/kernel/architecture combinations that have been validated for the qcom-usb-drivers-dkms package. The preflight script (check-install-env.sh) consults this file to classify the current system as 'known-good', 'known-bad', or 'untested'. New validation results can be appended by contributors via pull request.",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Semantic version of this file's schema. Bump when the structure changes."
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date",
+      "description": "ISO-8601 date of the last edit to this file."
+    },
+    "driver_versions_covered": {
+      "type": "array",
+      "description": "List of driver package versions this data applies to.",
+      "items": { "type": "string" }
+    },
+    "entries": {
+      "type": "array",
+      "description": "One entry per validated (or invalidated) system configuration.",
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "required": ["schema_version", "entries"],
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "required": ["distro_id", "distro_version", "kernel_range", "arch", "status"],
+      "properties": {
+        "distro_id": {
+          "type": "string",
+          "description": "Value of ID from /etc/os-release (e.g., 'ubuntu', 'debian', 'fedora', 'rhel', 'centos', 'linuxmint', 'pop').",
+          "examples": ["ubuntu", "debian", "fedora"]
+        },
+        "distro_version": {
+          "type": "string",
+          "description": "Value of VERSION_ID from /etc/os-release, or a glob pattern (e.g., '22.04', '24.*', '11').",
+          "examples": ["22.04", "24.04", "11", "12", "40"]
+        },
+        "kernel_range": {
+          "type": "string",
+          "description": "Kernel version range this entry applies to, expressed as 'min..max' inclusive. Use '*' for unbounded.",
+          "examples": ["5.15..6.8", "6.0..*", "*..6.6"]
+        },
+        "arch": {
+          "type": "array",
+          "description": "Architectures this entry is valid for.",
+          "items": {
+            "type": "string",
+            "enum": ["x86_64", "amd64", "aarch64", "arm64", "i686"]
+          }
+        },
+        "status": {
+          "type": "string",
+          "description": "Outcome of the last validation run on this combination.",
+          "enum": ["pass", "fail", "partial", "untested"]
+        },
+        "secure_boot": {
+          "type": "string",
+          "description": "Secure Boot compatibility note.",
+          "enum": ["supported", "manual-mok-required", "unsupported", "not-applicable"],
+          "default": "not-applicable"
+        },
+        "immutable_rootfs": {
+          "type": "boolean",
+          "description": "True for OSTree/Silverblue/immutable distros. These typically require rpm-ostree layering or a container-based build.",
+          "default": false
+        },
+        "required_packages": {
+          "type": "array",
+          "description": "Distro-specific package names needed before attempting install.",
+          "items": { "type": "string" }
+        },
+        "notes": {
+          "type": "string",
+          "description": "Free-form human-readable notes: known caveats, workarounds, links to issues."
+        },
+        "validated_by": {
+          "type": "string",
+          "description": "GitHub handle of the contributor who validated this entry."
+        },
+        "validated_on": {
+          "type": "string",
+          "format": "date",
+          "description": "ISO-8601 date of the validation run."
+        },
+        "report_id": {
+          "type": "string",
+          "description": "Optional unique identifier linking back to a CI run, JIRA ticket, or install-report.json."
+        }
+      }
+    }
+  },
+
+  "schema_version": "1.0.0",
+  "last_updated": "2026-04-23",
+  "driver_versions_covered": ["1.0.6.1"],
+  "entries": [
+    {
+      "distro_id": "ubuntu",
+      "distro_version": "22.04",
+      "kernel_range": "5.15..6.8",
+      "arch": ["x86_64", "amd64"],
+      "status": "pass",
+      "secure_boot": "manual-mok-required",
+      "required_packages": ["dkms", "debhelper", "dpkg-dev", "dh-dkms", "linux-headers-generic"],
+      "notes": "Primary development target. Secure Boot requires one-time MOK enrollment; DKMS will prompt during install.",
+      "validated_by": "qualcomm",
+      "validated_on": "2026-04-23"
+    },
+    {
+      "distro_id": "ubuntu",
+      "distro_version": "24.04",
+      "kernel_range": "6.5..6.11",
+      "arch": ["x86_64", "amd64", "arm64", "aarch64"],
+      "status": "pass",
+      "secure_boot": "manual-mok-required",
+      "required_packages": ["dkms", "debhelper", "dpkg-dev", "dh-dkms", "linux-headers-generic"],
+      "notes": "LTS. Validated on 6.8 and 6.11 HWE kernels.",
+      "validated_by": "qualcomm",
+      "validated_on": "2026-04-23"
+    },
+    {
+      "distro_id": "debian",
+      "distro_version": "12",
+      "kernel_range": "6.1..6.12",
+      "arch": ["x86_64", "amd64", "arm64", "aarch64"],
+      "status": "pass",
+      "secure_boot": "manual-mok-required",
+      "required_packages": ["dkms", "debhelper", "dpkg-dev", "dh-dkms", "linux-headers-amd64"],
+      "notes": "Use 'linux-headers-arm64' on ARM systems.",
+      "validated_by": "qualcomm",
+      "validated_on": "2026-04-23"
+    },
+    {
+      "distro_id": "debian",
+      "distro_version": "11",
+      "kernel_range": "5.10..5.10",
+      "arch": ["x86_64", "amd64"],
+      "status": "partial",
+      "secure_boot": "manual-mok-required",
+      "required_packages": ["dkms", "debhelper", "dpkg-dev", "linux-headers-amd64"],
+      "notes": "dh-dkms is not available; build-deb.sh falls back to plain dh_dkms invocation. Some newer features unavailable.",
+      "validated_by": "qualcomm",
+      "validated_on": "2026-04-23"
+    },
+    {
+      "distro_id": "linuxmint",
+      "distro_version": "21.*",
+      "kernel_range": "5.15..6.8",
+      "arch": ["x86_64", "amd64"],
+      "status": "pass",
+      "secure_boot": "manual-mok-required",
+      "required_packages": ["dkms", "debhelper", "dpkg-dev", "dh-dkms", "linux-headers-generic"],
+      "notes": "Behaves as Ubuntu 22.04."
+    },
+    {
+      "distro_id": "pop",
+      "distro_version": "22.04",
+      "kernel_range": "6.2..6.9",
+      "arch": ["x86_64", "amd64"],
+      "status": "pass",
+      "secure_boot": "supported",
+      "required_packages": ["dkms", "debhelper", "dpkg-dev", "dh-dkms", "linux-headers-generic"],
+      "notes": "Pop!_OS ships a System76-signed kernel; DKMS modules load automatically once MOK is enrolled."
+    },
+    {
+      "distro_id": "fedora",
+      "distro_version": "40",
+      "kernel_range": "6.8..6.10",
+      "arch": ["x86_64", "aarch64"],
+      "status": "untested",
+      "secure_boot": "manual-mok-required",
+      "required_packages": ["dkms", "kernel-devel", "kernel-headers", "make", "gcc"],
+      "notes": "Deb packaging does not apply. Use the Makefile under src/linux or build an RPM (future work)."
+    },
+    {
+      "distro_id": "fedora",
+      "distro_version": "41",
+      "kernel_range": "6.11..*",
+      "arch": ["x86_64", "aarch64"],
+      "status": "untested",
+      "secure_boot": "manual-mok-required",
+      "immutable_rootfs": false,
+      "notes": "See Fedora 40 entry."
+    },
+    {
+      "distro_id": "fedora",
+      "distro_version": "*",
+      "kernel_range": "*..*",
+      "arch": ["x86_64", "aarch64"],
+      "status": "untested",
+      "immutable_rootfs": true,
+      "notes": "Silverblue / Kinoite / IoT editions: requires rpm-ostree layering or a toolbox container. Not supported out-of-the-box."
+    },
+    {
+      "distro_id": "rhel",
+      "distro_version": "9",
+      "kernel_range": "5.14..5.14",
+      "arch": ["x86_64", "aarch64"],
+      "status": "untested",
+      "secure_boot": "manual-mok-required",
+      "required_packages": ["dkms", "kernel-devel", "kernel-headers", "make", "gcc"],
+      "notes": "dkms is available via EPEL. Deb packaging does not apply."
+    },
+    {
+      "distro_id": "centos",
+      "distro_version": "9",
+      "kernel_range": "5.14..*",
+      "arch": ["x86_64", "aarch64"],
+      "status": "partial",
+      "notes": "Crash reported in RMNET driver on Fedora/CentOS (QUD-1629). Tracking fix."
+    },
+    {
+      "distro_id": "arch",
+      "distro_version": "*",
+      "kernel_range": "6.0..*",
+      "arch": ["x86_64"],
+      "status": "untested",
+      "notes": "Rolling release. Use the Makefile path; deb packaging does not apply."
+    }
+  ]
+}

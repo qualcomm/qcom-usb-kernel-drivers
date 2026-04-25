@@ -1,0 +1,23 @@
+Source: qcom-usb-drivers-dkms
+Section: kernel
+Priority: optional
+Maintainer: Qualcomm Technologies, Inc. <qcom-usb-drivers@qualcomm.com>
+Build-Depends: debhelper-compat (= 13), dkms
+Standards-Version: 4.6.0
+Rules-Requires-Root: no
+
+Package: qcom-usb-drivers-dkms
+Architecture: all
+Depends: ${misc:Depends}, dkms, linux-headers-generic | linux-headers-amd64 | linux-headers-arm64
+Conflicts: qcom-usb-userspace-driver
+Replaces: qcom-usb-userspace-driver
+Description: Qualcomm USB kernel drivers (DKMS)
+ DKMS package for Qualcomm USB kernel drivers including:
+  * qtiDevInf  - INF file parser for device enumeration
+  * qcom_usb   - USB diagnostic and QDSS driver
+  * qcom_usbnet - USB network (WWAN) adapter driver
+  * qcom-serial - USB serial/modem port driver
+ .
+ These drivers are automatically built for the running kernel using DKMS
+ and will be rebuilt when the kernel is updated. Conflicting in-tree
+ modules (qcserial, qmi_wwan, option, usb_wwan) are blacklisted.
