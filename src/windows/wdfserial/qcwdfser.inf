@@ -1561,6 +1561,7 @@ ServiceType   = 1
 StartType     = 3
 ErrorControl  = 1
 ServiceBinary = %12%\qcwdfserial.sys
+AddReg        = RegEntries
 
 [QC_USBSerialService05]
 DisplayName   = %qcwdfserService%
@@ -1589,8 +1590,9 @@ HKR,,QCDeviceFunction,0x00010001,3
 HKR,,QCDeviceFunction,0x00010001,4
 
 [RegEntries]
-HKR, , QCDriverSelectiveSuspendIdleTime, 0x00010001, 0x80000003
-HKR, , QCDriverPowerManagementEnabled, 0x00010001, 1
+; create Parameters subkey
+HKR, Parameters,, 0x00000010
+HKR, Parameters, QCDriverSelectiveSuspendIdleTime, 0x00010001, 0x80000003
 
 [AddReg]
 HKR,,PortSubClass,1,01
