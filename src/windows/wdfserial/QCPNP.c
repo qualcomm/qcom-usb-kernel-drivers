@@ -2098,7 +2098,6 @@ NTSTATUS QCPNP_EnableSelectiveSuspend
         {
             // registry not set, ss is disabled
             idleSettings.Enabled = WdfFalse;
-            idleSettings.IdleCaps = IdleCannotWakeFromS0;
             status = WdfDeviceAssignS0IdleSettings(Device, &idleSettings);
         }
         else
@@ -2107,6 +2106,7 @@ NTSTATUS QCPNP_EnableSelectiveSuspend
             {
                 idleSettings.IdleTimeout *= 1000;
             }
+            idleSettings.Enabled = WdfTrue;  // explicitly enable SS (overrides any user/registry disable)
             status = WdfDeviceAssignS0IdleSettings(Device, &idleSettings);
             if (status == STATUS_POWER_STATE_INVALID)
             {
@@ -2159,8 +2159,9 @@ NTSTATUS QCPNP_DisableSelectiveSuspend
         ("<%ws> QCPNP_DisableSelectiveSuspend\n", pDevContext->PortName)
     );
 
-    WDF_DEVICE_POWER_POLICY_IDLE_SETTINGS_INIT(&idleSettings, IdleCannotWakeFromS0);
+    WDF_DEVICE_POWER_POLICY_IDLE_SETTINGS_INIT(&idleSettings, IdleUsbSelectiveSuspend);
     idleSettings.Enabled = WdfFalse;
+    idleSettings.UserControlOfIdleSettings = IdleAllowUserControl;
     return WdfDeviceAssignS0IdleSettings(Device, &idleSettings);
 }
 
