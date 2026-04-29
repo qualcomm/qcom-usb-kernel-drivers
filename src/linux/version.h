@@ -5,5 +5,5 @@
 
 #ifndef VERSION_H
 #define VERSION_H
-#define DRIVER_VERSION "1.0.6.0"
+#define DRIVER_VERSION "1.0.6.1"
 #endif

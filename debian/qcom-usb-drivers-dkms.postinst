@@ -1,0 +1,43 @@
+#!/bin/bash
+# Post-installation script for qcom-usb-drivers-dkms
+set -e
+
+PKG_NAME="qcom-usb-drivers"
+PKG_VERSION="1.0.6.1"
+
+# DEBHELPER runs dkms add/build/install here
+#DEBHELPER#
+
+case "$1" in
+    configure)
+        # Reload udev rules
+        udevadm control --reload-rules 2>/dev/null || true
+        udevadm trigger 2>/dev/null || true
+
+        # Update module dependencies
+        depmod -a 2>/dev/null || true
+
+        # Unload conflicting in-tree modules if loaded
+        for mod in qcserial qmi_wwan cdc_wdm option usb_wwan; do
+            if lsmod | grep -qw "$mod"; then
+                echo "  Unloading conflicting module: $mod"
+                rmmod "$mod" 2>/dev/null || true
+            fi
+        done
+
+        # Load the Qualcomm drivers (order matters: qtiDevInf first)
+        for mod in qtiDevInf qcom_usb qcom_usbnet qcom-serial; do
+            modprobe "$mod" 2>/dev/null || true
+        done
+
+        echo "qcom-usb-drivers $PKG_VERSION: modules installed and loaded successfully."
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        ;;
+esac
+
+exit 0

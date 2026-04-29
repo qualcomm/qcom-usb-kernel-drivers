@@ -1,0 +1,8 @@
+qcom-usb-drivers-dkms (1.0.6.1) unstable; urgency=medium
+
+  * Initial DKMS debian package for Qualcomm USB kernel drivers
+  * Includes qtiDevInf, qcom_usb, qcom_usbnet, qcom-serial modules
+  * Blacklists conflicting in-tree modules (qcserial, qmi_wwan, option, usb_wwan)
+  * Installs udev rules for Qualcomm USB device permissions
+
+ -- Qualcomm Technologies, Inc. <qcom-usb-drivers@qualcomm.com>  Tue, 08 Apr 2025 10:00:00 -0700

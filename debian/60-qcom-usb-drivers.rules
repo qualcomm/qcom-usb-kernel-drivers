@@ -1,0 +1,10 @@
+# Qualcomm USB device udev rules
+# GobiNet network device
+SUBSYSTEM=="net", DRIVERS=="GobiNet", MODE="0660", GROUP="plugdev"
+
+# GobiSerial serial ports
+SUBSYSTEM=="tty", DRIVERS=="GobiSerial", MODE="0660", GROUP="dialout"
+
+# QDSS diagnostic devices
+SUBSYSTEM=="usb", DRIVERS=="QdssDiag", MODE="0660", GROUP="plugdev"
+SUBSYSTEM=="usb", DRIVERS=="QdssMdm", MODE="0660", GROUP="plugdev"

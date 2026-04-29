@@ -1,0 +1,16 @@
+# Qualcomm USB kernel drivers - module configuration
+# Installed by qcom-usb-drivers-dkms package
+
+# Blacklist conflicting in-tree modules so that Qualcomm drivers are used
+blacklist qcserial
+install qcserial /bin/false
+blacklist qmi_wwan
+install qmi_wwan /bin/false
+blacklist option
+install option /bin/false
+blacklist usb_wwan
+install usb_wwan /bin/false
+
+# Load Qualcomm USB drivers at boot (qtiDevInf must load first)
+softdep qcom_usb pre: qtiDevInf
+softdep qcom_usbnet pre: qtiDevInf

@@ -1,0 +1,65 @@
+#!/usr/bin/make -f
+
+PKG_NAME := qcom-usb-drivers
+PKG_VERSION := 1.0.6.1
+DKMS_SRC := debian/qcom-usb-drivers-dkms/usr/src/$(PKG_NAME)-$(PKG_VERSION)
+
+%:
+	dh $@ --with dkms
+
+override_dh_auto_configure:
+override_dh_auto_build:
+override_dh_auto_test:
+override_dh_auto_install:
+	# Create DKMS source directory
+	mkdir -p $(DKMS_SRC)
+
+	# Copy top-level Makefile (the one that builds all sub-modules)
+	cp src/linux/Makefile $(DKMS_SRC)/Makefile
+
+	# Copy version header
+	cp src/linux/version.h $(DKMS_SRC)/version.h
+
+	# Copy DKMS configuration
+	cp dkms.conf $(DKMS_SRC)/dkms.conf
+
+	# Copy InfParser sources
+	mkdir -p $(DKMS_SRC)/InfParser
+	cp src/linux/InfParser/Makefile $(DKMS_SRC)/InfParser/
+	cp src/linux/InfParser/*.c $(DKMS_SRC)/InfParser/
+	cp src/linux/InfParser/*.h $(DKMS_SRC)/InfParser/
+
+	# Copy qcom_usb sources
+	mkdir -p $(DKMS_SRC)/qcom_usb
+	cp src/linux/qcom_usb/Makefile $(DKMS_SRC)/qcom_usb/
+	cp src/linux/qcom_usb/*.c $(DKMS_SRC)/qcom_usb/
+	cp src/linux/qcom_usb/*.h $(DKMS_SRC)/qcom_usb/
+
+	# Copy qcom_usbnet sources
+	mkdir -p $(DKMS_SRC)/qcom_usbnet
+	cp src/linux/qcom_usbnet/Makefile $(DKMS_SRC)/qcom_usbnet/
+	cp src/linux/qcom_usbnet/*.c $(DKMS_SRC)/qcom_usbnet/
+	cp src/linux/qcom_usbnet/*.h $(DKMS_SRC)/qcom_usbnet/
+
+	# Copy qcom_serial sources
+	mkdir -p $(DKMS_SRC)/qcom_serial
+	cp src/linux/qcom_serial/Makefile $(DKMS_SRC)/qcom_serial/
+	cp src/linux/qcom_serial/*.c $(DKMS_SRC)/qcom_serial/
+	cp src/linux/qcom_serial/*.h $(DKMS_SRC)/qcom_serial/
+
+	# Copy INF files needed by the drivers
+	cp src/linux/qcom_usb/*.inf $(DKMS_SRC)/qcom_usb/ 2>/dev/null || true
+	cp src/linux/qcom_usbnet/*.inf $(DKMS_SRC)/qcom_usbnet/ 2>/dev/null || true
+	cp src/linux/qcom_serial/*.inf $(DKMS_SRC)/qcom_serial/ 2>/dev/null || true
+
+	# Install udev rules (modprobe config is installed automatically by dh_dkms from .modprobe file)
+	mkdir -p debian/qcom-usb-drivers-dkms/etc/udev/rules.d
+	echo 'SUBSYSTEMS=="qcom_usbnet", MODE="0666"' > debian/qcom-usb-drivers-dkms/etc/udev/rules.d/99-qcom-usb-devices.rules
+	echo 'SUBSYSTEMS=="qcom_usb", MODE="0666"' >> debian/qcom-usb-drivers-dkms/etc/udev/rules.d/99-qcom-usb-devices.rules
+	echo 'SUBSYSTEMS=="qcom_ports", MODE="0666"' >> debian/qcom-usb-drivers-dkms/etc/udev/rules.d/99-qcom-usb-devices.rules
+	echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="05c6", NAME="usb%n"' > debian/qcom-usb-drivers-dkms/etc/udev/rules.d/80-qcom-usbnet-devices.rules
+
+override_dh_dkms:
+	dh_dkms -V $(PKG_VERSION)
+
+override_dh_auto_clean:
