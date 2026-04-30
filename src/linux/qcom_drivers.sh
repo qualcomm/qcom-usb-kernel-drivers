@@ -36,6 +36,43 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 RESET='\033[0m'
+IN_DPKG_MAINTSCRIPT="${DPKG_MAINTSCRIPT_PACKAGE:-}"
+
+# Since Debian package installation already holds the dpkg front‑end lock (used by apt-get),
+# this script must not install dependencies when invoked by a parent dpkg process.
+# Dependency installation should be handled via the Debian package metadata instead.
+
+apt_update_if_allowed() {
+   if [ -n "$IN_DPKG_MAINTSCRIPT" ]; then
+      echo "[QUD] Skipping 'apt-get update' (running under dpkg maintainer script)."
+      return 0
+   fi
+   sudo apt-get update
+}
+
+apt_install_if_allowed() {
+   if [ -n "$IN_DPKG_MAINTSCRIPT" ]; then
+      echo "[QUD] Skipping 'apt-get install $*' (running under dpkg maintainer script; packages are installed via Depends)."
+      return 0
+   fi
+   sudo apt-get install -y "$@"
+}
+
+apt_install_plain_if_allowed() {
+   if [ -n "$IN_DPKG_MAINTSCRIPT" ]; then
+      echo "[QUD] Skipping 'apt install $*' (running under dpkg maintainer script; packages are installed via Depends)."
+      return 0
+   fi
+   sudo apt install -y "$@"
+}
+
+dnf_install_if_allowed() {
+   if [ -n "$IN_DPKG_MAINTSCRIPT" ]; then
+      echo "[QUD] Skipping 'dnf install $*' (running under dpkg maintainer script)."
+      return 0
+   fi
+   sudo dnf install -y "$@"
+}
 
 #check and install mokutil package
 if [ ! -f "$QCOM_MAKE_DIR/mokutil" ]; then
@@ -48,18 +85,18 @@ fi
 
 if [[ ! -f "$QCOM_MAKE_DIR/mokutil" ]] || [[ ! -f "$QCOM_MAKE_DIR/keyctl" ]]; then
    if [[ $OSName =~ "Red Hat Enterprise Linux" ]]; then
-      sudo dnf install -y mokutil
-      sudo dnf install -y keyutils
+      dnf_install_if_allowed mokutil
+      dnf_install_if_allowed keyutils
    fi
 
    if [[ $OSName =~ "Ubuntu" ]]; then
-      sudo apt-get install -y mokutil
-      sudo apt-get install -y keyutils
+      apt_install_if_allowed mokutil
+      apt_install_if_allowed keyutils
    fi
 fi
 
 if [[ $OSName =~ "Fedora Linux" ]]; then
-   sudo dnf install -y make automake gcc gcc-c++ kernel-devel
+   dnf_install_if_allowed make automake gcc gcc-c++ kernel-devel
 fi
 
 QCOM_SECURE_BOOT_CHECK=`mokutil --sb-state`
@@ -101,6 +138,10 @@ else
          VERSION="`grep -r '#define DRIVER_VERSION' ./BuildPackage/version.h`"
          DRIVER_VERSION=`echo $VERSION | awk '{printf $3}'`
          echo -e "Driver Version: $DRIVER_VERSION"
+      fi
+
+      if [ -f $DEST_QUD_PATH/Makefile ]; then
+         $QCOM_LN_RM_MK_DIR/rm -rf $DEST_QUD_PATH/Makefile
       fi
 
       if [ -d $DEST_QCOM_USB_PATH ]; then
@@ -366,20 +407,20 @@ fi
 ######## Installation ###########
 
 if [[ $OSName =~ "Ubuntu" ]]; then
-   sudo apt-get update
-   sudo apt-get install -y build-essential
-   sudo apt-get install -y gawk
-   sudo apt-get install -y python3-tk
+   apt_update_if_allowed
+   apt_install_if_allowed build-essential
+   apt_install_if_allowed gawk
+   apt_install_if_allowed python3-tk
 fi
 
 IFS=. read -r major_ver minor_ver patch_ver <<< "$KERNEL_VERSION"
 if [[ $OSName =~ "Ubuntu 22." ]] && (( $major_ver >= 6 && $minor_ver >= 5 )); then
    echo -e "Installing gcc 12 version ..."
-   sudo apt install -y gcc-12 g++-12
+   apt_install_plain_if_allowed gcc-12 g++-12
 fi
 if [[ $OSName =~ "Ubuntu 24." ]] && (( $major_ver >= 6 && $minor_ver >= 14 )); then
    echo -e "Installing gcc 14 version ..."
-   sudo apt install -y gcc-14 g++-14
+   apt_install_plain_if_allowed gcc-14 g++-14
 fi
 
 echo -e "${CYAN}======================================================================================="
@@ -423,6 +464,10 @@ fi
 
 if [ -d $DEST_QCOM_USB_PATH ]; then
    $QCOM_LN_RM_MK_DIR/rm -rf $DEST_QCOM_USB_PATH
+fi
+
+if [ -f $DEST_QUD_PATH/Makefile ]; then
+   $QCOM_LN_RM_MK_DIR/rm -rf $DEST_QUD_PATH/Makefile
 fi
 
 $QCOM_LN_RM_MK_DIR/mkdir -m 0755  -p $DEST_QCOM_USB_PATH
