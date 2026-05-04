@@ -261,6 +261,7 @@ typedef struct _DEVICE_CONTEXT
     BOOLEAN                   InServiceSelectiveSuspension;
     ULONG                     SelectiveSuspendIdleTime;
     BOOLEAN                   SelectiveSuspendInMiliSeconds;
+    WDF_POWER_POLICY_S0_IDLE_CAPABILITIES AssignedIdleCaps;
 
     WMILIB_CONTEXT            WmiLibInfo;   // to query system power management tab
     CHAR                      DevSerialNumber[256];  // to hold USB_STRING_DESCRIPTOR of the serial number
