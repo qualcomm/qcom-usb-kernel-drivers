@@ -1694,13 +1694,13 @@ NTSTATUS QDBPNP_SetFriendlyName(WDFDEVICE Device, PUNICODE_STRING FriendlyName, 
     RtlInitUnicodeString(&ucSetEntryName, L"FriendlyName");
 
     nts = WdfDeviceOpenRegistryKey
-          (
-             Device,
-             PLUGPLAY_REGKEY_DEVICE,
-             KEY_SET_VALUE,
-             &keyAttributes,
-             &hKey
-     );
+    (
+        Device,
+        PLUGPLAY_REGKEY_DEVICE,
+        KEY_SET_VALUE,
+        &keyAttributes,
+        &hKey
+    );
     if (!NT_SUCCESS(nts))
     {
         QDB_DbgPrint
@@ -1713,11 +1713,11 @@ NTSTATUS QDBPNP_SetFriendlyName(WDFDEVICE Device, PUNICODE_STRING FriendlyName, 
     }
 
     nts = WdfRegistryAssignUnicodeString
-          (
-             hKey,
-             &ucSetEntryName,
-             FriendlyName
-          );
+    (
+        hKey,
+        &ucSetEntryName,
+        FriendlyName
+    );
     if (!NT_SUCCESS(nts))
     {
         QDB_DbgPrint
@@ -1726,7 +1726,7 @@ NTSTATUS QDBPNP_SetFriendlyName(WDFDEVICE Device, PUNICODE_STRING FriendlyName, 
             QDB_DBG_LEVEL_TRACE,
             ("<%s> QDBPNP_SetFriendlyName: failed to set FriendlyName: 0x%x\n", pDevContext->PortName, nts)
         );
-     }
+    }
 
     WdfRegistryClose(hKey);
 
@@ -1824,6 +1824,9 @@ NTSTATUS QDBPNP_CreateSymbolicName(WDFDEVICE Device)
         {
             if (friendlyNameA.Length < MAX_NAME_LEN)
             {
+                WDF_DEVICE_PROPERTY_DATA propertyData;
+                NTSTATUS                 pset;
+
                 RtlCopyMemory(pDevContext->FriendlyName, friendlyNameA.Buffer, friendlyNameA.Length);
                 QDB_DbgPrint
                 (
@@ -1835,26 +1838,25 @@ NTSTATUS QDBPNP_CreateSymbolicName(WDFDEVICE Device)
                 RtlFreeAnsiString(&friendlyNameA);
                 nts = WdfDeviceCreateSymbolicLink(Device, &pDevContext->SymbolicLink);
                 // Update DEVPKEY_Device_FriendlyName to override any UDE default "UDE Client"
-				{
-                    NTSTATUS pset = IoSetDevicePropertyData(
-                        pDevContext->PhysicalDeviceObject,
-                        (const DEVPROPKEY*)&DEVPKEY_Device_FriendlyName,
-                        0, // LOCALE_NEUTRAL
-                        0, // flags
-                        DEVPROP_TYPE_STRING,
-                        friendlyNameU.Length + sizeof(WCHAR), // include terminating NULL
-                        (PVOID)friendlyNameU.Buffer
-                    );
-                    QDB_DbgPrint(
-                        QDB_DBG_MASK_CONTROL,
-                        QDB_DBG_LEVEL_TRACE,
-                        ("<%s> QDBPNP_CreateSymbolicName: IoSetDevicePropertyData(FriendlyName) status: 0x%x\n",
-                            pDevContext->PortName, pset)
-                    );
+                WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, &DEVPKEY_Device_FriendlyName);
+                propertyData.Lcid = 0; // LOCALE_NEUTRAL
+                propertyData.Flags = 0; // no flags
+                pset = WdfDeviceAssignProperty(
+                    Device,
+                    &propertyData,
+                    DEVPROP_TYPE_STRING,
+                    friendlyNameU.Length + sizeof(WCHAR), // include terminating NULL
+                    (PVOID)friendlyNameU.Buffer
+                );
+                QDB_DbgPrint(
+                    QDB_DBG_MASK_CONTROL,
+                    QDB_DBG_LEVEL_TRACE,
+                    ("<%s> QDBPNP_CreateSymbolicName: WdfDeviceAssignProperty(FriendlyName) status: 0x%x\n",
+                    pDevContext->PortName, pset)
+                );
+                // Persist the chosen friendly name under the device's hardware key to override UDE defaults
+                nts = QDBPNP_SetFriendlyName(Device, &friendlyNameU, (PWCHAR)driverKey);
             }
-            // Persist the chosen friendly name under the device's hardware key to override UDE defaults
-            nts = QDBPNP_SetFriendlyName(Device, &friendlyNameU, (PWCHAR)driverKey);
-			}
         }
     }
 
