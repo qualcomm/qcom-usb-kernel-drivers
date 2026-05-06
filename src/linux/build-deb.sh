@@ -228,17 +228,25 @@ chmod +x "\$INSTALL_PREFIX/legacy/installer/QcDevDriver.sh" 2>/dev/null || true
 
 # 'qualcomm-userspace-driver' is removed by dpkg itself before postinst runs,
 # via the Conflicts/Replaces/Breaks fields declared in DEBIAN/control.
-# This stage only records the outcome in the install log.
+# This stage will only display status and store dpkg events in the install log.
 LOG_HEADER "Checking qualcomm-userspace-driver state"
 USERSPACE_STATUS_RAW="\$(dpkg-query -W -f='\${Status}|\${Version}' qualcomm-userspace-driver 2>/dev/null || true)"
 USERSPACE_STATUS_FIELD="\${USERSPACE_STATUS_RAW%%|*}"
 USERSPACE_VERSION_FIELD="\${USERSPACE_STATUS_RAW##*|}"
 USERSPACE_DPKG_EVENT=""
+USERSPACE_DPKG_TAIL=""
 
 if [ -r /var/log/dpkg.log ]; then
-  USERSPACE_DPKG_EVENT="\$(tail -n 200 /var/log/dpkg.log 2>/dev/null \\
-    | grep -E '(remove|purge|status (config-files|not-installed|half-installed|half-configured)) qualcomm-userspace-driver' \\
-    | tail -n 1 || true)"
+  CURRENT_TXN="\$(awk '/ startup /{buf=""} {buf=buf \$0 ORS} END{printf "%s", buf}' /var/log/dpkg.log 2>/dev/null || true)"
+  if [ -n "\$CURRENT_TXN" ]; then
+    USERSPACE_DPKG_EVENT="\$(printf '%s' "\$CURRENT_TXN" \\
+      | grep -E '(^.* (remove|purge) qualcomm-userspace-driver:|^.* status (config-files|not-installed|half-installed|half-configured) qualcomm-userspace-driver:)' \\
+      | tail -n 1 || true)"
+  fi
+fi
+
+if [ -r /var/log/dpkg.log ]; then
+  USERSPACE_DPKG_TAIL="\$(grep -E 'qud:all|qualcomm-userspace-driver' /var/log/dpkg.log 2>/dev/null | tail -n 15 || true)"
 fi
 
 case "\$USERSPACE_STATUS_FIELD" in
@@ -247,20 +255,18 @@ case "\$USERSPACE_STATUS_FIELD" in
       ;;
   *)
       if [ -n "\$USERSPACE_DPKG_EVENT" ]; then
-          echo "[QUD] qualcomm-userspace-driver was just removed by dpkg via Conflicts/Replaces/Breaks (from /var/log/dpkg.log: \$USERSPACE_DPKG_EVENT)." >> "\$LOG_FILE" 2>&1
+          echo "[QUD] qualcomm-userspace-driver was just removed by dpkg via Conflicts/Replaces/Breaks in current installation (from /var/log/dpkg.log: \$USERSPACE_DPKG_EVENT)." >> "\$LOG_FILE" 2>&1
       else
-          echo "[QUD] qualcomm-userspace-driver: not installed." >> "\$LOG_FILE" 2>&1
+          echo "[QUD] qualcomm-userspace-driver was not installed this time, so dpkg Conflicts/Replaces/Breaks did not remove anything." >> "\$LOG_FILE" 2>&1
       fi
       ;;
 esac
 
 # Append the last few relevant lines of /var/log/dpkg.log
-if [ -r /var/log/dpkg.log ]; then
-  USERSPACE_DPKG_TAIL="\$(tail -n 200 /var/log/dpkg.log 2>/dev/null | grep -E 'qualcomm-userspace-driver|qud:all' | tail -n 15 || true)"
-  if [ -n "\$USERSPACE_DPKG_TAIL" ]; then
-    echo "[QUD] /var/log/dpkg.log excerpt (last 15 qud / qualcomm-userspace-driver events):" >> "\$LOG_FILE" 2>&1
-    echo "\$USERSPACE_DPKG_TAIL" >> "\$LOG_FILE" 2>&1
-  fi
+if [ -n "\$USERSPACE_DPKG_TAIL" ]; then
+  echo "" >> "\$LOG_FILE" 2>&1
+  echo "[QUD] /var/log/dpkg.log excerpt (last few instances of qud / qualcomm-userspace-driver events from /var/log/dpkg.log):" >> "\$LOG_FILE" 2>&1
+  printf '%s\n' "\$USERSPACE_DPKG_TAIL" | sed 's/^/[dpkg logs] /' >> "\$LOG_FILE" 2>&1
 fi
 
 # Uninstall any QUD driver previously installed via qpm-cli
@@ -381,7 +387,7 @@ INSTALL_PREFIX="$INSTALL_PREFIX"
 LOG_FILE="\$INSTALL_ROOT/qcom_kernel_uninstall.log"
 
 case "\$1" in
-  remove|purge|upgrade|disappear)
+  remove|purge|disappear)
     echo "[QUD] Cleaning up \$INSTALL_ROOT/qcom_drivers.sh and \$INSTALL_PREFIX ..." >> "\$LOG_FILE" 2>&1 || true
     rm -f  "\$INSTALL_ROOT/qcom_drivers.sh"  >> "\$LOG_FILE" 2>&1 || true
     rm -rf "\$INSTALL_PREFIX"                >> "\$LOG_FILE" 2>&1 || true
