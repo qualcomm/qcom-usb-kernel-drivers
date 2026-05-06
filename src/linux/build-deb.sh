@@ -19,7 +19,7 @@ set -euo pipefail
 #   PKG_NAME       (default: qud)
 #   VERSION        (default: parsed from version.h)
 #   ARCH           (default: all)
-#   MAINTAINER     (default: "Maintainer <maintainer@example.com>")
+#   MAINTAINER     (default: host-drivers.team "<host-drivers.team@qti.qualcomm.com>")
 #   DESCRIPTION    (default: generic description)
 #   INSTALL_PREFIX (default: /opt/qcom/QUD)
 #   OUTPUT_DIR     (default: ./build)
@@ -63,7 +63,7 @@ if [ -z "${VERSION:-}" ]; then
 fi
 
 ARCH="${ARCH:-all}"
-MAINTAINER="${MAINTAINER:-Maintainer <maintainer@example.com>}"
+MAINTAINER="${MAINTAINER:-host-drivers.team <host-drivers.team@qti.qualcomm.com>}"
 DESCRIPTION="${DESCRIPTION:-Qualcomm USB kernel drivers for QUD devices. Installs kernel driver sources and helper scripts, builds and loads the drivers during installation via qcom_drivers.sh.}"
 INSTALL_ROOT="${INSTALL_ROOT:-/opt/qcom/QUD}"
 INSTALL_PREFIX="${INSTALL_PREFIX:-$INSTALL_ROOT/build}"
@@ -185,20 +185,6 @@ INSTALL_ROOT="$INSTALL_ROOT"
 INSTALL_PREFIX="$INSTALL_PREFIX"
 LOG_FILE="\$INSTALL_ROOT/qcom_kernel_install.log"
 
-# Guard: qualcomm-userspace-driver must be removed before installing qud.
-# (The control file already declares Conflicts/Breaks; this is a belt-and-braces
-# check in case the user invoked `dpkg -i --force-conflicts` or similar.)
-USERSPACE_STATUS="\$(dpkg-query -W -f='\${Status}' qualcomm-userspace-driver 2>/dev/null || true)"
-if [ "\$USERSPACE_STATUS" = "install ok installed" ]; then
-  echo "ERROR: 'qualcomm-userspace-driver' is currently installed." >&2
-  echo "       The 'qud' kernel driver package conflicts with it and cannot be installed" >&2
-  echo "       alongside. Please remove it first and retry:" >&2
-  echo "           sudo dpkg -r qualcomm-userspace-driver" >&2
-  echo "       or (to resolve automatically):" >&2
-  echo "           sudo apt-get install ./qud_${VERSION}_${DEB_ARCH}.deb" >&2
-  exit 1
-fi
-
 mkdir -p "\$INSTALL_ROOT" || true
 
 # Remove any previous extracted build folder so we start fresh
@@ -226,21 +212,61 @@ INSTALL_ROOT="$INSTALL_ROOT"
 INSTALL_PREFIX="$INSTALL_PREFIX"
 LOG_FILE="\$INSTALL_ROOT/qcom_kernel_install.log"
 
-echo "[QUD] Ensuring script permissions..." | tee -a "\$LOG_FILE"
+# LOG_HEADER() writes a visually distinct === frame around the stage name to the
+# install log so the reader can tell where each stage starts.
+LOG_HEADER() {
+  {
+    echo ""
+    echo "=================================================================="
+    echo "[QUD] \$1"
+    echo "=================================================================="
+  } >> "\$LOG_FILE" 2>&1
+}
+
+echo "[QUD] Ensuring script permissions..." >> "\$LOG_FILE" 2>&1
 find "\$INSTALL_PREFIX" -type f -name '*.sh' -exec chmod +x {} \\; || true
 chmod +x "\$INSTALL_PREFIX/qcom_drivers.sh" 2>/dev/null || true
 chmod +x "\$INSTALL_PREFIX/legacy/installer/QcDevDriver.sh" 2>/dev/null || true
 
-USERSPACE_STATUS="\$(dpkg-query -W -f='\${Status}' qualcomm-userspace-driver 2>/dev/null || true)"
-if [ "\$USERSPACE_STATUS" = "install ok installed" ]; then
-  echo "[QUD] qualcomm-userspace-driver is installed. Removing it before installing QUD kernel driver..." >> "\$LOG_FILE" 2>&1
-  DEBIAN_FRONTEND=noninteractive dpkg --remove --force-remove-reinstreq qualcomm-userspace-driver >> "\$LOG_FILE" 2>&1 || \\
-  DEBIAN_FRONTEND=noninteractive dpkg --purge  --force-remove-reinstreq qualcomm-userspace-driver >> "\$LOG_FILE" 2>&1 || true
-else
-  echo "[QUD] qualcomm-userspace-driver is not installed, skipping removal." >> "\$LOG_FILE" 2>&1
+# 'qualcomm-userspace-driver' is removed by dpkg itself before postinst runs,
+# via the Conflicts/Replaces/Breaks fields declared in DEBIAN/control.
+# This stage only records the outcome in the install log.
+LOG_HEADER "Checking qualcomm-userspace-driver state"
+USERSPACE_STATUS_RAW="\$(dpkg-query -W -f='\${Status}|\${Version}' qualcomm-userspace-driver 2>/dev/null || true)"
+USERSPACE_STATUS_FIELD="\${USERSPACE_STATUS_RAW%%|*}"
+USERSPACE_VERSION_FIELD="\${USERSPACE_STATUS_RAW##*|}"
+USERSPACE_DPKG_EVENT=""
+
+if [ -r /var/log/dpkg.log ]; then
+  USERSPACE_DPKG_EVENT="\$(tail -n 200 /var/log/dpkg.log 2>/dev/null \\
+    | grep -E '(remove|purge|status (config-files|not-installed|half-installed|half-configured)) qualcomm-userspace-driver' \\
+    | tail -n 1 || true)"
+fi
+
+case "\$USERSPACE_STATUS_FIELD" in
+  "deinstall ok config-files"|"deinstall ok half-configured"|"deinstall ok half-installed")
+      echo "[QUD] qualcomm-userspace-driver (\$USERSPACE_VERSION_FIELD) was just removed by dpkg via Conflicts/Replaces/Breaks." >> "\$LOG_FILE" 2>&1
+      ;;
+  *)
+      if [ -n "\$USERSPACE_DPKG_EVENT" ]; then
+          echo "[QUD] qualcomm-userspace-driver was just removed by dpkg via Conflicts/Replaces/Breaks (from /var/log/dpkg.log: \$USERSPACE_DPKG_EVENT)." >> "\$LOG_FILE" 2>&1
+      else
+          echo "[QUD] qualcomm-userspace-driver: not installed." >> "\$LOG_FILE" 2>&1
+      fi
+      ;;
+esac
+
+# Append the last few relevant lines of /var/log/dpkg.log
+if [ -r /var/log/dpkg.log ]; then
+  USERSPACE_DPKG_TAIL="\$(tail -n 200 /var/log/dpkg.log 2>/dev/null | grep -E 'qualcomm-userspace-driver|qud:all' | tail -n 15 || true)"
+  if [ -n "\$USERSPACE_DPKG_TAIL" ]; then
+    echo "[QUD] /var/log/dpkg.log excerpt (last 15 qud / qualcomm-userspace-driver events):" >> "\$LOG_FILE" 2>&1
+    echo "\$USERSPACE_DPKG_TAIL" >> "\$LOG_FILE" 2>&1
+  fi
 fi
 
 # Uninstall any QUD driver previously installed via qpm-cli
+LOG_HEADER "qpm-cli QUD uninstall (qud.internal / qud / qud.slt)"
 if command -v qpm-cli >/dev/null 2>&1; then
   QUD_INTERNAL_VERSION="\$(qpm-cli --info qud.internal 2>/dev/null | grep "Installed" | awk '{printf \$4}')"
   QUD_EXTERNAL_VERSION="\$(qpm-cli --info qud 2>/dev/null | grep "Installed" | awk '{printf \$4}')"
@@ -266,7 +292,12 @@ else
   echo "[QUD] qpm-cli not available, skipping qpm-cli QUD uninstall." >> "\$LOG_FILE" 2>&1
 fi
 
-# Legacy QUD service cleanup
+LOG_HEADER "Legacy QUD cleanup"
+if [ -x "\$INSTALL_PREFIX/legacy/installer/QcDevDriver.sh" ]; then
+  "\$INSTALL_PREFIX/legacy/installer/QcDevDriver.sh" uninstall >> "\$LOG_FILE" 2>&1 || true
+fi
+
+LOG_HEADER "Legacy QUD service cleanup"
 QC_SYSTEMD_PATH=/etc/systemd/system
 if [ -f \$QC_SYSTEMD_PATH/QUDService.service ]; then
     systemctl daemon-reload >> "\$LOG_FILE" 2>&1 || true
@@ -279,7 +310,7 @@ else
     echo "Error: Failed to delete \$QC_SYSTEMD_PATH/QUDService.service" >> "\$LOG_FILE" 2>&1
 fi
 
-# New QUD service cleanup
+LOG_HEADER "New QUD service cleanup"
 QCOM_SYSTEMD_PATH=/etc/systemd/system
 QCOM_QUDSERVICE=qcom-qud.service
 if [ -f \$QCOM_SYSTEMD_PATH/\$QCOM_QUDSERVICE ]; then
@@ -293,17 +324,15 @@ else
     echo "Error: Failed to delete \$QCOM_SYSTEMD_PATH/\$QCOM_QUDSERVICE" >> "\$LOG_FILE" 2>&1
 fi
 
-if [ -x "\$INSTALL_PREFIX/legacy/installer/QcDevDriver.sh" ]; then
-  "\$INSTALL_PREFIX/legacy/installer/QcDevDriver.sh" uninstall >> "\$LOG_FILE" 2>&1 || true
-fi
-
 # Ensure kernel headers are available for the running kernel before building modules.
 KREL="\$(uname -r)"
+LOG_HEADER "Ensure kernel headers for \$KREL"
 if [ ! -d "/lib/modules/\$KREL/build" ]; then
   echo "[QUD] Kernel headers for \$KREL not found, attempting to install linux-headers-\$KREL..." >> "\$LOG_FILE" 2>&1
   apt-get install -y "linux-headers-\$KREL" >> "\$LOG_FILE" 2>&1 || true
 fi
 
+LOG_HEADER "Installing latest QUD driver via qcom_drivers.sh"
 echo "[QUD] Executing qcom_drivers.sh install from \$INSTALL_PREFIX..." >> "\$LOG_FILE" 2>&1
 if [ -x "\$INSTALL_PREFIX/qcom_drivers.sh" ]; then
   (cd "\$INSTALL_PREFIX" && "\$INSTALL_PREFIX/qcom_drivers.sh" install) >> "\$LOG_FILE" 2>&1 \\
