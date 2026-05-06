@@ -1,3 +1,6 @@
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+# SPDX-License-Identifier: BSD-3-Clause
+
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -105,11 +108,6 @@ mkdir -p "$OUTPUT_DIR"
 chmod 0755 "$BUILDROOT/DEBIAN"
 chmod 0755 "$BUILDROOT$INSTALL_PREFIX"
 
-# Pack everything located at qcom-usb-kernel-drivers/src/linux into the package build payload.
-# Expected contents: InfParser Makefile qcom_drivers.sh qcom_serial qcom_usb qcom_usbnet
-# README.md RELEASES.md sign version.h
-# Exclude only: build/ (local output) and build-deb.sh (the packaging script itself).
-# On install these are unpacked under /opt/qcom/QUD.
 echo "Copying driver sources from $SRC_DIR -> $BUILDROOT$INSTALL_PREFIX"
 shopt -s dotglob nullglob
 for entry in "$SRC_DIR"/*; do
