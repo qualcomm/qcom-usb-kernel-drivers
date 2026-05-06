@@ -12,7 +12,7 @@ $Script:VSWhereExe = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\v
 
 $Script:SourceRoot = "..\src\windows"  # Windows source directory, update when build folder moves
 $Script:OutputRoot = "target" # Directory for all output by default, use -OutputTo to override
-$Script:OutputSubDir = "Drivers\Windows10"
+$Script:DriversDir = "Drivers\Windows10"
 
 # Build configuration defaults
 $Script:BuildConfiguration = "Release"
@@ -571,7 +571,7 @@ function Main {
     else {
         $Script:OutputRoot = Resolve-ScriptPath $OutputRoot
     }
-    $Script:OutputRoot = Join-Path $OutputRoot $OutputSubDir
+    $Script:OutputRoot = Join-Path $OutputRoot $DriversDir
     $Script:VersionHeaderFile = Resolve-ScriptPath $Script:VersionHeaderFile
 
     # --- Step 1: Locate MSBuild ---
