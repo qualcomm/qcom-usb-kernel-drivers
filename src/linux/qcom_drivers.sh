@@ -74,6 +74,14 @@ dnf_install_if_allowed() {
    sudo dnf install -y "$@"
 }
 
+dnf_update_if_allowed() {
+   if [ -n "$IN_DPKG_MAINTSCRIPT" ]; then
+      echo "[QUD] Skipping 'dnf check-update' (running under dpkg maintainer script)."
+      return 0
+   fi
+   sudo dnf check-update
+}
+
 #check and install mokutil package
 if [ ! -f "$QCOM_MAKE_DIR/mokutil" ]; then
    echo -e ${RED}"Error: mokutil not found, installing..\n"${RESET}
@@ -83,21 +91,40 @@ if [ ! -f "$QCOM_MAKE_DIR/keyctl" ]; then
    echo -e ${RED}"Error: keyutils not found, installing..\n"${RESET}
 fi
 
+if [[ $OSName =~ "Ubuntu" ]] || [[ $OSName =~ "Debian" ]]; then
+   apt_update_if_allowed
+fi
+
+if [[ $OSName =~ "Red Hat Enterprise Linux" ]] || [[ $OSName =~ "Fedora Linux" ]]; then
+   dnf_update_if_allowed
+fi
+
 if [[ ! -f "$QCOM_MAKE_DIR/mokutil" ]] || [[ ! -f "$QCOM_MAKE_DIR/keyctl" ]]; then
-   if [[ $OSName =~ "Red Hat Enterprise Linux" ]]; then
+   if [[ $OSName =~ "Red Hat Enterprise Linux" ]] || [[ $OSName =~ "Fedora Linux" ]]; then
       dnf_install_if_allowed mokutil
       dnf_install_if_allowed keyutils
    fi
 
-   if [[ $OSName =~ "Ubuntu" ]]; then
+   if [[ $OSName =~ "Ubuntu" ]] || [[ $OSName =~ "Debian" ]]; then
       apt_install_if_allowed mokutil
       apt_install_if_allowed keyutils
    fi
 fi
 
-if [[ $OSName =~ "Fedora Linux" ]]; then
+if [[ $OSName =~ "Red Hat Enterprise Linux" ]] || [[ $OSName =~ "Fedora Linux" ]]; then
    dnf_install_if_allowed make automake gcc gcc-c++ kernel-devel
 fi
+
+# Ensure kernel headers are available for the running kernel before building modules.
+if [[ $OSName =~ "Ubuntu" ]] || [[ $OSName =~ "Debian" ]]; then
+   apt_install_if_allowed linux-headers-$KERNEL_VERSION
+fi
+
+if [[ $OSName =~ "Red Hat Enterprise Linux" ]] || [[ $OSName =~ "Fedora Linux" ]]; then
+   dnf_install_if_allowed kernel-devel
+   dnf_install_if_allowed kernel-devel-$KERNEL_VERSION
+fi
+
 
 QCOM_SECURE_BOOT_CHECK=`mokutil --sb-state`
 
@@ -406,7 +433,7 @@ fi
 
 ######## Installation ###########
 
-if [[ $OSName =~ "Ubuntu" ]]; then
+if [[ $OSName =~ "Ubuntu" ]] || [[ $OSName =~ "Debian" ]]; then
    apt_update_if_allowed
    apt_install_if_allowed build-essential
    apt_install_if_allowed gawk
@@ -655,6 +682,12 @@ if [ ! -f $DEST_QUD_PATH/Makefile ]; then
    exit 1
 fi
 
+$QCOM_LN_RM_MK_DIR/cp -rf ./RELEASES.md $DEST_QUD_PATH/
+if [ ! -f $DEST_QUD_PATH/RELEASES.md  ]; then
+   echo -e "${RED}Error: Failed to copy '$DEST_QUD_PATH/RELEASES.md' to installation path"${RESET}
+   exit 1
+fi
+
 $QCOM_LN_RM_MK_DIR/cp -rf ./$QCOM_USBNET_DIR/ipassignment.sh $DEST_QCOM_USBNET_PATH
 if [ ! -f $DEST_QCOM_USBNET_PATH/ipassignment.sh ]; then
    echo -e ${RED}"Error: Failed to copy ipassignment.sh to installation path"${RESET}
@@ -871,6 +904,7 @@ fi
 
 # commented for testing
 #$QCOM_MAKE_DIR/make clean
+echo -e "Generated QC rules"
 
 # echo SUBSYSTEMS==\"tty\", PROGRAM=\"$DEST_MODEM_SERIAL_PATH/qtidev.pl $DEST_MODEM_SERIAL_PATH/qtiname.inf %k\", SYMLINK+=\"%c\" , MODE=\"0666\" > ./qti_usb_device.rules
 echo SUBSYSTEMS==\"qcom_usbnet\", MODE=\"0666\" >> ./qcom-usb-devices.rules
@@ -879,7 +913,7 @@ echo SUBSYSTEMS==\"qcom_ports\", MODE=\"0666\" >> ./qcom-usb-devices.rules
 
 $QCOM_LN_RM_MK_DIR/chmod 644 ./qcom-usb-devices.rules
 $QCOM_LN_RM_MK_DIR/cp -rf ./qcom-usb-devices.rules $QCOM_UDEV_PATH
-echo -e "Generated QC rules"
+echo -e "Creating new udev rule for qcom_usb driver in $QCOM_UDEV_PATH/qcom-usb-devices.rules"
 
 # udev rules for qmi
 if [ -f $QCOM_UDEV_PATH/80-qcom-usbnet-devices.rules ]; then
@@ -895,7 +929,7 @@ else
    echo SUBSYSTEMS==\"usb\", ATTRS{idVendor}==\"05c6\", NAME=\"usb%n\" >> ./80-qcom-usbnet-devices.rules
    $QCOM_LN_RM_MK_DIR/chmod 644 ./80-qcom-usbnet-devices.rules
    $QCOM_LN_RM_MK_DIR/cp -rf ./80-qcom-usbnet-devices.rules $QCOM_UDEV_PATH
-   echo -e "Creating new udev rule for qcom-usbnet in $QCOM_UDEV_PATH/80-qcom-usbnet-devices.rules"
+   echo -e "Creating new udev rule for qcom_usbnet driver in $QCOM_UDEV_PATH/80-qcom-usbnet-devices.rules"
 fi
 
 # Informs udev deamon to reload the newly added device rule and re-trigger service
@@ -920,9 +954,9 @@ MODLOADED="`/sbin/lsmod | grep usbserial`"
 if [ "$MODLOADED" == "" ]; then
    echo -e "To load dependency"
    echo -e "Loading module usbserial"
-   if [[ $OSName =~ "Red Hat Enterprise Linux" ]]; then
+   if [[ $OSName =~ "Red Hat Enterprise Linux" ]] || [[ $OSName =~ "Fedora Linux" ]]; then
       if [ -f $MODULE_BLACKLIST_PATH/usbserial.ko.xz ]; then
-	xz -d $MODULE_BLACKLIST_PATH/usbserial.ko.xz 
+	      xz -d $MODULE_BLACKLIST_PATH/usbserial.ko.xz 
       	$QCOM_MODBIN_DIR/insmod $MODULE_BLACKLIST_PATH/usbserial.ko
       fi
       MODLOADED="`/sbin/lsmod | grep usbserial`"
@@ -1194,8 +1228,8 @@ echo -e "Qualcomm usbnet driver is installed at $DEST_QCOM_USBNET_PATH"
 echo -e "Qualcomm usb driver is installed at $DEST_QCOM_USB_PATH"
 echo -e "Qualcomm udev naming/permission rules are installed at $QCOM_UDEV_PATH"
 
-if [ -f "$DEST_QUD_PATH/ReleaseNotes*.txt" ]; then
-   echo -e "QUD Release Notes available at $DEST_QUD_PATH"
+if [ -f "$DEST_QUD_PATH/RELEASES.md" ]; then
+   echo -e "QUD Release Notes available at $DEST_QUD_PATH/RELEASES.md"
 fi
 
 MODUPDATE="`grep -nr  qtiDevInf /etc/modules`"
