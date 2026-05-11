@@ -35,6 +35,7 @@ set -euo pipefail
 # -----------------------------------------------------------------------------
 
 PKG_NAME="${PKG_NAME:-qud}"
+OPTION_ZIP="${1:-}"
 
 # Resolve directories relative to this script
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -411,3 +412,31 @@ echo "Successfully built: $OUTPUT_DEB"
 echo "Install with:   sudo dpkg -i \"$OUTPUT_DEB\""
 echo "Uninstall with: sudo dpkg -r $PKG_NAME"
 echo "Query version:  dpkg -s $PKG_NAME | grep -i ^Version"
+
+# Optional: bundle the .deb together with README.md and RELEASES.md into a .zip
+# Usage: ./build-deb.sh zip
+if [ "$OPTION_ZIP" = "zip" ]; then
+  if ! command -v zip >/dev/null 2>&1; then
+    echo "ERROR: 'zip' utility not found. Install it (e.g. 'sudo apt-get install zip') and retry." >&2
+    exit 1
+  fi
+  ZIP_FOLDER="${PKG_NAME}_${VERSION}_${DEB_ARCH}"
+  ZIP_FILE="$OUTPUT_DIR/${ZIP_FOLDER}.zip"
+  echo "Compressing package -> $ZIP_FILE"
+  rm -rf "$OUTPUT_DIR/$ZIP_FOLDER" "$ZIP_FILE"
+  mkdir -p "$OUTPUT_DIR/$ZIP_FOLDER"
+  cp "$OUTPUT_DEB" "$OUTPUT_DIR/$ZIP_FOLDER/"
+  if [ -f "$SRC_DIR/README.md" ]; then
+    cp "$SRC_DIR/README.md" "$OUTPUT_DIR/$ZIP_FOLDER/"
+  else
+    echo "NOTE: README.md not found at $SRC_DIR/README.md, skipping in zip."
+  fi
+  if [ -f "$SRC_DIR/RELEASES.md" ]; then
+    cp "$SRC_DIR/RELEASES.md" "$OUTPUT_DIR/$ZIP_FOLDER/"
+  else
+    echo "NOTE: RELEASES.md not found at $SRC_DIR/RELEASES.md, skipping in zip."
+  fi
+  ( cd "$OUTPUT_DIR" && zip -r "${ZIP_FOLDER}.zip" "$ZIP_FOLDER" >/dev/null )
+  rm -rf "$OUTPUT_DIR/$ZIP_FOLDER"
+  echo "Successfully created zip bundle: $ZIP_FILE"
+fi
