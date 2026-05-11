@@ -73,8 +73,8 @@
 #define QTIDEV_RX_NOTIFY_POOL_SZ 32
 #define QTIDEV_TX_BUF_POOL_SZ    32
 #define QTIDEV_DRIVER_NAME       "QCOM_QDSS_DPL_DIAG_Subsystem"
-#define QTIDEV_USB_CLASS_NAME    "GobiUSB"
-#define QTIDEV_PORT_CLASS_NAME   "GobiPorts"
+#define QTIDEV_USB_CLASS_NAME    "qcom_usb"
+#define QTIDEV_PORT_CLASS_NAME   "qcom_ports"
 //#define QTIDEV_SERIAL_CLASS_NAME   "GobiSerial"
 
 #define BULK_URB_INITIALIZED    (1 << 0)

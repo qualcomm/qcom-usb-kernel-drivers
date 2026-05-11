@@ -23,9 +23,10 @@ Qualcomm USB host drivers providing logical representations of Qualcomm chipset-
 
 ---
 
-## [1.0.6.3] - 2026-05-8
+## [1.0.6.4] - 2026-05-8
 1. First Debian package release of QUD v1.0.6.3 is now available on GitHub. Users can modify the driver source and generate a Debian package using the build-deb.sh script.
-2. Updated the installer script to automatically install kernel headers for the running kernel seamlessly across multiple platforms including Ubuntu, Debian, RHEL, and Fedora.
+2. Updated the installer script to automatically install kernel headers for the running kernel seamlessly across multiple platforms including Ubuntu, Debian, RHEL, and Fedora.[QUD-1881]
+3. Fix DIAG and QDLoader “Could not open connection” issue caused by a subsystem mismatch between driver and udev rules [QUD-1880], [QUD-1882]
 
 ## [1.0.6.1] - 2026-04-6
 1. Support newer kernel version 6.15, 6.16 and 6.17 for Ubuntu 24.
