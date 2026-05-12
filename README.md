@@ -8,6 +8,10 @@ The project is organized to facilitate easy compilation, testing, and integratio
   - WHQL-certified on the latest Windows operating systems.
   - Compatible with Qualcomm tools like QUTS, QXDM, PCAT, and more.
   - Compatible with terminal emulators like PuTTY and Tera Term.
+  - **Always-on driver logging** (ETW AutoLogger on Windows, ftrace instance on
+    Linux) with a one-command "Save Log" action — see
+    [`docs/always-on-logging-plan.md`](./docs/always-on-logging-plan.md) and
+    [`tools/logging/`](./tools/logging/).
     
 ## Repository Structure
 
@@ -16,6 +20,8 @@ The project is organized to facilitate easy compilation, testing, and integratio
 ├─ docs/                  # Architecture diagrams and design documents
 ├─ src/                   # Qualcomm USB kernel driver for windows and linux platform
 ├─ examples/              # samples scripts
+├─ tools/
+│  └─ logging/            # Always-on logging tools (Windows + Linux)
 ├─ README.md              # This file
 └─ ...                    # Other files and directories
 ```

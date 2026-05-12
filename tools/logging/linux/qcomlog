@@ -1,0 +1,252 @@
+#!/usr/bin/env bash
+#
+# qcomlog -- always-on ftrace ring buffer control for Qcom USB kernel drivers.
+#
+# Subcommands:
+#   install            Install this script + systemd unit + udev rule (root).
+#   uninstall          Reverse of 'install' (root).
+#   save [-o DIR]      Snapshot the current ring buffer into a timestamped
+#                      tarball under DIR (default: $QCOMLOG_OUTDIR).
+#   status             Show the state of the ftrace instance.
+#   _daemon-start      Internal: called by qcomlogd.service at boot.
+#   _daemon-stop       Internal: called by qcomlogd.service on shutdown.
+#   _reapply           Internal: called from udev when a driver (re)appears.
+#
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+set -euo pipefail
+
+# ------------- defaults (overridden by /etc/qcomlog/qcomlog.conf) -----------
+QCOMLOG_INSTANCE="${QCOMLOG_INSTANCE:-qcom_drivers}"
+QCOMLOG_BUFFER_KB="${QCOMLOG_BUFFER_KB:-4096}"
+QCOMLOG_OUTDIR="${QCOMLOG_OUTDIR:-/var/log/qcomlog}"
+QCOMLOG_RETAIN="${QCOMLOG_RETAIN:-10}"
+QCOMLOG_EVENT_GLOBS="${QCOMLOG_EVENT_GLOBS:-usb:*,module:*}"
+QCOMLOG_TRACEFS="${QCOMLOG_TRACEFS:-auto}"
+
+CONF_FILE="/etc/qcomlog/qcomlog.conf"
+[[ -r "$CONF_FILE" ]] && . "$CONF_FILE"
+
+# ---------------------------- helpers --------------------------------------
+die()  { printf 'qcomlog: %s\n' "$*" >&2; exit 1; }
+info() { printf '==> %s\n' "$*" >&2; }
+
+find_tracefs() {
+    if [[ "$QCOMLOG_TRACEFS" != "auto" ]]; then
+        printf '%s\n' "$QCOMLOG_TRACEFS"
+        return
+    fi
+    for p in /sys/kernel/tracing /sys/kernel/debug/tracing; do
+        if [[ -w "$p" ]]; then
+            printf '%s\n' "$p"
+            return
+        fi
+    done
+    die "tracefs is not mounted or not writable (try: mount -t tracefs tracefs /sys/kernel/tracing)"
+}
+
+instance_dir() {
+    printf '%s/instances/%s' "$(find_tracefs)" "$QCOMLOG_INSTANCE"
+}
+
+ensure_instance() {
+    local d; d=$(instance_dir)
+    if [[ ! -d "$d" ]]; then
+        info "Creating ftrace instance $d"
+        mkdir "$d"
+    fi
+
+    # bounded per-CPU ring, circular (overwrite oldest)
+    printf '%s\n' "$QCOMLOG_BUFFER_KB"  > "$d/buffer_size_kb"
+    printf '1\n' > "$d/options/overwrite" 2>/dev/null || true
+
+    # enable requested event globs
+    IFS=',' read -r -a globs <<< "$QCOMLOG_EVENT_GLOBS"
+    for g in "${globs[@]}"; do
+        local subsys="${g%%:*}"
+        local evt="${g##*:}"
+        local ep="$d/events/$subsys"
+        if [[ -d "$ep" ]]; then
+            if [[ "$evt" == "*" ]]; then
+                echo 1 > "$ep/enable" 2>/dev/null || true
+            elif [[ -d "$ep/$evt" ]]; then
+                echo 1 > "$ep/$evt/enable" 2>/dev/null || true
+            fi
+        fi
+    done
+
+    echo 1 > "$d/tracing_on"
+}
+
+prune_old() {
+    local outdir="$1"
+    [[ -d "$outdir" ]] || return 0
+    # shellcheck disable=SC2012
+    ls -1t "$outdir"/qcom-drivers-*.tar.gz 2>/dev/null \
+        | awk -v keep="$QCOMLOG_RETAIN" 'NR>keep' \
+        | xargs -r rm -f
+}
+
+# ---------------------------- subcommands ----------------------------------
+cmd_install() {
+    [[ "$(id -u)" -eq 0 ]] || die "install requires root"
+    local here; here=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+
+    info "Installing /usr/local/sbin/qcomlog"
+    install -m 0755 "$here/qcomlog" /usr/local/sbin/qcomlog
+
+    info "Installing /etc/systemd/system/qcomlogd.service"
+    install -m 0644 "$here/qcomlogd.service" /etc/systemd/system/qcomlogd.service
+
+    info "Installing /etc/qcomlog/qcomlog.conf"
+    install -d -m 0755 /etc/qcomlog
+    [[ -f /etc/qcomlog/qcomlog.conf ]] || \
+        install -m 0644 "$here/qcomlog.conf" /etc/qcomlog/qcomlog.conf
+
+    info "Installing /etc/udev/rules.d/99-qcom-diag.rules"
+    install -m 0644 "$here/qcom-diag.rules" /etc/udev/rules.d/99-qcom-diag.rules
+
+    if ! getent group qcom-diag >/dev/null; then
+        info "Creating group 'qcom-diag'"
+        groupadd --system qcom-diag
+    fi
+
+    install -d -m 2775 -g qcom-diag "$QCOMLOG_OUTDIR"
+
+    info "Reloading systemd and udev"
+    systemctl daemon-reload
+    udevadm control --reload-rules || true
+
+    info "Enabling qcomlogd.service"
+    systemctl enable --now qcomlogd.service
+
+    info "Done. Add users to 'qcom-diag' to let them run 'qcomlog save'."
+}
+
+cmd_uninstall() {
+    [[ "$(id -u)" -eq 0 ]] || die "uninstall requires root"
+
+    systemctl disable --now qcomlogd.service 2>/dev/null || true
+
+    local d; d=$(instance_dir)
+    if [[ -d "$d" ]]; then
+        echo 0 > "$d/tracing_on" 2>/dev/null || true
+        rmdir "$d" 2>/dev/null || true
+    fi
+
+    rm -f /etc/systemd/system/qcomlogd.service
+    rm -f /etc/udev/rules.d/99-qcom-diag.rules
+    rm -f /usr/local/sbin/qcomlog
+    systemctl daemon-reload
+    udevadm control --reload-rules || true
+    info "Uninstalled. /etc/qcomlog and $QCOMLOG_OUTDIR kept."
+}
+
+cmd_status() {
+    local d; d=$(instance_dir)
+    if [[ ! -d "$d" ]]; then
+        printf 'qcomlog: instance %s not provisioned\n' "$QCOMLOG_INSTANCE"
+        return 1
+    fi
+    printf 'instance    : %s\n' "$d"
+    printf 'tracing_on  : %s\n' "$(cat "$d/tracing_on" 2>/dev/null || echo '?')"
+    printf 'buffer_kb   : %s (per cpu)\n' "$(cat "$d/buffer_size_kb" 2>/dev/null || echo '?')"
+    printf 'cpus        : %d\n' "$(nproc)"
+    printf 'events      : %s\n' "$QCOMLOG_EVENT_GLOBS"
+}
+
+cmd_save() {
+    local outdir="$QCOMLOG_OUTDIR"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -o|--out) outdir="$2"; shift 2 ;;
+            -h|--help)
+                sed -n '/^# qcomlog --/,/^$/p' "$0" | sed 's/^# \{0,1\}//'
+                exit 0 ;;
+            *) die "unknown save option: $1" ;;
+        esac
+    done
+
+    local d; d=$(instance_dir)
+    [[ -d "$d" ]] || die "ftrace instance $d missing; run 'qcomlog install' first"
+
+    mkdir -p "$outdir"
+    local ts; ts=$(date -u +%Y%m%dT%H%M%SZ)
+    local stage; stage=$(mktemp -d --tmpdir="$outdir" "qcom-drivers-$ts.XXXX")
+
+    info "Pausing ring buffer"
+    echo 0 > "$d/tracing_on"
+
+    info "Copying trace snapshot"
+    cp "$d/trace"            "$stage/trace"            2>/dev/null || true
+    cp "$d/trace_clock"      "$stage/trace_clock"      2>/dev/null || true
+    cp "$d/saved_cmdlines"   "$stage/saved_cmdlines"   2>/dev/null || true
+    cp "$d/saved_tgids"      "$stage/saved_tgids"      2>/dev/null || true
+    uname -a                 > "$stage/uname"          2>/dev/null || true
+    dmesg --ctime --color=never 2>/dev/null | tail -n 2000 > "$stage/dmesg.tail" || true
+
+    # lsusb / modinfo for the qcom modules, if present
+    command -v lsusb >/dev/null && lsusb > "$stage/lsusb.txt" 2>&1 || true
+    for m in qcom_usb qcom_usbnet qcom_serial; do
+        if modinfo "$m" >/dev/null 2>&1; then
+            modinfo "$m" > "$stage/modinfo.$m.txt" 2>&1 || true
+        fi
+    done
+
+    # manifest
+    cat > "$stage/manifest.json" <<EOF
+{
+  "sessionName": "$QCOMLOG_INSTANCE",
+  "capturedUtc": "$ts",
+  "hostName":    "$(hostname)",
+  "kernel":      "$(uname -r)",
+  "bufferKb":    $QCOMLOG_BUFFER_KB,
+  "eventGlobs":  "$QCOMLOG_EVENT_GLOBS"
+}
+EOF
+
+    info "Resuming ring buffer"
+    echo 1 > "$d/tracing_on"
+
+    local tarball="$outdir/qcom-drivers-$ts.tar.gz"
+    info "Packaging $tarball"
+    tar -C "$outdir" -czf "$tarball" -- "$(basename "$stage")"
+    rm -rf "$stage"
+
+    chgrp qcom-diag "$tarball" 2>/dev/null || true
+    chmod 0640      "$tarball" 2>/dev/null || true
+
+    prune_old "$outdir"
+
+    printf '%s\n' "$tarball"
+}
+
+cmd__daemon_start() { ensure_instance; }
+cmd__daemon_stop()  {
+    local d; d=$(instance_dir)
+    [[ -d "$d" ]] || return 0
+    echo 0 > "$d/tracing_on" 2>/dev/null || true
+}
+cmd__reapply() { ensure_instance; }
+
+# ---------------------------- dispatch -------------------------------------
+main() {
+    local sub="${1-}"
+    shift || true
+    case "$sub" in
+        install)       cmd_install "$@" ;;
+        uninstall)     cmd_uninstall "$@" ;;
+        status)        cmd_status "$@" ;;
+        save)          cmd_save "$@" ;;
+        _daemon-start) cmd__daemon_start "$@" ;;
+        _daemon-stop)  cmd__daemon_stop "$@" ;;
+        _reapply)      cmd__reapply "$@" ;;
+        ''|help|-h|--help)
+            sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+            ;;
+        *) die "unknown subcommand: $sub (try: qcomlog help)" ;;
+    esac
+}
+
+main "$@"

@@ -1,0 +1,31 @@
+#
+# qcomlogd.service
+#
+# Provisions the always-on Qcom driver ftrace ring buffer at boot.
+#
+# Install with:
+#   sudo ./qcomlog install
+# or manually:
+#   sudo cp qcomlogd.service /etc/systemd/system/
+#   sudo cp qcomlog          /usr/local/sbin/
+#   sudo mkdir -p /etc/qcomlog && sudo cp qcomlog.conf /etc/qcomlog/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now qcomlogd.service
+#
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+# SPDX-License-Identifier: BSD-3-Clause
+#
+[Unit]
+Description=Qcom driver always-on ftrace ring buffer
+After=sys-kernel-tracing.mount systemd-modules-load.service
+ConditionPathIsMountPoint=/sys/kernel/tracing
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=/etc/qcomlog/qcomlog.conf
+ExecStart=/usr/local/sbin/qcomlog _daemon-start
+ExecStop=/usr/local/sbin/qcomlog _daemon-stop
+
+[Install]
+WantedBy=multi-user.target
