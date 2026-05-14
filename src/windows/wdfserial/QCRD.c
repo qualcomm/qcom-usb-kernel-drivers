@@ -562,7 +562,8 @@ void QCRD_ReadRequestHandlerThread
                 // and a request is pending in the timeout queue. This resets the
                 // inter-byte gap timer so the request completes only after the
                 // device stops sending data for ReadIntervalTimeout milliseconds.
-                if (pDevContext->ReadTimeout.bUseReadInterval &&
+                if (bDeviceAwaken &&
+                    pDevContext->ReadTimeout.bUseReadInterval &&
                     !QCUTIL_IsIoQueueEmpty(pDevContext->TimeoutReadQueue) &&
                     pDevContext->Timeouts.ReadIntervalTimeout > 0)
                 {
