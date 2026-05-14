@@ -492,7 +492,8 @@ NTSTATUS QCFilterSetFriendlyName
 (
     PDEVICE_EXTENSION pDevExt,
     PDEVICE_OBJECT    QCPhysicalDeviceObject,
-    PUNICODE_STRING   FriendlyName
+    PUNICODE_STRING   FriendlyName,
+    PWCHAR            TargetDriverKey
 );
 
 #ifdef EVENT_TRACING
