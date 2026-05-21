@@ -166,17 +166,6 @@ NTSTATUS QCPNP_PostVendorRegistryProcess
     PDEVICE_CONTEXT pDevContext
 );
 
-BOOLEAN QCUTIL_IsHighSpeedDevice
-(
-    PDEVICE_CONTEXT pDevContext
-);
-
-//Empty Functions to support QCPNP_RetrieveServiceConfig
-BOOLEAN QCUTIL_IsHighSpeedDevice
-(
-    PDEVICE_CONTEXT pDevContext
-);
-
 VOID QCPWR_SyncUpWaitWake
 (
     PDEVICE_CONTEXT pDevContext

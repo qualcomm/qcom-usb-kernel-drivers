@@ -3849,15 +3849,6 @@ VOID QCPNP_RetrieveServiceConfig(PDEVICE_CONTEXT pDevContext)
 
     if (status == STATUS_SUCCESS)
     {
-        if (QCUTIL_IsHighSpeedDevice(pDevContext) == TRUE)
-        {
-            pDevContext->InServiceSelectiveSuspension = TRUE;
-        }
-        else
-        {
-            pDevContext->InServiceSelectiveSuspension = ((selectiveSuspendIdleTime >> 31) != 0);
-        }
-
         selectiveSuspendInMili = selectiveSuspendIdleTime & 0x40000000;
 
         selectiveSuspendIdleTime &= 0x00FFFFFF;
@@ -3895,13 +3886,10 @@ VOID QCPNP_RetrieveServiceConfig(PDEVICE_CONTEXT pDevContext)
             (
                 QCSER_DBG_MASK_READ,
                 QCSER_DBG_LEVEL_ERROR,
-                ("<%ws> QCPNP_RetrieveServiceConfig: new selective suspend idle time=%us(%u)\n",
-                pDevContext->PortName, selectiveSuspendIdleTime,
-                pDevContext->InServiceSelectiveSuspension)
+                ("<%ws> QCPNP_RetrieveServiceConfig: new selective suspend idle time=%us\n",
+                pDevContext->PortName, selectiveSuspendIdleTime)
             );
             pDevContext->SelectiveSuspendIdleTime = selectiveSuspendIdleTime;
-            QCPWR_SyncUpWaitWake(pDevContext);
-            QCPWR_SetIdleTimer(pDevContext, 0, FALSE, 8);
         }
     }
     else
@@ -3935,65 +3923,6 @@ exit:
 
     return;
 }  // QCPNP_RetrieveServiceConfig
-
-/****************************************************************************
- *
- * function: QCUTIL_IsHighSpeedDevice
- *
- * purpose:  Stub function. Returns FALSE to indicate the device is not a
- *           high-speed USB device in this implementation.
- *
- * arguments:pDevContext = pointer to the device context.
- *
- * returns:  BOOLEAN (always FALSE)
- *
- ****************************************************************************/
-//Empty Functions to support QCPNP_RetrieveServiceConfig
-BOOLEAN QCUTIL_IsHighSpeedDevice(PDEVICE_CONTEXT pDevContext)
-{
-    UNREFERENCED_PARAMETER(pDevContext);
-    return 0;
-}  // QCUTIL_IsHighSpeedDevice
-
-/****************************************************************************
- *
- * function: QCPWR_SyncUpWaitWake
- *
- * purpose:  Stub function. Placeholder for synchronizing wait/wake power
- *           management state.
- *
- * arguments:pDevContext = pointer to the device context.
- *
- * returns:  VOID
- *
- ****************************************************************************/
-VOID QCPWR_SyncUpWaitWake(PDEVICE_CONTEXT pDevContext)
-{
-    UNREFERENCED_PARAMETER(pDevContext);
-}
-
-/****************************************************************************
- *
- * function: QCPWR_SetIdleTimer
- *
- * purpose:  Stub function. Placeholder for setting the selective suspend
- *           idle timer.
- *
- * arguments:pDevContext = pointer to the device context.
- *           BusyMask    = bitmask indicating busy state sources.
- *           NoReset     = if TRUE, do not reset the timer.
- *           Cookie      = caller identifier for debug purposes.
- *
- * returns:  VOID
- *
- ****************************************************************************/
-VOID QCPWR_SetIdleTimer(PDEVICE_CONTEXT pDevContext, UCHAR BusyMask, BOOLEAN NoReset, UCHAR Cookie)
-{
-    UNREFERENCED_PARAMETER(pDevContext);
-    UNREFERENCED_PARAMETER(BusyMask);
-    UNREFERENCED_PARAMETER(NoReset);
-    UNREFERENCED_PARAMETER(Cookie);
-}
 
 /****************************************************************************
  *

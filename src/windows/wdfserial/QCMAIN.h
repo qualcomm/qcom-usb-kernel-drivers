@@ -258,7 +258,6 @@ typedef struct _DEVICE_CONTEXT
 #endif // QCUSB_MUX_PROTOCOL
 
     //QCPNP_RetrieveServiceConfig
-    BOOLEAN                   InServiceSelectiveSuspension;
     ULONG                     SelectiveSuspendIdleTime;
     BOOLEAN                   SelectiveSuspendInMiliSeconds;
     WDF_POWER_POLICY_S0_IDLE_CAPABILITIES AssignedIdleCaps;
