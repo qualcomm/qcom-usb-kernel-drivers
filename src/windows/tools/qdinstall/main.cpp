@@ -5,7 +5,8 @@
 #include "registry.h"
 #include "../../qcversion.h"
 
-constexpr const wchar_t *COMMAND_QDCLR = L"qdclr.exe";
+constexpr const wchar_t *PATH_QDCLR    = L".\\qdclr.exe";
+constexpr const wchar_t *PATH_WWANSVC  = L".\\tools\\qcmtusvc.exe";
 #ifdef _WIN64
 constexpr const wchar_t *COMMAND_PNPUTIL_MAIN = L"pnputil /add-driver \"";
 #else
@@ -63,7 +64,7 @@ DWORD install_drivers()
 {
     // Clean old drivers (best effort — ignore errors from qdclr)
     printf("\nRemoving old drivers ...\n");
-    execute_command(COMMAND_QDCLR);
+    execute_command(PATH_QDCLR);
 
     // Find and install each .inf in current directory
     DWORD ret = ERROR_SUCCESS;
@@ -98,7 +99,7 @@ DWORD install_drivers()
 DWORD uninstall_drivers()
 {
     printf("Removing drivers ...\n");
-    DWORD ret = execute_command(COMMAND_QDCLR);
+    DWORD ret = execute_command(PATH_QDCLR);
 
     if (ret == ERROR_FILE_NOT_FOUND)
     {
@@ -264,6 +265,15 @@ int wmain(int argc, wchar_t *argv[])
             return ret;
         }
 
+        // Register and start WWAN service (best effort)
+        if (GetFileAttributesW(PATH_WWANSVC) != INVALID_FILE_ATTRIBUTES)
+        {
+            printf("\nRegistering WWAN service ...\n");
+            execute_command(std::wstring(PATH_WWANSVC) + L" install");
+            printf("Starting WWAN service ...\n");
+            execute_command(L"net start qcmtusvc");
+        }
+
         if (!opts.installationPath.empty())
         {
             InstallationInfo info;
@@ -286,6 +296,15 @@ int wmain(int argc, wchar_t *argv[])
     }
     else if (opts.uninstall)
     {
+        // Stop and unregister WWAN service before driver removal
+        if (GetFileAttributesW(PATH_WWANSVC) != INVALID_FILE_ATTRIBUTES)
+        {
+            printf("Stopping WWAN service ...\n");
+            execute_command(L"net stop qcmtusvc");
+            printf("Unregistering WWAN service ...\n");
+            execute_command(std::wstring(PATH_WWANSVC) + L" uninstall");
+        }
+
         ret = uninstall_drivers();
         if (ret != ERROR_SUCCESS && ret != ERROR_FILE_NOT_FOUND)
         {
