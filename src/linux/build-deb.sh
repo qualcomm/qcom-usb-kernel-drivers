@@ -175,7 +175,11 @@ Description: $DESCRIPTION
 EOF
 chmod 0644 "$BUILDROOT/DEBIAN/control"
 
-# Create DEBIAN/preinst - reset log file
+# Create DEBIAN/preinst - uninstall any qpm-cli QUD, then reset the build dir
+# NOTE [QUD-1886]: qpm-cli uninstall MUST run here (preinst), before dpkg extracts
+# the package payload.  If it runs in postinst the qpm-cli uninstall removes the
+# freshly-extracted files (including qcom_drivers.sh), causing the first
+# "sudo dpkg -i" to fail with "qcom_drivers.sh not found or not executable".
 cat > "$BUILDROOT/DEBIAN/preinst" <<EOF
 #!/usr/bin/env bash
 set -e
@@ -186,17 +190,54 @@ LOG_FILE="\$INSTALL_ROOT/qcom_kernel_install.log"
 
 mkdir -p "\$INSTALL_ROOT" || true
 
-# Remove any previous extracted build folder so we start fresh
-if [ -d "\$INSTALL_PREFIX" ]; then
-  rm -rf "\$INSTALL_PREFIX" || true
-fi
-mkdir -p "\$INSTALL_PREFIX" || true
-
 if [ -e "\$LOG_FILE" ]; then
   rm -f "\$LOG_FILE" || true
 fi
 touch "\$LOG_FILE" || true
 chmod 0644 "\$LOG_FILE" || true
+
+# Uninstall any QUD driver previously installed via qpm-cli BEFORE dpkg extracts
+# the new payload.  Running this in postinst (as was done before QUD-1886 fix)
+# caused qpm-cli to delete the freshly-extracted qcom_drivers.sh, making the
+# first dpkg install silently incomplete.
+{
+  echo ""
+  echo "=================================================================="
+  echo "[QUD] qpm-cli QUD uninstall (qud.internal / qud / qud.slt)"
+  echo "=================================================================="
+} >> "\$LOG_FILE" 2>&1
+if command -v qpm-cli >/dev/null 2>&1; then
+  QUD_INTERNAL_VERSION="\$(qpm-cli --info qud.internal 2>/dev/null | grep "Installed" | awk '{printf \$4}')"
+  QUD_EXTERNAL_VERSION="\$(qpm-cli --info qud 2>/dev/null | grep "Installed" | awk '{printf \$4}')"
+  QUD_SLT_VERSION="\$(qpm-cli --info qud.slt 2>/dev/null | grep "Installed" | awk '{printf \$4}')"
+
+  if [ -n "\$QUD_INTERNAL_VERSION" ] || [ -n "\$QUD_EXTERNAL_VERSION" ] || [ -n "\$QUD_SLT_VERSION" ]; then
+    if [ -n "\$QUD_INTERNAL_VERSION" ]; then
+      echo "[QUD] Uninstalling qud.internal (\$QUD_INTERNAL_VERSION) via qpm-cli..." >> "\$LOG_FILE" 2>&1
+      qpm-cli --uninstall qud.internal --silent --force >> "\$LOG_FILE" 2>&1 || true
+    fi
+    if [ -n "\$QUD_EXTERNAL_VERSION" ]; then
+      echo "[QUD] Uninstalling qud (\$QUD_EXTERNAL_VERSION) via qpm-cli..." >> "\$LOG_FILE" 2>&1
+      qpm-cli --uninstall qud --silent --force >> "\$LOG_FILE" 2>&1 || true
+    fi
+    if [ -n "\$QUD_SLT_VERSION" ]; then
+      echo "[QUD] Uninstalling qud.slt (\$QUD_SLT_VERSION) via qpm-cli..." >> "\$LOG_FILE" 2>&1
+      qpm-cli --uninstall qud.slt --silent --force >> "\$LOG_FILE" 2>&1 || true
+    fi
+  else
+    echo "[QUD] No qpm-cli QUD installation found, nothing to uninstall." >> "\$LOG_FILE" 2>&1
+  fi
+else
+  echo "[QUD] qpm-cli not available, skipping qpm-cli QUD uninstall." >> "\$LOG_FILE" 2>&1
+fi
+
+# Remove any previous extracted build folder so we start fresh.
+# This runs AFTER qpm-cli uninstall so qpm-cli has already cleaned up its own
+# files; dpkg will then extract the new payload into a clean directory.
+if [ -d "\$INSTALL_PREFIX" ]; then
+  rm -rf "\$INSTALL_PREFIX" || true
+fi
+mkdir -p "\$INSTALL_PREFIX" || true
 
 exit 0
 EOF
@@ -270,32 +311,10 @@ if [ -n "\$USERSPACE_DPKG_TAIL" ]; then
   printf '%s\n' "\$USERSPACE_DPKG_TAIL" | sed 's/^/[dpkg logs] /' >> "\$LOG_FILE" 2>&1
 fi
 
-# Uninstall any QUD driver previously installed via qpm-cli
-LOG_HEADER "qpm-cli QUD uninstall (qud.internal / qud / qud.slt)"
-if command -v qpm-cli >/dev/null 2>&1; then
-  QUD_INTERNAL_VERSION="\$(qpm-cli --info qud.internal 2>/dev/null | grep "Installed" | awk '{printf \$4}')"
-  QUD_EXTERNAL_VERSION="\$(qpm-cli --info qud 2>/dev/null | grep "Installed" | awk '{printf \$4}')"
-  QUD_SLT_VERSION="\$(qpm-cli --info qud.slt 2>/dev/null | grep "Installed" | awk '{printf \$4}')"
-
-  if [ -n "\$QUD_INTERNAL_VERSION" ] || [ -n "\$QUD_EXTERNAL_VERSION" ] || [ -n "\$QUD_SLT_VERSION" ]; then
-    if [ -n "\$QUD_INTERNAL_VERSION" ]; then
-      echo "[QUD] Uninstalling qud.internal (\$QUD_INTERNAL_VERSION) via qpm-cli..." >> "\$LOG_FILE" 2>&1
-      qpm-cli --uninstall qud.internal --silent --force >> "\$LOG_FILE" 2>&1 || true
-    fi
-    if [ -n "\$QUD_EXTERNAL_VERSION" ]; then
-      echo "[QUD] Uninstalling qud (\$QUD_EXTERNAL_VERSION) via qpm-cli..." >> "\$LOG_FILE" 2>&1
-      qpm-cli --uninstall qud --silent --force >> "\$LOG_FILE" 2>&1 || true
-    fi
-    if [ -n "\$QUD_SLT_VERSION" ]; then
-      echo "[QUD] Uninstalling qud.slt (\$QUD_SLT_VERSION) via qpm-cli..." >> "\$LOG_FILE" 2>&1
-      qpm-cli --uninstall qud.slt --silent --force >> "\$LOG_FILE" 2>&1 || true
-    fi
-  else
-    echo "The User hasn't installed QUD driver via qpm-cli" >> "\$LOG_FILE" 2>&1
-  fi
-else
-  echo "[QUD] qpm-cli not available, skipping qpm-cli QUD uninstall." >> "\$LOG_FILE" 2>&1
-fi
+# qpm-cli uninstall was moved to preinst (QUD-1886 fix) so it runs before dpkg
+# extracts the package payload.  postinst no longer needs to do it.
+LOG_HEADER "qpm-cli QUD uninstall"
+echo "[QUD] qpm-cli uninstall was already performed in preinst (before payload extraction)." >> "\$LOG_FILE" 2>&1
 
 LOG_HEADER "Legacy QUD cleanup"
 if [ -x "\$INSTALL_PREFIX/legacy/installer/QcDevDriver.sh" ]; then
