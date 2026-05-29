@@ -1,0 +1,389 @@
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+# SPDX-License-Identifier: BSD-3-Clause
+
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      linux_version:
+        description: >
+          Linux driver version to release (e.g. 1.0.6.5).
+          Leave empty to skip the Linux release.
+        required: false
+        type: string
+        default: ''
+      windows_version:
+        description: >
+          Windows driver version to release (e.g. 1.00.94.6).
+          Leave empty to skip the Windows release.
+        required: false
+        type: string
+        default: ''
+      base_branch:
+        description: 'Base branch to cut the release from'
+        required: false
+        type: string
+        default: 'main'
+      release_notes:
+        description: 'Release notes (Markdown). Defaults to auto-generated notes.'
+        required: false
+        type: string
+        default: ''
+      draft:
+        description: 'Create as draft release (publish manually afterwards)'
+        required: false
+        type: boolean
+        default: false
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Shared helpers
+# ─────────────────────────────────────────────────────────────────────────────
+env:
+  GIT_AUTHOR_NAME: github-actions[bot]
+  GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+  GIT_COMMITTER_NAME: github-actions[bot]
+  GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
+
+jobs:
+  # ───────────────────────────────────────────────────────────────────────────
+  # Validate inputs before doing any real work
+  # ───────────────────────────────────────────────────────────────────────────
+  validate:
+    name: Validate inputs
+    runs-on: ubuntu-latest
+    outputs:
+      do_linux: ${{ steps.check.outputs.do_linux }}
+      do_windows: ${{ steps.check.outputs.do_windows }}
+    steps:
+      - name: Check that at least one version was supplied
+        id: check
+        run: |
+          LNX="${{ inputs.linux_version }}"
+          WIN="${{ inputs.windows_version }}"
+
+          if [ -z "$LNX" ] && [ -z "$WIN" ]; then
+            echo "ERROR: At least one of linux_version or windows_version must be provided."
+            exit 1
+          fi
+
+          # Validate Linux version format  X.X.X.X
+          if [ -n "$LNX" ]; then
+            if ! echo "$LNX" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "ERROR: linux_version '$LNX' does not match expected format X.X.X.X"
+              exit 1
+            fi
+            echo "do_linux=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "do_linux=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Validate Windows version format  X.XX.XX.X
+          if [ -n "$WIN" ]; then
+            if ! echo "$WIN" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "ERROR: windows_version '$WIN' does not match expected format X.XX.XX.X"
+              exit 1
+            fi
+            echo "do_windows=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "do_windows=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Linux release
+  # ───────────────────────────────────────────────────────────────────────────
+  release-linux:
+    name: Linux release ${{ inputs.linux_version }}
+    needs: validate
+    if: needs.validate.outputs.do_linux == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "$GIT_AUTHOR_NAME"
+          git config user.email "$GIT_AUTHOR_EMAIL"
+
+      # ── 1. Create release branch ──────────────────────────────────────────
+      - name: Create release branch
+        id: branch
+        run: |
+          VERSION="${{ inputs.linux_version }}"
+          BRANCH="release-lnx-${VERSION}"
+
+          if git ls-remote --exit-code --heads origin "refs/heads/${BRANCH}" >/dev/null 2>&1; then
+            echo "ERROR: Branch '${BRANCH}' already exists on remote."
+            exit 1
+          fi
+
+          git checkout -b "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      # ── 2. Bump version in version.h ──────────────────────────────────────
+      - name: Update src/linux/version.h
+        run: |
+          VERSION="${{ inputs.linux_version }}"
+          FILE="src/linux/version.h"
+
+          sed -i "s/#define DRIVER_VERSION \".*\"/#define DRIVER_VERSION \"${VERSION}\"/" "$FILE"
+
+          echo "Updated $FILE:"
+          cat "$FILE"
+
+          # Verify the change landed
+          grep -q "\"${VERSION}\"" "$FILE" || \
+            { echo "ERROR: version.h was not updated correctly"; exit 1; }
+
+      # ── 3. Commit & push release branch ───────────────────────────────────
+      - name: Commit version bump
+        run: |
+          VERSION="${{ inputs.linux_version }}"
+          git add src/linux/version.h
+          git commit -m "Update Linux driver version to ${VERSION}"
+
+      - name: Push release branch
+        run: |
+          git push origin "${{ steps.branch.outputs.branch }}"
+
+      # ── 4. Build .deb package ─────────────────────────────────────────────
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends dpkg-dev
+
+      - name: Build deb package
+        run: |
+          cd src/linux
+          bash build-deb.sh
+          echo "Build output:"
+          ls -lh build/
+
+      # ── 5. Package release artifact ───────────────────────────────────────
+      - name: Create release zip
+        id: zip
+        run: |
+          VERSION="${{ inputs.linux_version }}"
+          DIR_NAME="qud_${VERSION}_all"
+          ZIP_NAME="${DIR_NAME}.zip"
+          DEB_FILE="src/linux/build/qud_${VERSION}_all.deb"
+
+          if [ ! -f "$DEB_FILE" ]; then
+            echo "ERROR: Expected deb not found: $DEB_FILE"
+            ls src/linux/build/ || true
+            exit 1
+          fi
+
+          mkdir -p "release_staging/${DIR_NAME}"
+          cp "$DEB_FILE"              "release_staging/${DIR_NAME}/"
+          cp "src/linux/RELEASES.md"  "release_staging/${DIR_NAME}/"
+
+          # Prefer src/linux/README.md, fall back to repo root README.md
+          if [ -f "src/linux/README.md" ]; then
+            cp "src/linux/README.md" "release_staging/${DIR_NAME}/"
+          elif [ -f "README.md" ]; then
+            cp "README.md" "release_staging/${DIR_NAME}/"
+          fi
+
+          (cd release_staging && zip -r "../${ZIP_NAME}" "${DIR_NAME}/")
+
+          echo "zip_name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
+          echo "zip_path=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
+          echo "Release zip contents:"
+          unzip -l "$ZIP_NAME"
+
+      # ── 6. Create tag ─────────────────────────────────────────────────────
+      - name: Create and push tag
+        id: tag
+        run: |
+          VERSION="${{ inputs.linux_version }}"
+          TAG="release-lnx-v${VERSION}"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "ERROR: Tag '${TAG}' already exists on remote."
+            exit 1
+          fi
+
+          git tag -a "$TAG" -m "Linux release v${VERSION}"
+          git push origin "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      # ── 7. Create GitHub release ──────────────────────────────────────────
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ inputs.linux_version }}"
+          TAG="${{ steps.tag.outputs.tag }}"
+          NOTES="${{ inputs.release_notes }}"
+
+          if [ -z "$NOTES" ]; then
+            NOTES="## Linux driver release v${VERSION}
+
+          Built from branch \`${{ steps.branch.outputs.branch }}\`.
+
+          ### Installation
+          \`\`\`bash
+          sudo dpkg -i qud_${VERSION}_all.deb
+          \`\`\`
+
+          ### Uninstall
+          \`\`\`bash
+          sudo dpkg -r qud
+          \`\`\`"
+          fi
+
+          DRAFT_FLAG=""
+          if [ "${{ inputs.draft }}" = "true" ]; then
+            DRAFT_FLAG="--draft"
+          fi
+
+          gh release create "$TAG" \
+            "${{ steps.zip.outputs.zip_path }}" \
+            --title "$TAG" \
+            --notes "$NOTES" \
+            $DRAFT_FLAG
+
+          echo "✅ Linux release created: $TAG"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Windows release
+  #
+  # NOTE: Building signed Windows kernel drivers requires Visual Studio +
+  # Windows Driver Kit (WDK) and a code-signing certificate — tooling that is
+  # not available on standard GitHub-hosted runners.
+  #
+  # This job therefore:
+  #   1. Creates the release branch and bumps the version.
+  #   2. Creates the annotated tag.
+  #   3. Opens a DRAFT GitHub release so that the signed build artifacts
+  #      (produced by your internal Windows build pipeline) can be attached
+  #      before the release is published.
+  #
+  # To build locally:  .\build\build_drivers.ps1  (requires VS + WDK)
+  # ───────────────────────────────────────────────────────────────────────────
+  release-windows:
+    name: Windows release ${{ inputs.windows_version }}
+    needs: validate
+    if: needs.validate.outputs.do_windows == 'true'
+    runs-on: ubuntu-latest   # branch/tag/release work; no WDK needed here
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name  "$GIT_AUTHOR_NAME"
+          git config user.email "$GIT_AUTHOR_EMAIL"
+
+      # ── 1. Create release branch ──────────────────────────────────────────
+      - name: Create release branch
+        id: branch
+        run: |
+          VERSION="${{ inputs.windows_version }}"
+          BRANCH="release-win-${VERSION}"
+
+          if git ls-remote --exit-code --heads origin "refs/heads/${BRANCH}" >/dev/null 2>&1; then
+            echo "ERROR: Branch '${BRANCH}' already exists on remote."
+            exit 1
+          fi
+
+          git checkout -b "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      # ── 2. Bump version in qcversion.h ────────────────────────────────────
+      - name: Update src/windows/qcversion.h
+        run: |
+          VERSION="${{ inputs.windows_version }}"
+          # Convert dot-separated version to comma-separated for FILE_VERSION macros
+          VERSION_COMMA="${VERSION//./, }"
+          # Also produce the compact comma form used in the header (no spaces)
+          VERSION_COMMA_COMPACT="${VERSION//./ }"
+          VERSION_COMMA_COMPACT="${VERSION_COMMA_COMPACT// /,}"
+
+          FILE="src/windows/qcversion.h"
+
+          # Update QCOM_USB_DRIVERS_PRODUCT_VERSION  (bare version, no quotes)
+          sed -i "s/\(#define QCOM_USB_DRIVERS_PRODUCT_VERSION\s\+\)[^ ]*/\1${VERSION}/" "$FILE"
+
+          # Update QCOM_USB_DRIVERS_FILE_VERSION  (comma-separated)
+          sed -i "s/\(#define QCOM_USB_DRIVERS_FILE_VERSION\s\+\)[^[:space:]]*/\1${VERSION_COMMA_COMPACT}/" "$FILE"
+
+          echo "Updated $FILE (relevant lines):"
+          grep -E "QCOM_USB_DRIVERS_(PRODUCT|FILE)_VERSION\b" "$FILE"
+
+          # Verify
+          grep -q "QCOM_USB_DRIVERS_PRODUCT_VERSION ${VERSION}" "$FILE" || \
+            { echo "ERROR: PRODUCT_VERSION was not updated correctly"; exit 1; }
+
+      # ── 3. Commit & push release branch ───────────────────────────────────
+      - name: Commit version bump
+        run: |
+          VERSION="${{ inputs.windows_version }}"
+          git add src/windows/qcversion.h
+          git commit -m "Update Windows driver version to ${VERSION}"
+
+      - name: Push release branch
+        run: |
+          git push origin "${{ steps.branch.outputs.branch }}"
+
+      # ── 4. Create tag ─────────────────────────────────────────────────────
+      - name: Create and push tag
+        id: tag
+        run: |
+          VERSION="${{ inputs.windows_version }}"
+          TAG="release-win-v${VERSION}"
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "ERROR: Tag '${TAG}' already exists on remote."
+            exit 1
+          fi
+
+          git tag -a "$TAG" -m "Windows release v${VERSION}"
+          git push origin "$TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      # ── 5. Create draft GitHub release ────────────────────────────────────
+      - name: Create draft GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ inputs.windows_version }}"
+          TAG="${{ steps.tag.outputs.tag }}"
+          NOTES="${{ inputs.release_notes }}"
+
+          if [ -z "$NOTES" ]; then
+            NOTES="## Windows driver release v${VERSION}
+
+          Built from branch \`${{ steps.branch.outputs.branch }}\`.
+
+          > **Note:** Attach the signed build artifacts produced by the internal
+          > Windows build pipeline before publishing this release.
+          >
+          > Build locally with: \`.\build\build_drivers.ps1\` (requires Visual Studio + WDK)"
+          fi
+
+          # Windows releases always start as draft because signed artifacts
+          # must be attached by the internal build pipeline before publishing.
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes "$NOTES" \
+            --draft
+
+          echo "✅ Windows draft release created: $TAG"
+          echo "   Attach signed build artifacts and publish when ready."
