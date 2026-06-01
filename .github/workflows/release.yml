@@ -97,6 +97,7 @@ jobs:
     needs: validate
     if: needs.validate.outputs.do_linux == 'true'
     runs-on: ubuntu-latest
+    environment: release
     permissions:
       contents: write
 
@@ -316,6 +317,7 @@ jobs:
     needs: validate
     if: needs.validate.outputs.do_windows == 'true'
     runs-on: ubuntu-latest   # branch/tag/release work; no WDK needed here
+    environment: release
     permissions:
       contents: write
 
