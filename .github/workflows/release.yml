@@ -58,10 +58,10 @@ jobs:
     steps:
       - name: Check that at least one version was supplied
         id: check
+        env:
+          LNX: ${{ inputs.linux_version }}
+          WIN: ${{ inputs.windows_version }}
         run: |
-          LNX="${{ inputs.linux_version }}"
-          WIN="${{ inputs.windows_version }}"
-
           if [ -z "$LNX" ] && [ -z "$WIN" ]; then
             echo "ERROR: At least one of linux_version or windows_version must be provided."
             exit 1
@@ -116,8 +116,9 @@ jobs:
       # ── 1. Create release branch ──────────────────────────────────────────
       - name: Create release branch
         id: branch
+        env:
+          VERSION: ${{ inputs.linux_version }}
         run: |
-          VERSION="${{ inputs.linux_version }}"
           BRANCH="release-lnx-${VERSION}"
 
           if git ls-remote --exit-code --heads origin "refs/heads/${BRANCH}" >/dev/null 2>&1; then
@@ -130,8 +131,9 @@ jobs:
 
       # ── 2. Bump version in version.h ──────────────────────────────────────
       - name: Update src/linux/version.h
+        env:
+          VERSION: ${{ inputs.linux_version }}
         run: |
-          VERSION="${{ inputs.linux_version }}"
           FILE="src/linux/version.h"
 
           sed -i "s/#define DRIVER_VERSION \".*\"/#define DRIVER_VERSION \"${VERSION}\"/" "$FILE"
@@ -145,14 +147,17 @@ jobs:
 
       # ── 3. Commit & push release branch ───────────────────────────────────
       - name: Commit version bump
+        env:
+          VERSION: ${{ inputs.linux_version }}
         run: |
-          VERSION="${{ inputs.linux_version }}"
           git add src/linux/version.h
           git commit -m "Update Linux driver version to ${VERSION}"
 
       - name: Push release branch
+        env:
+          BRANCH: ${{ steps.branch.outputs.branch }}
         run: |
-          git push origin "${{ steps.branch.outputs.branch }}"
+          git push origin "$BRANCH"
 
       # ── 4. Build .deb package ─────────────────────────────────────────────
       - name: Install build dependencies
@@ -170,8 +175,9 @@ jobs:
       # ── 5. Package release artifact ───────────────────────────────────────
       - name: Create release zip
         id: zip
+        env:
+          VERSION: ${{ inputs.linux_version }}
         run: |
-          VERSION="${{ inputs.linux_version }}"
           DIR_NAME="qud_${VERSION}_all"
           ZIP_NAME="${DIR_NAME}.zip"
           DEB_FILE="src/linux/build/qud_${VERSION}_all.deb"
@@ -203,8 +209,9 @@ jobs:
       # ── 6. Create tag ─────────────────────────────────────────────────────
       - name: Create and push tag
         id: tag
+        env:
+          VERSION: ${{ inputs.linux_version }}
         run: |
-          VERSION="${{ inputs.linux_version }}"
           TAG="release-lnx-v${VERSION}"
 
           if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
@@ -220,34 +227,38 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.linux_version }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+          IS_DRAFT: ${{ inputs.draft }}
+          ZIP_PATH: ${{ steps.zip.outputs.zip_path }}
         run: |
-          VERSION="${{ inputs.linux_version }}"
-          TAG="${{ steps.tag.outputs.tag }}"
-          NOTES="${{ inputs.release_notes }}"
+          NOTES="$RELEASE_NOTES"
 
           if [ -z "$NOTES" ]; then
             NOTES="## Linux driver release v${VERSION}
 
-          Built from branch \`${{ steps.branch.outputs.branch }}\`.
+Built from branch \`${BRANCH}\`.
 
-          ### Installation
-          \`\`\`bash
-          sudo dpkg -i qud_${VERSION}_all.deb
-          \`\`\`
+### Installation
+\`\`\`bash
+sudo dpkg -i qud_${VERSION}_all.deb
+\`\`\`
 
-          ### Uninstall
-          \`\`\`bash
-          sudo dpkg -r qud
-          \`\`\`"
+### Uninstall
+\`\`\`bash
+sudo dpkg -r qud
+\`\`\`"
           fi
 
           DRAFT_FLAG=""
-          if [ "${{ inputs.draft }}" = "true" ]; then
+          if [ "$IS_DRAFT" = "true" ]; then
             DRAFT_FLAG="--draft"
           fi
 
           gh release create "$TAG" \
-            "${{ steps.zip.outputs.zip_path }}" \
+            "$ZIP_PATH" \
             --title "$TAG" \
             --notes "$NOTES" \
             $DRAFT_FLAG
@@ -294,8 +305,9 @@ jobs:
       # ── 1. Create release branch ──────────────────────────────────────────
       - name: Create release branch
         id: branch
+        env:
+          VERSION: ${{ inputs.windows_version }}
         run: |
-          VERSION="${{ inputs.windows_version }}"
           BRANCH="release-win-${VERSION}"
 
           if git ls-remote --exit-code --heads origin "refs/heads/${BRANCH}" >/dev/null 2>&1; then
@@ -308,8 +320,9 @@ jobs:
 
       # ── 2. Bump version in qcversion.h ────────────────────────────────────
       - name: Update src/windows/qcversion.h
+        env:
+          VERSION: ${{ inputs.windows_version }}
         run: |
-          VERSION="${{ inputs.windows_version }}"
           # Convert dot-separated version to comma-separated for FILE_VERSION macros
           VERSION_COMMA="${VERSION//./, }"
           # Also produce the compact comma form used in the header (no spaces)
@@ -333,20 +346,24 @@ jobs:
 
       # ── 3. Commit & push release branch ───────────────────────────────────
       - name: Commit version bump
+        env:
+          VERSION: ${{ inputs.windows_version }}
         run: |
-          VERSION="${{ inputs.windows_version }}"
           git add src/windows/qcversion.h
           git commit -m "Update Windows driver version to ${VERSION}"
 
       - name: Push release branch
+        env:
+          BRANCH: ${{ steps.branch.outputs.branch }}
         run: |
-          git push origin "${{ steps.branch.outputs.branch }}"
+          git push origin "$BRANCH"
 
       # ── 4. Create tag ─────────────────────────────────────────────────────
       - name: Create and push tag
         id: tag
+        env:
+          VERSION: ${{ inputs.windows_version }}
         run: |
-          VERSION="${{ inputs.windows_version }}"
           TAG="release-win-v${VERSION}"
 
           if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
@@ -362,20 +379,22 @@ jobs:
       - name: Create draft GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.windows_version }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
         run: |
-          VERSION="${{ inputs.windows_version }}"
-          TAG="${{ steps.tag.outputs.tag }}"
-          NOTES="${{ inputs.release_notes }}"
+          NOTES="$RELEASE_NOTES"
 
           if [ -z "$NOTES" ]; then
             NOTES="## Windows driver release v${VERSION}
 
-          Built from branch \`${{ steps.branch.outputs.branch }}\`.
+Built from branch \`${BRANCH}\`.
 
-          > **Note:** Attach the signed build artifacts produced by the internal
-          > Windows build pipeline before publishing this release.
-          >
-          > Build locally with: \`.\build\build_drivers.ps1\` (requires Visual Studio + WDK)"
+> **Note:** Attach the signed build artifacts produced by the internal
+> Windows build pipeline before publishing this release.
+>
+> Build locally with: \`.\build\build_drivers.ps1\` (requires Visual Studio + WDK)"
           fi
 
           # Windows releases always start as draft because signed artifacts
