@@ -13,9 +13,9 @@ param(
 
 $Script:VSWhereExe = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
 
-$Script:SourceRoot = "..\src\windows"  # Windows source directory, update when build folder moves
-$Script:OutputRoot = "target"           # Directory for all output by default
-$Script:ToolsDir   = "Tools"
+$Script:SourceRoot = "..\src\windows"  # Windows driver source directory
+$Script:OutputRoot = "target"          # Directory for all output by default
+$Script:ToolsDir   = "tools"           # Directory for all tools build output
 
 # Build configuration
 $Script:BuildConfiguration = "Release"
@@ -245,10 +245,6 @@ function Main {
     }
 
     # --- Summary ---
-    Write-Host "========================================"
-    Write-Host " Summary"
-    Write-Host "========================================`n"
-
     Write-Host "[OK] $successCount/$($ToolProjects.Count) tool(s) built successfully." -ForegroundColor Green
     Write-Host "[INFO] Output: $toolsOutputDir"
     Write-Host ""
