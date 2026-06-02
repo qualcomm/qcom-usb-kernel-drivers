@@ -53,10 +53,6 @@ $Script:WDKTools = @{
     "signtool.exe"  = $null
 }
 
-# Test signing (signtool) configuration
-$Script:EnableTestSign   = $false
-$Script:TestCertName     = "KmdfDriverTestCert"
-
 # Resolves a path to an absolute path.
 function Resolve-ScriptPath {
     param([Parameter(Mandatory)][string]$Path)
@@ -455,108 +451,6 @@ function Copy-DriverOutputs {
 }
 
 # ==============================================================================
-# Functions - Local Test Signing
-# ==============================================================================
-
-# Signs a single file using signtool.exe. Supports .cer or thumbprint.
-function Sign-File {
-    param(
-        [Parameter(Mandatory)][string]$FilePath,
-        [Parameter(Mandatory)][string]$Certificate
-    )
-
-    $signtool = $Script:WDKTools["signtool.exe"]
-    if (-not $signtool) {
-        Write-Host "[ERROR] signtool.exe not available." -ForegroundColor Red
-        return $false
-    }
-
-    $FilePath = Resolve-ScriptPath $FilePath
-    if (-not (Test-Path $FilePath)) {
-        Write-Host "[ERROR] File not found: $FilePath" -ForegroundColor Red
-        return $false
-    }
-
-    if ($Certificate -like "*.cer") {
-        $Certificate = Resolve-ScriptPath $Certificate
-        if (-not (Test-Path $Certificate)) {
-            Write-Host "[ERROR] Certificate file not found: $Certificate" -ForegroundColor Red
-            return $false
-        }
-        & $signtool sign /fd sha256 /f "$Certificate" "$FilePath" 2>&1 | Out-Host
-    } else {
-        & $signtool sign /fd sha256 /sha1 $Certificate /s My "$FilePath" 2>&1 | Out-Host
-    }
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] Failed to sign: $FilePath" -ForegroundColor Red
-        return $false
-    }
-
-    Write-Host "[OK] Signed: $(Split-Path $FilePath -Leaf)" -ForegroundColor Green
-    return $true
-}
-
-# Creates a temporary self-signed code-signing certificate, signs all .cat
-function Invoke-TestSign {
-    Write-Host "========================================"
-    Write-Host " Test Signing (signtool)"
-    Write-Host "========================================`n"
-
-    # --- Step 1: Validate output directory and .cat files ---
-    if (-not (Test-Path $OutputRoot)) {
-        Write-Host "[ERROR] Output directory not found: $OutputRoot" -ForegroundColor Red
-        return $false
-    }
-    $catFiles = Get-ChildItem $OutputRoot -Filter "*.cat" -File
-    if ($catFiles.Count -eq 0) {
-        Write-Host "[ERROR] No .cat files found in: $OutputRoot" -ForegroundColor Red
-        return $false
-    }
-    Write-Host "[SIGN] Found $($catFiles.Count) .cat file(s) to sign"
-    Write-Host ""
-
-    # --- Step 2: Create temporary certificate ---
-    Write-Host "[SIGN] Creating temporary test certificate..."
-    try {
-        $cert = New-SelfSignedCertificate `
-            -Type CodeSigningCert `
-            -Subject $Script:TestCertName `
-            -KeyAlgorithm RSA `
-            -KeyLength 2048 `
-            -KeyUsage DigitalSignature `
-            -CertStoreLocation "Cert:\CurrentUser\My" `
-            -NotAfter (Get-Date).AddDays(1)
-    } catch {
-        Write-Host "[ERROR] Failed to create test certificate: $($_.Exception.Message)" -ForegroundColor Red
-        return $false
-    }
-
-    $thumbprint = $cert.Thumbprint
-    Write-Host "[SIGN] Certificate: $($Script:TestCertName)"
-    Write-Host "[SIGN] Thumbprint:  $thumbprint"
-    Write-Host ""
-
-    # --- Step 3: Sign all .cat files, cleanup on exit ---
-    try {
-        foreach ($cat in $catFiles) {
-            if (-not (Sign-File -FilePath $cat.FullName -Certificate $thumbprint)) {
-                return $false
-            }
-            Write-Host ""
-        }
-    } finally {
-        Write-Host "[SIGN] Cleaning up temporary certificate..."
-        Remove-Item "Cert:\CurrentUser\My\$thumbprint" -Force -ErrorAction SilentlyContinue
-        Write-Host "[SIGN] Temporary certificate removed."
-    }
-
-    Write-Host ""
-    Write-Host "[OK] All .cat files are test-signed successfully." -ForegroundColor Green
-    return $true
-}
-
-# ==============================================================================
 # Main - Entry point: validates dependencies and builds drivers.
 # ==============================================================================
 
@@ -654,17 +548,6 @@ function Main {
     }
     Write-Host ""
 
-    # --- Step 9: Test signing (optional) ---
-    if ($Script:EnableTestSign) {
-        if (-not (Invoke-TestSign)) {
-            Write-Host "[ERROR] Test signing failed." -ForegroundColor Red
-            exit 1
-        }
-    } else {
-        Write-Host "[INFO] Test signing is disabled. Skipping." -ForegroundColor Yellow
-    }
-
-    Write-Host ""
     Write-Host "[OK] All build tasks completed successfully." -ForegroundColor Green
     Write-Host "[INFO] Output Location:"
     Write-Host "[INFO] $OutputRoot"
