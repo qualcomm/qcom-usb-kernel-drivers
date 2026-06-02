@@ -10,14 +10,14 @@ param(
 
 $Script:VSWhereExe = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
 
-$Script:SourceRoot = "..\src\windows"  # Windows source directory, update when build folder moves
-$Script:OutputRoot = "target" # Directory for all output by default, use -OutputTo to override
-$Script:DriversDir = "Drivers\Windows10"
+$Script:SourceRoot = "..\src\windows"  # Windows driver source directory
+$Script:OutputRoot = "target"          # Default output directory, use -OutputTo to override
+$Script:DriversDir = "drivers"
 
 # Build configuration defaults
 $Script:BuildConfiguration = "Release"
 $Script:BuildPlatforms = @(
-    @{ Platform = "x86";   OutDir = "Win32"; CopyDir = "x86";  OSList = "10_X86" }
+    @{ Platform = "x86";   OutDir = "Win32"; CopyDir = "x86";   OSList = "10_X86" }
     @{ Platform = "x64";   OutDir = "x64";   CopyDir = "amd64"; OSList = "10_X64" }
     @{ Platform = "arm64"; OutDir = "arm64"; CopyDir = "arm64"; OSList = "10_RS4_ARM64,10_RS5_ARM64,10_19H1_ARM64,10_VB_ARM64" }
 )
@@ -43,7 +43,7 @@ $Script:InfVersionMap = @{
 # Inf2Cat OS targets (built dynamically from BuildPlatforms)
 $Script:Inf2CatOSList = ($Script:BuildPlatforms | ForEach-Object { $_.OSList }) -join ","
 
-# Tool paths (set manually or auto-detect at runtime)
+# Tool paths (auto-detect at runtime)
 $Script:MSBuildExe  = $null
 $Script:WDKRoot     = $null
 $Script:WDKVersion  = $null
@@ -52,10 +52,6 @@ $Script:WDKTools = @{
     "stampinf.exe"  = $null
     "signtool.exe"  = $null
 }
-
-# Test signing (signtool) configuration
-$Script:EnableTestSign   = $false
-$Script:TestCertName     = "KmdfDriverTestCert"
 
 # Resolves a path to an absolute path.
 function Resolve-ScriptPath {
@@ -246,7 +242,7 @@ function Build-AllDrivers {
 }
 
 # ==============================================================================
-# Functions - Inf Post-Processing
+# Functions - Post-Processing
 # ==============================================================================
 
 # Parses qcversion.h and returns a hashtable of { versionMacro, versionString }.
@@ -270,8 +266,7 @@ function Read-VersionFile {
 
     Write-Host "[VERSION] Parsed $($versions.Count) version(s) from: $FilePath"
     foreach ($key in $versions.Keys) {
-        $padded = $key.PadRight(32)
-        Write-Host "[VERSION] $padded = $($versions[$key])"
+        Write-Host "[VERSION] $($key.PadRight(32)) = $($versions[$key])"
     }
     return $versions
 }
@@ -330,9 +325,10 @@ function Run-StampInf {
         return $false
     }
 
-    $infFiles = Get-ChildItem -Path $OutputRoot -File -Filter "*.inf"
+    $destinationDir = Join-Path $OutputRoot $Script:DriversDir
+    $infFiles = Get-ChildItem -Path $destinationDir -File -Filter "*.inf"
     if (-not $infFiles) {
-        Write-Host "[WARN] No .inf files found in: $OutputRoot" -ForegroundColor Yellow
+        Write-Host "[WARN] No .inf files found in: $destinationDir" -ForegroundColor Yellow
         return $true
     }
 
@@ -369,9 +365,10 @@ function Run-Inf2Cat {
     Write-Host " OS targets: $Inf2CatOSList"
     Write-Host "========================================`n"
 
-    $infFiles = Get-ChildItem -Path $OutputRoot -File -Filter "*.inf"
+    $destinationDir = Join-Path $OutputRoot $Script:DriversDir
+    $infFiles = Get-ChildItem -Path $destinationDir -File -Filter "*.inf"
     if (-not $infFiles) {
-        Write-Host "[WARN] No .inf files found in: $OutputRoot" -ForegroundColor Yellow
+        Write-Host "[WARN] No .inf files found in: $destinationDir" -ForegroundColor Yellow
         return $false
     }
 
@@ -379,7 +376,7 @@ function Run-Inf2Cat {
         Write-Host "[INF2CAT] Found: $($inf.Name)"
     }
 
-    & $WDKTools["inf2cat.exe"] /driver:"$OutputRoot" /os:$Inf2CatOSList /uselocaltime 2>&1 | Out-Host
+    & $WDKTools["inf2cat.exe"] /driver:"$destinationDir" /os:$Inf2CatOSList /uselocaltime 2>&1 | Out-Host
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] inf2cat failed with exit code: $LASTEXITCODE" -ForegroundColor Red
         return $false
@@ -390,10 +387,6 @@ function Run-Inf2Cat {
     return $true
 }
 
-# ==============================================================================
-# Functions - Output Collection
-# ==============================================================================
-
 # Copies .sys and .pdb files from build output to the output directory.
 function Copy-DriverOutputs {
     Write-Host "========================================"
@@ -401,7 +394,8 @@ function Copy-DriverOutputs {
     Write-Host "========================================`n"
 
     $hasError = $false
-    New-Item -ItemType Directory -Path $OutputRoot -Force | Out-Null
+    $driversDir = Join-Path $OutputRoot $Script:DriversDir
+    New-Item -ItemType Directory -Path $driversDir -Force | Out-Null
 
     foreach ($project in $DriverProjects) {
         if ($project.SolutionPath) {
@@ -414,7 +408,7 @@ function Copy-DriverOutputs {
                     continue
                 }
 
-                $destDir = Join-Path $OutputRoot "$($project.Name)\$($platformInfo.CopyDir)"
+                $destDir = Join-Path $driversDir "$($project.Name)\$($platformInfo.CopyDir)"
                 if (-not (Test-Path $destDir)) {
                     New-Item -ItemType Directory -Path $destDir -Force | Out-Null
                 }
@@ -432,13 +426,13 @@ function Copy-DriverOutputs {
             $projectDir = Resolve-ScriptPath "$SourceRoot\$($project.Name)"
         }
 
-        # Copy .inf files from the project directory to the output root
+        # Copy .inf files from the project directory to the drivers output directory
         $infFiles = Get-ChildItem -Path $projectDir -File -Filter "*.inf"
         foreach ($file in $infFiles) {
-            Copy-Item -Path $file.FullName -Destination $OutputRoot -Force
-            Write-Host "[COPY] $($file.Name) -> $OutputRoot"
+            Copy-Item -Path $file.FullName -Destination $driversDir -Force
+            Write-Host "[COPY] $($file.Name) -> $driversDir"
 
-            $destInf = Join-Path $OutputRoot $file.Name
+            $destInf = Join-Path $driversDir $file.Name
             if (-not (Update-Inf -InfPath $destInf -DriverName $project.Name)) {
                 $hasError = $true
             }
@@ -449,111 +443,9 @@ function Copy-DriverOutputs {
     if ($hasError) {
         Write-Host "[ERROR] Some driver outputs failed to copy or update." -ForegroundColor Red
     } else {
-        Write-Host "[OK] Driver outputs copied to: $OutputRoot" -ForegroundColor Green
+        Write-Host "[OK] Driver outputs copied to: $driversDir" -ForegroundColor Green
     }
     return (-not $hasError)
-}
-
-# ==============================================================================
-# Functions - Local Test Signing
-# ==============================================================================
-
-# Signs a single file using signtool.exe. Supports .cer or thumbprint.
-function Sign-File {
-    param(
-        [Parameter(Mandatory)][string]$FilePath,
-        [Parameter(Mandatory)][string]$Certificate
-    )
-
-    $signtool = $Script:WDKTools["signtool.exe"]
-    if (-not $signtool) {
-        Write-Host "[ERROR] signtool.exe not available." -ForegroundColor Red
-        return $false
-    }
-
-    $FilePath = Resolve-ScriptPath $FilePath
-    if (-not (Test-Path $FilePath)) {
-        Write-Host "[ERROR] File not found: $FilePath" -ForegroundColor Red
-        return $false
-    }
-
-    if ($Certificate -like "*.cer") {
-        $Certificate = Resolve-ScriptPath $Certificate
-        if (-not (Test-Path $Certificate)) {
-            Write-Host "[ERROR] Certificate file not found: $Certificate" -ForegroundColor Red
-            return $false
-        }
-        & $signtool sign /fd sha256 /f "$Certificate" "$FilePath" 2>&1 | Out-Host
-    } else {
-        & $signtool sign /fd sha256 /sha1 $Certificate /s My "$FilePath" 2>&1 | Out-Host
-    }
-
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "[ERROR] Failed to sign: $FilePath" -ForegroundColor Red
-        return $false
-    }
-
-    Write-Host "[OK] Signed: $(Split-Path $FilePath -Leaf)" -ForegroundColor Green
-    return $true
-}
-
-# Creates a temporary self-signed code-signing certificate, signs all .cat
-function Invoke-TestSign {
-    Write-Host "========================================"
-    Write-Host " Test Signing (signtool)"
-    Write-Host "========================================`n"
-
-    # --- Step 1: Validate output directory and .cat files ---
-    if (-not (Test-Path $OutputRoot)) {
-        Write-Host "[ERROR] Output directory not found: $OutputRoot" -ForegroundColor Red
-        return $false
-    }
-    $catFiles = Get-ChildItem $OutputRoot -Filter "*.cat" -File
-    if ($catFiles.Count -eq 0) {
-        Write-Host "[ERROR] No .cat files found in: $OutputRoot" -ForegroundColor Red
-        return $false
-    }
-    Write-Host "[SIGN] Found $($catFiles.Count) .cat file(s) to sign"
-    Write-Host ""
-
-    # --- Step 2: Create temporary certificate ---
-    Write-Host "[SIGN] Creating temporary test certificate..."
-    try {
-        $cert = New-SelfSignedCertificate `
-            -Type CodeSigningCert `
-            -Subject $Script:TestCertName `
-            -KeyAlgorithm RSA `
-            -KeyLength 2048 `
-            -KeyUsage DigitalSignature `
-            -CertStoreLocation "Cert:\CurrentUser\My" `
-            -NotAfter (Get-Date).AddDays(1)
-    } catch {
-        Write-Host "[ERROR] Failed to create test certificate: $($_.Exception.Message)" -ForegroundColor Red
-        return $false
-    }
-
-    $thumbprint = $cert.Thumbprint
-    Write-Host "[SIGN] Certificate: $($Script:TestCertName)"
-    Write-Host "[SIGN] Thumbprint:  $thumbprint"
-    Write-Host ""
-
-    # --- Step 3: Sign all .cat files, cleanup on exit ---
-    try {
-        foreach ($cat in $catFiles) {
-            if (-not (Sign-File -FilePath $cat.FullName -Certificate $thumbprint)) {
-                return $false
-            }
-            Write-Host ""
-        }
-    } finally {
-        Write-Host "[SIGN] Cleaning up temporary certificate..."
-        Remove-Item "Cert:\CurrentUser\My\$thumbprint" -Force -ErrorAction SilentlyContinue
-        Write-Host "[SIGN] Temporary certificate removed."
-    }
-
-    Write-Host ""
-    Write-Host "[OK] All .cat files are test-signed successfully." -ForegroundColor Green
-    return $true
 }
 
 # ==============================================================================
@@ -568,10 +460,8 @@ function Main {
     if ($OutputTo) {
         $Script:OutputRoot = $OutputTo
     }
-    else {
-        $Script:OutputRoot = Resolve-ScriptPath $OutputRoot
-    }
-    $Script:OutputRoot = Join-Path $OutputRoot $DriversDir
+    $Script:OutputRoot        = Resolve-ScriptPath $Script:OutputRoot
+    $Script:SourceRoot        = Resolve-ScriptPath $Script:SourceRoot
     $Script:VersionHeaderFile = Resolve-ScriptPath $Script:VersionHeaderFile
 
     # --- Step 1: Locate MSBuild ---
@@ -627,9 +517,10 @@ function Main {
     Write-Host ""
 
     # --- Step 5: Clean output directory ---
-    if (-not $OutputTo -and (Test-Path $OutputRoot)) {
-        Remove-Item -Path $OutputRoot -Recurse -Force
-        Write-Host "[INFO] Cleaned output directory: $OutputRoot"
+    $cleanDir = Join-Path $OutputRoot $DriversDir
+    if (-not $OutputTo -and (Test-Path $cleanDir)) {
+        Remove-Item -Path $cleanDir -Recurse -Force
+        Write-Host "[INFO] Cleaned output directory: $cleanDir"
     }
     Write-Host ""
 
@@ -654,20 +545,8 @@ function Main {
     }
     Write-Host ""
 
-    # --- Step 9: Test signing (optional) ---
-    if ($Script:EnableTestSign) {
-        if (-not (Invoke-TestSign)) {
-            Write-Host "[ERROR] Test signing failed." -ForegroundColor Red
-            exit 1
-        }
-    } else {
-        Write-Host "[INFO] Test signing is disabled. Skipping." -ForegroundColor Yellow
-    }
-
-    Write-Host ""
     Write-Host "[OK] All build tasks completed successfully." -ForegroundColor Green
-    Write-Host "[INFO] Output Location:"
-    Write-Host "[INFO] $OutputRoot"
+    Write-Host "[INFO] Output Location: $(Join-Path $OutputRoot $DriversDir)"
     Write-Host ""
 }
 

@@ -84,7 +84,7 @@ DWORD unregister_installation()
         RegCloseKey(hKey);
         return RegDeleteKeyExW(HKEY_LOCAL_MACHINE, uninstall_registry_key, KEY_WOW64_64KEY, 0);
     }
-    
+
     return (ret == ERROR_FILE_NOT_FOUND) ? ERROR_SUCCESS : ret;
 }
 

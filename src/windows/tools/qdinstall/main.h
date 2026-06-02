@@ -6,6 +6,7 @@
 #include <windows.h>
 #include <cfgmgr32.h>
 #include <string>
+#include <shlwapi.h>
 
 struct Options
 {
@@ -22,8 +23,8 @@ DWORD scan_for_hardware_changes();
 // Run an external process and wait for it to complete.
 DWORD execute_command(const std::wstring &command);
 
-// Install all .inf drivers from the current directory.
-DWORD install_drivers();
+// Install all .inf drivers under input path recursively.
+DWORD install_drivers(const std::wstring &path);
 
 // Uninstall drivers (run qdclr to clean DriverStore, then rescan).
 DWORD uninstall_drivers();
