@@ -19,7 +19,7 @@ struct InstallationInfo
     DWORD estimatedSizeKB = 0;
 };
 
-// Registration functions — return ERROR_SUCCESS (0) on success, Win32 error code on failure.
+// Registration functions - return ERROR_SUCCESS (0) on success, Win32 error code on failure.
 DWORD register_installation(const InstallationInfo &info);
 DWORD unregister_installation();
 bool is_installation_registered();

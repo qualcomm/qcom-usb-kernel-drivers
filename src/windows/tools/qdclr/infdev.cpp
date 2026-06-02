@@ -307,7 +307,7 @@ BOOL DeviceMatch(PTSTR InfText, DWORD TextSize)
     {
         matchFound = TRUE;
     }
-	else if (StrStrW(InfText, TEXT("libusb-win32 devices")) != NULL)    // userspace (WinUSB)
+    else if (StrStrW(InfText, TEXT("libusb-win32 devices")) != NULL)    // userspace (WinUSB)
     {
         matchFound = TRUE;
     }
