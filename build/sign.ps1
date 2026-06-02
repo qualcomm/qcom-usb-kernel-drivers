@@ -11,7 +11,7 @@ param(
 
 # Default input directory (relative to script root), used when -InputFrom is not specified
 $Script:DefaultInputRoot = "target"
-$Script:InputSubDir = "Drivers\Windows10"
+$Script:InputSubDir = "drivers"
 
 # Whether to recurse into subdirectories when scanning for signable files
 $Script:Recurse = $false

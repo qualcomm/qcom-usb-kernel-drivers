@@ -10,14 +10,14 @@ param(
 
 $Script:VSWhereExe = "C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
 
-$Script:SourceRoot = "..\src\windows"  # Windows source directory, update when build folder moves
-$Script:OutputRoot = "target" # Directory for all output by default, use -OutputTo to override
-$Script:DriversDir = "Drivers\Windows10"
+$Script:SourceRoot = "..\src\windows"  # Windows driver source directory
+$Script:OutputRoot = "target"          # Default output directory, use -OutputTo to override
+$Script:DriversDir = "drivers"
 
 # Build configuration defaults
 $Script:BuildConfiguration = "Release"
 $Script:BuildPlatforms = @(
-    @{ Platform = "x86";   OutDir = "Win32"; CopyDir = "x86";  OSList = "10_X86" }
+    @{ Platform = "x86";   OutDir = "Win32"; CopyDir = "x86";   OSList = "10_X86" }
     @{ Platform = "x64";   OutDir = "x64";   CopyDir = "amd64"; OSList = "10_X64" }
     @{ Platform = "arm64"; OutDir = "arm64"; CopyDir = "arm64"; OSList = "10_RS4_ARM64,10_RS5_ARM64,10_19H1_ARM64,10_VB_ARM64" }
 )
@@ -43,7 +43,7 @@ $Script:InfVersionMap = @{
 # Inf2Cat OS targets (built dynamically from BuildPlatforms)
 $Script:Inf2CatOSList = ($Script:BuildPlatforms | ForEach-Object { $_.OSList }) -join ","
 
-# Tool paths (set manually or auto-detect at runtime)
+# Tool paths (auto-detect at runtime)
 $Script:MSBuildExe  = $null
 $Script:WDKRoot     = $null
 $Script:WDKVersion  = $null
@@ -242,7 +242,7 @@ function Build-AllDrivers {
 }
 
 # ==============================================================================
-# Functions - Inf Post-Processing
+# Functions - Post-Processing
 # ==============================================================================
 
 # Parses qcversion.h and returns a hashtable of { versionMacro, versionString }.
@@ -266,8 +266,7 @@ function Read-VersionFile {
 
     Write-Host "[VERSION] Parsed $($versions.Count) version(s) from: $FilePath"
     foreach ($key in $versions.Keys) {
-        $padded = $key.PadRight(32)
-        Write-Host "[VERSION] $padded = $($versions[$key])"
+        Write-Host "[VERSION] $($key.PadRight(32)) = $($versions[$key])"
     }
     return $versions
 }
@@ -326,9 +325,10 @@ function Run-StampInf {
         return $false
     }
 
-    $infFiles = Get-ChildItem -Path $OutputRoot -File -Filter "*.inf"
+    $destinationDir = Join-Path $OutputRoot $Script:DriversDir
+    $infFiles = Get-ChildItem -Path $destinationDir -File -Filter "*.inf"
     if (-not $infFiles) {
-        Write-Host "[WARN] No .inf files found in: $OutputRoot" -ForegroundColor Yellow
+        Write-Host "[WARN] No .inf files found in: $destinationDir" -ForegroundColor Yellow
         return $true
     }
 
@@ -365,9 +365,10 @@ function Run-Inf2Cat {
     Write-Host " OS targets: $Inf2CatOSList"
     Write-Host "========================================`n"
 
-    $infFiles = Get-ChildItem -Path $OutputRoot -File -Filter "*.inf"
+    $destinationDir = Join-Path $OutputRoot $Script:DriversDir
+    $infFiles = Get-ChildItem -Path $destinationDir -File -Filter "*.inf"
     if (-not $infFiles) {
-        Write-Host "[WARN] No .inf files found in: $OutputRoot" -ForegroundColor Yellow
+        Write-Host "[WARN] No .inf files found in: $destinationDir" -ForegroundColor Yellow
         return $false
     }
 
@@ -375,7 +376,7 @@ function Run-Inf2Cat {
         Write-Host "[INF2CAT] Found: $($inf.Name)"
     }
 
-    & $WDKTools["inf2cat.exe"] /driver:"$OutputRoot" /os:$Inf2CatOSList /uselocaltime 2>&1 | Out-Host
+    & $WDKTools["inf2cat.exe"] /driver:"$destinationDir" /os:$Inf2CatOSList /uselocaltime 2>&1 | Out-Host
     if ($LASTEXITCODE -ne 0) {
         Write-Host "[ERROR] inf2cat failed with exit code: $LASTEXITCODE" -ForegroundColor Red
         return $false
@@ -386,10 +387,6 @@ function Run-Inf2Cat {
     return $true
 }
 
-# ==============================================================================
-# Functions - Output Collection
-# ==============================================================================
-
 # Copies .sys and .pdb files from build output to the output directory.
 function Copy-DriverOutputs {
     Write-Host "========================================"
@@ -397,7 +394,8 @@ function Copy-DriverOutputs {
     Write-Host "========================================`n"
 
     $hasError = $false
-    New-Item -ItemType Directory -Path $OutputRoot -Force | Out-Null
+    $driversDir = Join-Path $OutputRoot $Script:DriversDir
+    New-Item -ItemType Directory -Path $driversDir -Force | Out-Null
 
     foreach ($project in $DriverProjects) {
         if ($project.SolutionPath) {
@@ -410,7 +408,7 @@ function Copy-DriverOutputs {
                     continue
                 }
 
-                $destDir = Join-Path $OutputRoot "$($project.Name)\$($platformInfo.CopyDir)"
+                $destDir = Join-Path $driversDir "$($project.Name)\$($platformInfo.CopyDir)"
                 if (-not (Test-Path $destDir)) {
                     New-Item -ItemType Directory -Path $destDir -Force | Out-Null
                 }
@@ -428,13 +426,13 @@ function Copy-DriverOutputs {
             $projectDir = Resolve-ScriptPath "$SourceRoot\$($project.Name)"
         }
 
-        # Copy .inf files from the project directory to the output root
+        # Copy .inf files from the project directory to the drivers output directory
         $infFiles = Get-ChildItem -Path $projectDir -File -Filter "*.inf"
         foreach ($file in $infFiles) {
-            Copy-Item -Path $file.FullName -Destination $OutputRoot -Force
-            Write-Host "[COPY] $($file.Name) -> $OutputRoot"
+            Copy-Item -Path $file.FullName -Destination $driversDir -Force
+            Write-Host "[COPY] $($file.Name) -> $driversDir"
 
-            $destInf = Join-Path $OutputRoot $file.Name
+            $destInf = Join-Path $driversDir $file.Name
             if (-not (Update-Inf -InfPath $destInf -DriverName $project.Name)) {
                 $hasError = $true
             }
@@ -445,7 +443,7 @@ function Copy-DriverOutputs {
     if ($hasError) {
         Write-Host "[ERROR] Some driver outputs failed to copy or update." -ForegroundColor Red
     } else {
-        Write-Host "[OK] Driver outputs copied to: $OutputRoot" -ForegroundColor Green
+        Write-Host "[OK] Driver outputs copied to: $driversDir" -ForegroundColor Green
     }
     return (-not $hasError)
 }
@@ -462,10 +460,8 @@ function Main {
     if ($OutputTo) {
         $Script:OutputRoot = $OutputTo
     }
-    else {
-        $Script:OutputRoot = Resolve-ScriptPath $OutputRoot
-    }
-    $Script:OutputRoot = Join-Path $OutputRoot $DriversDir
+    $Script:OutputRoot        = Resolve-ScriptPath $Script:OutputRoot
+    $Script:SourceRoot        = Resolve-ScriptPath $Script:SourceRoot
     $Script:VersionHeaderFile = Resolve-ScriptPath $Script:VersionHeaderFile
 
     # --- Step 1: Locate MSBuild ---
@@ -521,9 +517,10 @@ function Main {
     Write-Host ""
 
     # --- Step 5: Clean output directory ---
-    if (-not $OutputTo -and (Test-Path $OutputRoot)) {
-        Remove-Item -Path $OutputRoot -Recurse -Force
-        Write-Host "[INFO] Cleaned output directory: $OutputRoot"
+    $cleanDir = Join-Path $OutputRoot $DriversDir
+    if (-not $OutputTo -and (Test-Path $cleanDir)) {
+        Remove-Item -Path $cleanDir -Recurse -Force
+        Write-Host "[INFO] Cleaned output directory: $cleanDir"
     }
     Write-Host ""
 
@@ -549,8 +546,7 @@ function Main {
     Write-Host ""
 
     Write-Host "[OK] All build tasks completed successfully." -ForegroundColor Green
-    Write-Host "[INFO] Output Location:"
-    Write-Host "[INFO] $OutputRoot"
+    Write-Host "[INFO] Output Location: $(Join-Path $OutputRoot $DriversDir)"
     Write-Host ""
 }
 
