@@ -161,7 +161,6 @@ sGobiUSBNet *GobiAcquireDevice(char *mpKey, struct usbnet * pDev)
    else 
    {
       snprintf(commonDevName, sizeof(commonDevName), "%s:%d-%s", mpKey, pDev->udev->bus->busnum, pDev->udev->devpath);
-      commonDevName[254] = '\0';
 
       list_for_each_entry(pGobiDev, &DeviceListIdle, node)
       {
