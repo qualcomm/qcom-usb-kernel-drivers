@@ -103,6 +103,43 @@ DWORD uninstall_drivers()
     return ret;
 }
 
+static DWORD64 get_dir_size_bytes(const std::wstring &dir)
+{
+    DWORD64 total = 0;
+    WIN32_FIND_DATAW fd;
+    std::wstring pattern = dir + L"\\*";
+
+    HANDLE handle = FindFirstFileW(pattern.c_str(), &fd);
+    if (handle == INVALID_HANDLE_VALUE)
+    {
+        return 0;
+    }
+
+    do
+    {
+        if (wcscmp(fd.cFileName, L".") == 0 || wcscmp(fd.cFileName, L"..") == 0)
+        {
+            continue;
+        }
+
+        std::wstring subdir = dir + L"\\" + fd.cFileName;
+
+        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        {
+            total += get_dir_size_bytes(subdir);
+        }
+        else
+        {
+            DWORD64 file_size = ((DWORD64)fd.nFileSizeHigh << 32) | fd.nFileSizeLow;
+            total += file_size;
+        }
+    }
+    while (FindNextFileW(handle, &fd));
+
+    FindClose(handle);
+    return total;
+}
+
 static std::wstring get_exe_directory()
 {
     WCHAR path[MAX_PATH];
@@ -271,7 +308,7 @@ int wmain(int argc, wchar_t *argv[])
             info.displayVersion  = QCOM_USB_DRIVERS_PRODUCT_VERSION_STRING_W;
             info.installLocation = opts.installationPath;
             info.uninstallString = L"\"" + opts.installationPath + L"\\qdinstall.exe\" -x";
-            info.estimatedSizeKB = 0;
+            info.estimatedSizeKB = (DWORD)(get_dir_size_bytes(opts.installationPath) / 1024);
 
             printf("\nRegistering installation ...\n");
             printf("Location: %ws\n", opts.installationPath.c_str());
