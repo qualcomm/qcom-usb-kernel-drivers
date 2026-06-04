@@ -25,7 +25,7 @@ DWORD scan_for_hardware_changes()
         return ERROR_DEVICE_ENUMERATION_ERROR;
     }
 
-    cr = CM_Reenumerate_DevNode(dev_root, 0);
+    cr = CM_Reenumerate_DevNode(dev_root, CM_REENUMERATE_SYNCHRONOUS);
     if (cr != CR_SUCCESS)
     {
         printf("ERROR: CM_Reenumerate_DevNode failed (CR=0x%X)\n", cr);

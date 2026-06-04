@@ -66,7 +66,7 @@ int remove_drivers(EXEC_MODE mode)
     DEVINST devRoot;
     if (CM_Locate_DevNode(&devRoot, NULL, CM_LOCATE_DEVNODE_NORMAL) == CR_SUCCESS)
     {
-        CM_Reenumerate_DevNode(devRoot, CM_REENUMERATE_NORMAL);
+        CM_Reenumerate_DevNode(devRoot, CM_REENUMERATE_SYNCHRONOUS);
         printf("\n   Scanning for hardware changes...\n");
     }
 
