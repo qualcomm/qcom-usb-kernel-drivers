@@ -20,6 +20,41 @@ on:
         required: false
         type: string
         default: ''
+      filter_version:
+        description: >
+          Filter driver sub-version (e.g. 1.0.1.6).
+          Leave empty to keep the current value in qcversion.h.
+        required: false
+        type: string
+        default: ''
+      net_version:
+        description: >
+          NDIS/net driver sub-version (e.g. 5.0.1.2).
+          Leave empty to keep the current value in qcversion.h.
+        required: false
+        type: string
+        default: ''
+      wdfserial_version:
+        description: >
+          WDF serial driver sub-version (e.g. 1.0.3.7).
+          Leave empty to keep the current value in qcversion.h.
+        required: false
+        type: string
+        default: ''
+      qdss_version:
+        description: >
+          QDSS driver sub-version (e.g. 1.0.4.2).
+          Leave empty to keep the current value in qcversion.h.
+        required: false
+        type: string
+        default: ''
+      adb_version:
+        description: >
+          ADB driver sub-version (e.g. 1.0.1.7).
+          Leave empty to keep the current value in qcversion.h.
+        required: false
+        type: string
+        default: ''
       base_branch:
         description: 'Base branch to cut the release from'
         required: false
@@ -374,25 +409,47 @@ jobs:
       - name: Update src/windows/qcversion.h
         env:
           VERSION: ${{ inputs.windows_version }}
+          FILTER_VER: ${{ inputs.filter_version }}
+          NET_VER: ${{ inputs.net_version }}
+          WDFSERIAL_VER: ${{ inputs.wdfserial_version }}
+          QDSS_VER: ${{ inputs.qdss_version }}
+          ADB_VER: ${{ inputs.adb_version }}
         run: |
-          # Convert dot-separated version to comma-separated for FILE_VERSION macros
-          VERSION_COMMA="${VERSION//./, }"
-          # Also produce the compact comma form used in the header (no spaces)
-          VERSION_COMMA_COMPACT="${VERSION//./ }"
-          VERSION_COMMA_COMPACT="${VERSION_COMMA_COMPACT// /,}"
-
           FILE="src/windows/qcversion.h"
 
-          # Update QCOM_USB_DRIVERS_PRODUCT_VERSION  (bare version, no quotes)
-          sed -i "s/\(#define QCOM_USB_DRIVERS_PRODUCT_VERSION\s\+\)[^ ]*/\1${VERSION}/" "$FILE"
+          # Helper: update a VERSION + optional FILE_VERSION pair
+          update_driver_ver() {
+            local ver_macro="$1"
+            local file_macro="$2"   # pass "" to skip FILE_VERSION
+            local ver="$3"
+            [ -z "$ver" ] && return 0   # skip if not provided
+            local ver_comma="${ver//./ }"; ver_comma="${ver_comma// /,}"
+            sed -i "s/\(#define ${ver_macro}[[:space:]]\+\)[^[:space:]]*/\1${ver}/" "$FILE"
+            [ -n "$file_macro" ] && \
+              sed -i "s/\(#define ${file_macro}[[:space:]]\+\)[^[:space:]]*/\1${ver_comma}/" "$FILE"
+            echo "  ${ver_macro} -> ${ver}"
+          }
 
-          # Update QCOM_USB_DRIVERS_FILE_VERSION  (comma-separated)
-          sed -i "s/\(#define QCOM_USB_DRIVERS_FILE_VERSION\s\+\)[^[:space:]]*/\1${VERSION_COMMA_COMPACT}/" "$FILE"
+          echo "Updating $FILE:"
 
-          echo "Updated $FILE (relevant lines):"
-          grep -E "QCOM_USB_DRIVERS_(PRODUCT|FILE)_VERSION\b" "$FILE"
+          # Package-level version (always updated)
+          VERSION_COMMA="${VERSION//./ }"; VERSION_COMMA="${VERSION_COMMA// /,}"
+          sed -i "s/\(#define QCOM_USB_DRIVERS_PRODUCT_VERSION[[:space:]]\+\)[^ ]*/\1${VERSION}/" "$FILE"
+          sed -i "s/\(#define QCOM_USB_DRIVERS_FILE_VERSION[[:space:]]\+\)[^[:space:]]*/\1${VERSION_COMMA}/" "$FILE"
+          echo "  QCOM_USB_DRIVERS_PRODUCT_VERSION -> ${VERSION}"
 
-          # Verify
+          # Individual driver sub-versions (updated only when input is non-empty)
+          update_driver_ver "QCOM_FILTER_VERSION"    "QCOM_FILTER_FILE_VERSION"    "$FILTER_VER"
+          update_driver_ver "QCOM_NET_VERSION"       "QCOM_NET_FILE_VERSION"       "$NET_VER"
+          update_driver_ver "QCOM_WDFSERIAL_VERSION" "QCOM_WDFSERIAL_FILE_VERSION" "$WDFSERIAL_VER"
+          update_driver_ver "QCOM_QDSS_VERSION"      "QCOM_QDSS_FILE_VERSION"      "$QDSS_VER"
+          update_driver_ver "QCOM_ADB_VERSION"       ""                            "$ADB_VER"
+
+          echo ""
+          echo "Final version lines in $FILE:"
+          grep -E "_VERSION\b" "$FILE"
+
+          # Verify package version was applied
           grep -q "QCOM_USB_DRIVERS_PRODUCT_VERSION ${VERSION}" "$FILE" || \
             { echo "ERROR: PRODUCT_VERSION was not updated correctly"; exit 1; }
 
