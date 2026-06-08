@@ -138,6 +138,7 @@ void QCRD_ReadRequestHandlerThread
     BOOLEAN          bDeviceOpened = FALSE;
     BOOLEAN          bDeviceAwaken = FALSE;
     BOOLEAN          bBufferOverflow = FALSE;
+    BOOLEAN          bDeviceGone = FALSE;
     PLIST_ENTRY      head;
     PLIST_ENTRY      peek;
     PREAD_BUFFER_PARAM pBufferParam;        // for read urbs
@@ -221,6 +222,8 @@ void QCRD_ReadRequestHandlerThread
                 WdfIoQueuePurgeSynchronously(pDevContext->TimeoutReadQueue);
                 WdfIoTargetStop(ioTarget, WdfIoTargetCancelSentIo);
                 QCRD_ClearBuffer(pDevContext);
+                bDeviceGone = FALSE;
+                devErrCnt = 0;
                 KeSetEvent(&pDevContext->ReadThreadFileCloseReadyEvent, IO_NO_INCREMENT, FALSE);
                 break;
             }
@@ -468,6 +471,19 @@ void QCRD_ReadRequestHandlerThread
                             WdfDeviceSetFailed(pDevContext->Device, WdfDeviceFailedNoRestart);
                             break;
                         }
+                        /*
+                         * STATUS_NO_SUCH_DEVICE means the device is gone before
+                         * WdfIoTargetStop had a chance to cancel in-flight URBs
+                         * (typical in UDE / surprise removal). Mark device gone so
+                         * REQUEST_ARRIVE_EVENT does not re-dispatch URBs from the
+                         * free list — that would create a ~40K/sec retry storm
+                         * until D0Exit finally fires. The pipeline is restarted
+                         * cleanly in D0_ENTRY_EVENT after re-enumeration.
+                         */
+                        if (WdfRequestGetStatus(request) == STATUS_NO_SUCH_DEVICE)
+                        {
+                            bDeviceGone = TRUE;
+                        }
                     }
                     else
                     {
@@ -535,7 +551,7 @@ void QCRD_ReadRequestHandlerThread
                                 QCSER_DBG_MASK_READ,
                                 QCSER_DBG_LEVEL_TRACE,
                                 ("<%ws> RIRP: QCRD_ReadRequestHandlerThread copied %llu bytes into ring buffer, bytes used: %llu, bytes available: %llu\n",
-                                pDevContext->PortName, pBufferParam->Capacity, QCUTIL_RingBufferBytesUsed(rxBuffer), QCUTIL_RingBufferBytesFree(rxBuffer))
+                                pDevContext->PortName, pBufferParam->AvailableBytes, QCUTIL_RingBufferBytesUsed(rxBuffer), QCUTIL_RingBufferBytesFree(rxBuffer))
                             );
                         }
                         pDevContext->AmountInInQueue = QCUTIL_RingBufferBytesUsed(rxBuffer);
@@ -730,6 +746,36 @@ void QCRD_ReadRequestHandlerThread
                     }
                     else
                     {
+                        // Guard: check if TimeoutReadQueue has pending request and ReadQueue is empty
+                        // If so, skip immediate drain to preserve inter-byte gap semantics (QUD-1837)
+                        NTSTATUS timeoutCheckStatus = WdfIoQueueRetrieveNextRequest(pDevContext->TimeoutReadQueue, &pendingTimeoutRequest);
+                        if (pendingTimeoutRequest != NULL && QCUTIL_RingBufferBytesUsed(rxBuffer) > 0)
+                        {
+                            // TimeoutReadQueue has pending request with data in buffer
+                            // Check if ReadQueue also has a request
+                            WDFREQUEST readQueueRequest = NULL;
+                            NTSTATUS readQueueStatus = WdfIoQueueRetrieveNextRequest(pDevContext->ReadQueue, &readQueueRequest);
+                            
+                            if (readQueueStatus != STATUS_SUCCESS || readQueueRequest == NULL)
+                            {
+                                // ReadQueue is empty, don't bypass - wait for timeout timer
+                                QCSER_DbgPrint
+                                (
+                                    QCSER_DBG_MASK_READ,
+                                    QCSER_DBG_LEVEL_TRACE,
+                                    ("<%ws> RIRP: QCRD_ReadRequestHandlerThread skip immediate drain - TimeoutReadQueue pending, ReadQueue empty, waiting for timer\n", pDevContext->PortName)
+                                );
+                                WdfRequestForwardToIoQueue(pendingTimeoutRequest, pDevContext->TimeoutReadQueue);
+                                pendingTimeoutRequest = NULL;
+                                break;  // Wait for timeout to fire
+                            }
+                            else
+                            {
+                                // ReadQueue has a fresh request, put it back and proceed with drain
+                                WdfRequestForwardToIoQueue(readQueueRequest, pDevContext->ReadQueue);
+                            }
+                        }
+                        
                         // iterate through the ring buffer
                         while (QCUTIL_RingBufferBytesUsed(rxBuffer) > 0)
                         {
@@ -851,6 +897,25 @@ void QCRD_ReadRequestHandlerThread
                         ("<%ws> RIRP: QCRD_ReadRequestHandlerThread start to process free list\n", pDevContext->PortName)
                     );
 
+                    /*
+                     * Do not re-dispatch URBs when the device is gone
+                     * (STATUS_NO_SUCH_DEVICE seen during surprise removal).
+                     * Re-dispatching would immediately re-fail each URB and
+                     * create a ~40 000/sec retry storm until D0Exit fires.
+                     * Leave URBs in the free list; D0_ENTRY_EVENT will
+                     * restart the pipeline cleanly after re-enumeration.
+                     */
+                    if (bDeviceGone)
+                    {
+                        QCSER_DbgPrint
+                        (
+                            QCSER_DBG_MASK_READ,
+                            QCSER_DBG_LEVEL_DETAIL,
+                            ("<%ws> RIRP: QCRD_ReadRequestHandlerThread skip free list dispatch, device gone\n", pDevContext->PortName)
+                        );
+                        break;
+                    }
+
                     head = &pDevContext->UrbReadFreeList;
                     while (!IsListEmpty(head))
                     {
@@ -950,6 +1015,16 @@ void QCRD_ReadRequestHandlerThread
                 KeClearEvent(&pDevContext->ReadThreadD0ExitEvent);
                 bDeviceAwaken = FALSE;
                 WdfIoTargetStop(ioTarget, WdfIoTargetCancelSentIo);
+                /*
+                 * Discard stale URB completions that arrived before D0Exit
+                 * to prevent old AT responses from leaking into the ring buffer after
+                 * re-enumeration and appearing as garbage messages.
+                 */
+                QCRD_ClearBuffer(pDevContext);
+                KeClearEvent(&pDevContext->ReadRequestCompletionEvent);
+                bBufferOverflow = FALSE;
+                bDeviceGone = FALSE;
+                devErrCnt = 0;
                 KeSetEvent(&pDevContext->ReadThreadD0ExitReadyEvent, IO_NO_INCREMENT, FALSE);
                 break;
             }
@@ -1723,7 +1798,7 @@ VOID QCRD_EvtIoReadCompletionAsync
     PDEVICE_CONTEXT  pDevContext = (PDEVICE_CONTEXT)Context;
     PREQUEST_CONTEXT pReqContext = QCReqGetContext(Request);
     NTSTATUS         status = WdfRequestGetStatus(Request);
-    size_t           availableLength = Params->Parameters.Usb.Completion->Parameters.PipeRead.Length;
+    size_t           availableLength = (NT_SUCCESS(status) ? Params->IoStatus.Information : 0);
 
     if (NT_SUCCESS(status))
     {
