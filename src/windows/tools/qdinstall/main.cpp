@@ -322,6 +322,9 @@ int wmain(int argc, wchar_t *argv[])
     }
     else if (opts.uninstall)
     {
+        // Read install location from registry before unregistering
+        std::wstring install_location = get_registered_install_location();
+
         // Stop and unregister WWAN service before driver removal
         if (GetFileAttributesW(COMMAND_WWANSVC) != INVALID_FILE_ATTRIBUTES)
         {
@@ -342,6 +345,29 @@ int wmain(int argc, wchar_t *argv[])
         if (ret != ERROR_SUCCESS)
         {
             printf("WARNING: failed to clean up registry (0x%lX), continuing...\n", ret);
+        }
+
+        // Schedule deletion of install directory (cannot delete self while running)
+        if (!install_location.empty())
+        {
+            DWORD attr = GetFileAttributesW(install_location.c_str());
+            if (attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY))
+            {
+                // Change working directory away from install path to avoid locking it
+                SetCurrentDirectoryW(L"C:\\");
+
+                printf("\nScheduling removal of: %ws\n", install_location.c_str());
+                std::wstring del_cmd = L"cmd.exe /c timeout /t 2 /nobreak >nul & rd /s /q \""
+                                       + install_location + L"\"";
+                STARTUPINFOW si_del = { sizeof(si_del) };
+                si_del.dwFlags = STARTF_USESHOWWINDOW;
+                si_del.wShowWindow = SW_HIDE;
+                PROCESS_INFORMATION pi_del = {};
+                CreateProcessW(nullptr, const_cast<wchar_t*>(del_cmd.c_str()),
+                               nullptr, nullptr, FALSE, CREATE_NEW_CONSOLE,
+                               nullptr, nullptr, &si_del, &pi_del);
+                if (pi_del.hProcess) { CloseHandle(pi_del.hProcess); CloseHandle(pi_del.hThread); }
+            }
         }
     }
 
