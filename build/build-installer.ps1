@@ -166,17 +166,20 @@ namespace PayloadInstaller
             }
         }
 
-        // Uninstall any previous installation.
-        static int Uninstall()
+        // Removal of legacy drivers installed by QPM/QSC
+        static void UninstallLegacy()
         {
-            // Best-effort cleanup of legacy packages
             foreach (string pkg in LegacyPackages)
             {
                 Console.WriteLine("\nUninstalling legacy product: " + pkg + "...");
                 RunCommand("qpm-cli", "--uninstall " + pkg + " --silent", false);
                 RunCommand("qsc-cli", "tool uninstall -n " + pkg, false);
             }
+        }
 
+        // Uninstall any previous installation.
+        static int Uninstall()
+        {
             int result = 0;
             if (File.Exists(QdinstallExe))
             {
@@ -207,6 +210,7 @@ namespace PayloadInstaller
         // Install drivers and remove previous installation
         static int Install()
         {
+            UninstallLegacy();
             Uninstall();
 
             try
