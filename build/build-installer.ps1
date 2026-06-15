@@ -1,3 +1,6 @@
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+# SPDX-License-Identifier: BSD-3-Clause
+
 param(
     [string]$OutputName = "installer.exe",
     [ValidateSet("x64", "x86", "arm64")]
