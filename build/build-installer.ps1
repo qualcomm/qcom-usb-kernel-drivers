@@ -1,5 +1,7 @@
 param(
-    [string]$OutputName = "installer.exe"
+    [string]$OutputName = "installer.exe",
+    [ValidateSet("x64", "x86", "arm64")]
+    [string]$Arch = "x64"   # default value (adjust if needed)
 )
 
 # ==============================================================================
@@ -7,13 +9,19 @@ param(
 # ==============================================================================
 
 $Script:OutputRoot   = Join-Path $PSScriptRoot "target"
-$Script:DriversDir   = "drivers"
-$Script:ToolsDir     = "tools"
 $Script:PayloadName  = "payload.zip"
 $Script:VersionFile  = Join-Path $PSScriptRoot "..\src\windows\qcversion.h"
 
-# Files to promote from tools/ to the payload root (alongside drivers/ and tools/)
-$Script:PromotedTools = @("qdclr.exe", "qdinstall.exe")
+# Items to include in the payload zip (files or directories under target/).
+# Promote: optional list of file names to move to the payload root.
+$Script:PayloadItems = @(
+    @{ Path = "drivers"; Arch = $null; Promote = $null }
+    @{ Path = "tools";   Arch = $null; Promote = @("qdclr.exe", "qdinstall.exe") }
+)
+
+# ==============================================================================
+# Functions
+# ==============================================================================
 
 # Assembles a payload zip from target/drivers and target/tools.
 function New-Payload {
@@ -21,38 +29,46 @@ function New-Payload {
     Write-Host " Packaging Payload"
     Write-Host "========================================`n"
 
-    $driversSource = Join-Path $Script:OutputRoot $Script:DriversDir
-    $toolsSource   = Join-Path $Script:OutputRoot $Script:ToolsDir
-
-    if (-not (Test-Path $driversSource)) {
-        Write-Error "[ERROR] Drivers directory not found: $driversSource"
-        exit 1
-    }
-    if (-not (Test-Path $toolsSource)) {
-        Write-Error "[ERROR] Tools directory not found: $toolsSource"
-        exit 1
-    }
-
     # Create a temp staging directory
     $stagingDir = Join-Path ([System.IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
 
     try {
-        # Copy drivers/ and tools/ into the staging root
-        Copy-Item -Path $driversSource -Destination $stagingDir -Recurse -Force
-        Copy-Item -Path $toolsSource   -Destination $stagingDir -Recurse -Force
-        Write-Host "[COPY] $Script:DriversDir, $Script:ToolsDir -> $stagingDir"
+        # Copy all payload items into the staging root.
+        foreach ($item in $Script:PayloadItems) {
+            if ($item.Arch) {
+                $archSource = Join-Path $PSScriptRoot "$($item.Path)\$($item.Arch)"
+                $destDir    = Join-Path $stagingDir $item.Path
+                if (-not (Test-Path $archSource)) {
+                    Write-Warning "[WARNING] $($item.Path) arch folder not found: $archSource"
+                    continue
+                }
+                New-Item -ItemType Directory -Path $destDir -Force | Out-Null
+                Copy-Item -Path $archSource -Destination $destDir -Recurse -Force
+                Write-Host "[COPY] $($item.Path)/$($item.Arch) -> staging"
+                continue
+            }
 
-        # Promote specified tools to staging root and remove from tools/
-        $destTools = Join-Path $stagingDir $Script:ToolsDir
-        foreach ($toolFile in $Script:PromotedTools) {
-            $srcFile = Join-Path $destTools $toolFile
-            if (Test-Path $srcFile) {
-                Copy-Item -Path $srcFile -Destination $stagingDir -Force
-                Remove-Item -Path $srcFile -Force
-                Write-Host "[PROMOTE] $toolFile -> payload root"
+            $src = Join-Path $Script:OutputRoot $item.Path
+            if (Test-Path $src) {
+                Copy-Item -Path $src -Destination $stagingDir -Recurse -Force
+                Write-Host "[COPY] $($item.Path) -> staging"
             } else {
-                Write-Warning "[WARNING] Promoted tool not found in Tools: $toolFile"
+                Write-Warning "[WARNING] Payload item not found: $src"
+                continue
+            }
+
+            if ($item.Promote) {
+                foreach ($fileName in $item.Promote) {
+                    $srcFile = Join-Path (Join-Path $stagingDir $item.Path) $fileName
+                    if (Test-Path $srcFile) {
+                        Copy-Item -Path $srcFile -Destination $stagingDir -Force
+                        Remove-Item -Path $srcFile -Force
+                        Write-Host "[PROMOTE] $($item.Path)/$fileName -> payload root"
+                    } else {
+                        Write-Warning "[WARNING] Promoted file not found: $($item.Path)/$fileName"
+                    }
+                }
             }
         }
 
@@ -259,7 +275,7 @@ namespace PayloadInstaller
         {
             // Print banner
             Console.WriteLine("================================================");
-            Console.WriteLine(" __PRODUCT_NAME__ Installer");
+            Console.WriteLine(" __PRODUCT_NAME__");
             Console.WriteLine(" Version#: __VERSION__");
             Console.WriteLine(" Built on: __BUILD_TIME__");
             Console.WriteLine(" __COPYRIGHT__");
