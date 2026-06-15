@@ -21,7 +21,6 @@
   <PropertyGroup Label="Globals">
     <ProjectName>qdcfg</ProjectName>
     <ProjectGuid>{9130613B-D0F3-E81D-DD33-A6DF52E015FC}</ProjectGuid>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

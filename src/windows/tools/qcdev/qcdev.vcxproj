@@ -14,7 +14,6 @@
     <ProjectGuid>{351DA988-07E9-4A1B-9ADC-5DECFE5493C6}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>qcdev</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ProjectName>qcdev</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />

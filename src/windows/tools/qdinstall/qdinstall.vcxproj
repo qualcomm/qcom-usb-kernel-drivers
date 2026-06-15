@@ -31,7 +31,6 @@
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{310a23e0-e90d-455e-aeda-1b7044b1c921}</ProjectGuid>
     <RootNamespace>qdinstall</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

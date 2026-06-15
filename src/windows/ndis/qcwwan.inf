@@ -1937,7 +1937,6 @@ StartType       = 3 ;%SERVICE_DEMAND_START%
 ErrorControl    = 1 ;%SERVICE_ERROR_NORMAL%
 ServiceBinary   = %12%\qcusbwwan.sys
 LoadOrderGroup  = NDIS
-AddReg          = TextModeFlags.Reg
 
 [qcwwan.EventLog]
 AddReg = qcwwan.AddEventLog.Reg
@@ -1945,9 +1944,6 @@ AddReg = qcwwan.AddEventLog.Reg
 [qcwwan.AddEventLog.Reg]
 HKR, , EventMessageFile, 0x00020000, "%%SystemRoot%%\System32\netevent.dll"
 HKR, , TypesSupported,   0x00010001, 7
-
-[TextModeFlags.Reg]
-HKR, , TextModeFlags,    0x00010001, 0x0001
 
 ;-----------------------------------------------------------------------------
 ; DestinationDirs
