@@ -159,6 +159,18 @@ fi
 chmod 0755 "$BUILDROOT$INSTALL_PREFIX/qcom_drivers.sh" || true
 find "$BUILDROOT$INSTALL_PREFIX" -type f -name '*.sh' -exec chmod 0755 {} \; || true
 
+# Shared shell functions embedded into both preinst and postinst.
+read -r -d '' QUD_COMMON_FUNCS <<'COMMON_FUNCS' || true
+LOG_HEADER() {
+  {
+    echo ""
+    echo "=================================================================="
+    echo "[QUD] $1"
+    echo "=================================================================="
+  } >> "$LOG_FILE" 2>&1
+}
+COMMON_FUNCS
+
 # Create DEBIAN/control
 cat > "$BUILDROOT/DEBIAN/control" <<EOF
 Package: $PKG_NAME
@@ -175,11 +187,10 @@ Description: $DESCRIPTION
 EOF
 chmod 0644 "$BUILDROOT/DEBIAN/control"
 
-# Create DEBIAN/preinst - uninstall any qpm-cli QUD, then reset the build dir
-# NOTE [QUD-1886]: qpm-cli uninstall MUST run here (preinst), before dpkg extracts
-# the package payload.  If it runs in postinst the qpm-cli uninstall removes the
-# freshly-extracted files (including qcom_drivers.sh), causing the first
-# "sudo dpkg -i" to fail with "qcom_drivers.sh not found or not executable".
+# Create DEBIAN/preinst
+# Runs BEFORE dpkg unpacks the new payload. All destructive cleanup (qpm-cli,
+# legacy scripts, services) happens here so that by the time postinst executes
+# the freshly-unpacked payload at INSTALL_PREFIX is intact.
 cat > "$BUILDROOT/DEBIAN/preinst" <<EOF
 #!/usr/bin/env bash
 set -e
@@ -196,16 +207,9 @@ fi
 touch "\$LOG_FILE" || true
 chmod 0644 "\$LOG_FILE" || true
 
-# Uninstall any QUD driver previously installed via qpm-cli BEFORE dpkg extracts
-# the new payload.  Running this in postinst (as was done before QUD-1886 fix)
-# caused qpm-cli to delete the freshly-extracted qcom_drivers.sh, making the
-# first dpkg install silently incomplete.
-{
-  echo ""
-  echo "=================================================================="
-  echo "[QUD] qpm-cli QUD uninstall (qud.internal / qud / qud.slt)"
-  echo "=================================================================="
-} >> "\$LOG_FILE" 2>&1
+$QUD_COMMON_FUNCS
+
+LOG_HEADER "qpm-cli QUD uninstall (qud.internal / qud / qud.slt)"
 if command -v qpm-cli >/dev/null 2>&1; then
   QUD_INTERNAL_VERSION="\$(qpm-cli --info qud.internal 2>/dev/null | grep "Installed" | awk '{printf \$4}')"
   QUD_EXTERNAL_VERSION="\$(qpm-cli --info qud 2>/dev/null | grep "Installed" | awk '{printf \$4}')"
@@ -231,9 +235,38 @@ else
   echo "[QUD] qpm-cli not available, skipping qpm-cli QUD uninstall." >> "\$LOG_FILE" 2>&1
 fi
 
-# Remove any previous extracted build folder so we start fresh.
-# This runs AFTER qpm-cli uninstall so qpm-cli has already cleaned up its own
-# files; dpkg will then extract the new payload into a clean directory.
+LOG_HEADER "Legacy QUD cleanup"
+if [ -x "\$INSTALL_PREFIX/legacy/installer/QcDevDriver.sh" ]; then
+  "\$INSTALL_PREFIX/legacy/installer/QcDevDriver.sh" uninstall >> "\$LOG_FILE" 2>&1 || true
+fi
+
+LOG_HEADER "Legacy QUD service cleanup"
+QC_SYSTEMD_PATH=/etc/systemd/system
+if [ -f \$QC_SYSTEMD_PATH/QUDService.service ]; then
+    systemctl daemon-reload >> "\$LOG_FILE" 2>&1 || true
+    systemctl stop QUDService >> "\$LOG_FILE" 2>&1 || true
+    systemctl disable QUDService.service >> "\$LOG_FILE" 2>&1 || true
+    rm -rf \$QC_SYSTEMD_PATH/QUDService.service >> "\$LOG_FILE" 2>&1 || true
+elif [ ! -f \$QC_SYSTEMD_PATH/QUDService.service ]; then
+    echo "\$QC_SYSTEMD_PATH/QUDService.service unit file Doesn't exist" >> "\$LOG_FILE" 2>&1
+else
+    echo "Error: Failed to delete \$QC_SYSTEMD_PATH/QUDService.service" >> "\$LOG_FILE" 2>&1
+fi
+
+LOG_HEADER "New QUD service cleanup"
+QCOM_SYSTEMD_PATH=/etc/systemd/system
+QCOM_QUDSERVICE=qcom-qud.service
+if [ -f \$QCOM_SYSTEMD_PATH/\$QCOM_QUDSERVICE ]; then
+    systemctl daemon-reload >> "\$LOG_FILE" 2>&1 || true
+    systemctl stop \$QCOM_QUDSERVICE >> "\$LOG_FILE" 2>&1 || true
+    systemctl disable \$QCOM_QUDSERVICE >> "\$LOG_FILE" 2>&1 || true
+    rm -rf \$QCOM_SYSTEMD_PATH/\$QCOM_QUDSERVICE >> "\$LOG_FILE" 2>&1 || true
+elif [ ! -f \$QCOM_SYSTEMD_PATH/\$QCOM_QUDSERVICE ]; then
+    echo "\$QCOM_SYSTEMD_PATH/\$QCOM_QUDSERVICE unit file Doesn't exist" >> "\$LOG_FILE" 2>&1
+else
+    echo "Error: Failed to delete \$QCOM_SYSTEMD_PATH/\$QCOM_QUDSERVICE" >> "\$LOG_FILE" 2>&1
+fi
+
 if [ -d "\$INSTALL_PREFIX" ]; then
   rm -rf "\$INSTALL_PREFIX" || true
 fi
@@ -252,16 +285,7 @@ INSTALL_ROOT="$INSTALL_ROOT"
 INSTALL_PREFIX="$INSTALL_PREFIX"
 LOG_FILE="\$INSTALL_ROOT/qcom_kernel_install.log"
 
-# LOG_HEADER() writes a visually distinct === frame around the stage name to the
-# install log so the reader can tell where each stage starts.
-LOG_HEADER() {
-  {
-    echo ""
-    echo "=================================================================="
-    echo "[QUD] \$1"
-    echo "=================================================================="
-  } >> "\$LOG_FILE" 2>&1
-}
+$QUD_COMMON_FUNCS
 
 echo "[QUD] Ensuring script permissions..." >> "\$LOG_FILE" 2>&1
 find "\$INSTALL_PREFIX" -type f -name '*.sh' -exec chmod +x {} \\; || true
@@ -309,43 +333,6 @@ if [ -n "\$USERSPACE_DPKG_TAIL" ]; then
   echo "" >> "\$LOG_FILE" 2>&1
   echo "[QUD] /var/log/dpkg.log excerpt (last few instances of qud / qualcomm-userspace-driver events from /var/log/dpkg.log):" >> "\$LOG_FILE" 2>&1
   printf '%s\n' "\$USERSPACE_DPKG_TAIL" | sed 's/^/[dpkg logs] /' >> "\$LOG_FILE" 2>&1
-fi
-
-# qpm-cli uninstall was moved to preinst (QUD-1886 fix) so it runs before dpkg
-# extracts the package payload.  postinst no longer needs to do it.
-LOG_HEADER "qpm-cli QUD uninstall"
-echo "[QUD] qpm-cli uninstall was already performed in preinst (before payload extraction)." >> "\$LOG_FILE" 2>&1
-
-LOG_HEADER "Legacy QUD cleanup"
-if [ -x "\$INSTALL_PREFIX/legacy/installer/QcDevDriver.sh" ]; then
-  "\$INSTALL_PREFIX/legacy/installer/QcDevDriver.sh" uninstall >> "\$LOG_FILE" 2>&1 || true
-fi
-
-LOG_HEADER "Legacy QUD service cleanup"
-QC_SYSTEMD_PATH=/etc/systemd/system
-if [ -f \$QC_SYSTEMD_PATH/QUDService.service ]; then
-    systemctl daemon-reload >> "\$LOG_FILE" 2>&1 || true
-    systemctl stop QUDService >> "\$LOG_FILE" 2>&1 || true
-    systemctl disable QUDService.service >> "\$LOG_FILE" 2>&1 || true
-    rm -rf \$QC_SYSTEMD_PATH/QUDService.service >> "\$LOG_FILE" 2>&1 || true
-elif [ ! -f \$QC_SYSTEMD_PATH/QUDService.service ]; then
-    echo "\$QC_SYSTEMD_PATH/QUDService.service unit file Doesn't exist" >> "\$LOG_FILE" 2>&1
-else
-    echo "Error: Failed to delete \$QC_SYSTEMD_PATH/QUDService.service" >> "\$LOG_FILE" 2>&1
-fi
-
-LOG_HEADER "New QUD service cleanup"
-QCOM_SYSTEMD_PATH=/etc/systemd/system
-QCOM_QUDSERVICE=qcom-qud.service
-if [ -f \$QCOM_SYSTEMD_PATH/\$QCOM_QUDSERVICE ]; then
-    systemctl daemon-reload >> "\$LOG_FILE" 2>&1 || true
-    systemctl stop \$QCOM_QUDSERVICE >> "\$LOG_FILE" 2>&1 || true
-    systemctl disable \$QCOM_QUDSERVICE >> "\$LOG_FILE" 2>&1 || true
-    rm -rf \$QCOM_SYSTEMD_PATH/\$QCOM_QUDSERVICE >> "\$LOG_FILE" 2>&1 || true
-elif [ ! -f \$QCOM_SYSTEMD_PATH/\$QCOM_QUDSERVICE ]; then
-    echo "\$QCOM_SYSTEMD_PATH/\$QCOM_QUDSERVICE unit file Doesn't exist" >> "\$LOG_FILE" 2>&1
-else
-    echo "Error: Failed to delete \$QCOM_SYSTEMD_PATH/\$QCOM_QUDSERVICE" >> "\$LOG_FILE" 2>&1
 fi
 
 # Ensure kernel headers are available for the running kernel before building modules.
