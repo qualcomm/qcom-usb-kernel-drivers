@@ -23,6 +23,13 @@ Qualcomm USB host drivers providing logical representations of Qualcomm chipset-
 
 ---
 
+## [1.0.6.5] - 2026-06-17
+1. Fix dpkg installing twice issue. All cleanup moved to preinst debian maintainer section.
+2. Fix post installer script fails when installation attempted in read-only directory.
+3. Remove EUD product IDs from INFs.
+4. Fixed makefile to install individual driver modules.
+
+
 ## [1.0.6.4] - 2026-05-8
 1. First Debian package release of QUD v1.0.6.3 is now available on GitHub. Users can modify the driver source and generate a Debian package using the build-deb.sh script.
 2. Updated the installer script to automatically install kernel headers for the running kernel seamlessly across multiple platforms including Ubuntu, Debian, RHEL, and Fedora.[QUD-1881]
