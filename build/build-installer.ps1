@@ -47,8 +47,8 @@ function New-Payload {
                     continue
                 }
                 New-Item -ItemType Directory -Path $destDir -Force | Out-Null
-                Copy-Item -Path $archSource -Destination $destDir -Recurse -Force
-                Write-Host "[COPY] $($item.Path)/$($item.Arch) -> staging"
+                Copy-Item -Path "$archSource\*" -Destination $destDir -Recurse -Force
+                Write-Host "[COPY] $($item.Path)/$($item.Arch)/* -> $($item.Path)/"
                 continue
             }
 
