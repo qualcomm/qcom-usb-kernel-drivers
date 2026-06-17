@@ -4502,7 +4502,28 @@ VOID MPUSB_TLPTxPacket
             Qmap->PadCD |= (paddingBytes);
             Qmap->MuxId = pAdapter->MuxId;
             sendBytes += paddingBytes;
-            Qmap->PacketLen = RtlUshortByteSwap(sendBytes);
+            /* When QMAPEnabledV4/V2/V3 is active, the QMAP_UL_CHECKSUM structure
+             * (8 bytes) is placed between the QMAP header and the IP payload. The
+             * PacketLen field must cover all bytes that follow the QMAP header, so it
+             * must include sizeof(QMAP_UL_CHECKSUM).  Without this fix, PacketLen is
+             * undersized by sizeof(QMAP_UL_CHECKSUM); IPA advances its frame-boundary
+             * pointer sizeof(QMAP_UL_CHECKSUM) bytes early, misreads trailing IP
+             * payload as the next QMAP header, and raises exception=4
+             * (status.pkt_len < qmap.pkt_len). */
+            if ((pAdapter->QMAPEnabledV4 == TRUE)
+#ifdef QCUSB_MUX_PROTOCOL
+#if defined(QCMP_QMAP_V2_SUPPORT)
+                || (pAdapter->QMAPEnabledV2 == TRUE) || (pAdapter->QMAPEnabledV3 == TRUE)
+#endif
+#endif
+                )
+            {
+                Qmap->PacketLen = RtlUshortByteSwap((USHORT)(sendBytes + sizeof(QMAP_UL_CHECKSUM)));
+            }
+            else
+            {
+                Qmap->PacketLen = RtlUshortByteSwap((USHORT)sendBytes);
+            }
             if (pAdapter->QMAPEnabledV4 == TRUE)
             {
                 PQMAP_UL_CHECKSUM pULCheckSum = (PQMAP_UL_CHECKSUM)((PUCHAR)Qmap + sizeof(QMAP_STRUCT));
@@ -5798,7 +5819,28 @@ VOID MPUSB_TLPTxPacketEx
             Qmap->PadCD |= (paddingBytes);
             Qmap->MuxId = pAdapter->MuxId;
             sendBytes += paddingBytes;
-            Qmap->PacketLen = RtlUshortByteSwap(sendBytes);
+            /* When QMAPEnabledV4/V2/V3 is active, the QMAP_UL_CHECKSUM structure
+             * (8 bytes) is placed between the QMAP header and the IP payload. The
+             * PacketLen field must cover all bytes that follow the QMAP header, so it
+             * must include sizeof(QMAP_UL_CHECKSUM).  Without this fix, PacketLen is
+             * undersized by sizeof(QMAP_UL_CHECKSUM); IPA advances its frame-boundary
+             * pointer sizeof(QMAP_UL_CHECKSUM) bytes early, misreads trailing IP
+             * payload as the next QMAP header, and raises exception=4
+             * (status.pkt_len < qmap.pkt_len). */
+            if ((pAdapter->QMAPEnabledV4 == TRUE)
+#ifdef QCUSB_MUX_PROTOCOL
+#if defined(QCMP_QMAP_V2_SUPPORT)
+                || (pAdapter->QMAPEnabledV2 == TRUE) || (pAdapter->QMAPEnabledV3 == TRUE)
+#endif
+#endif
+                )
+            {
+                Qmap->PacketLen = RtlUshortByteSwap((USHORT)(sendBytes + sizeof(QMAP_UL_CHECKSUM)));
+            }
+            else
+            {
+                Qmap->PacketLen = RtlUshortByteSwap((USHORT)sendBytes);
+            }
             if (pAdapter->QMAPEnabledV4 == TRUE)
             {
                 PQMAP_UL_CHECKSUM pULCheckSum = (PQMAP_UL_CHECKSUM)((PUCHAR)Qmap + sizeof(QMAP_STRUCT));
