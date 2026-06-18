@@ -90,7 +90,7 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
     (
         &fileSettings,
         QDBDEV_EvtDeviceFileCreate,
-        QDBDEV_EvtDeviceFileClose,
+        WDF_NO_EVENT_CALLBACK,          // Close: Cleanup handles drain restart
         QDBDEV_EvtDeviceFileCleanup
     );
     WDF_OBJECT_ATTRIBUTES_INIT(&fileAttrib);
