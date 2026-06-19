@@ -4,8 +4,7 @@
 
 GENERAL DESCRIPTION
     Driver entry point and common utility functions for the QDSS USB
-    function driver. Implements DriverEntry, Unicode string allocation,
-    and per-device registry settings retrieval.
+    function driver. Implements DriverEntry and Unicode string allocation.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
@@ -106,96 +105,3 @@ NTSTATUS QDBMAIN_AllocateUnicodeString(PUNICODE_STRING Ustring, SIZE_T Size, ULO
     return STATUS_SUCCESS;
 }  // QDBMAIN_AllocateUnicodeString
 
-/****************************************************************************
- *
- * function: QDBMAIN_GetRegistrySettings
- *
- * purpose:  Reads per-device registry settings (function type and
- *           I/O failure threshold) from the driver software key and
- *           stores them in the device context.
- *
- * arguments:Device = WDF device handle
- *
- * returns:  VOID
- *
- ****************************************************************************/
-VOID QDBMAIN_GetRegistrySettings(WDFDEVICE Device)
-{
-    PDEVICE_CONTEXT pDevContext;
-    NTSTATUS        ntStatus;
-    WDFKEY          hKey = NULL;
-    DECLARE_CONST_UNICODE_STRING(valueFunctionName, L"QCDeviceFunction");
-    DECLARE_CONST_UNICODE_STRING(valueIoFailureThreshold, L"QCDeviceIoFailureThreshold");
-
-    pDevContext = QdbDeviceGetContext(Device);
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_READ,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->QDBMAIN_GetRegistrySettings\n", pDevContext->PortName)
-    );
-
-    pDevContext->FunctionType = QDB_FUNCTION_TYPE_QDSS; // default
-    pDevContext->IoFailureThreshold = 24;  // default
-
-    ntStatus = WdfDeviceOpenRegistryKey
-    (
-        Device,
-        PLUGPLAY_REGKEY_DRIVER,
-        STANDARD_RIGHTS_READ,
-        NULL,
-        &hKey
-    );
-
-    if (NT_SUCCESS(ntStatus))
-    {
-        ntStatus = WdfRegistryQueryULong
-        (
-            hKey,
-            &valueFunctionName,
-            &(pDevContext->FunctionType)
-        );
-        if (!NT_SUCCESS(ntStatus))
-        {
-            QDB_DbgPrint
-            (
-                QDB_DBG_MASK_READ,
-                QDB_DBG_LEVEL_ERROR,
-                ("<%s> QDBMAIN_GetRegistrySettings: use default for funcType\n", pDevContext->PortName)
-            );
-            pDevContext->FunctionType = 0;
-            return;
-        }
-
-        ntStatus = WdfRegistryQueryULong
-        (
-            hKey,
-            &valueIoFailureThreshold,
-            &(pDevContext->IoFailureThreshold)
-        );
-        if (!NT_SUCCESS(ntStatus))
-        {
-            QDB_DbgPrint
-            (
-                QDB_DBG_MASK_READ,
-                QDB_DBG_LEVEL_ERROR,
-                ("<%s> QDBMAIN_GetRegistrySettings: use default for funcType\n", pDevContext->PortName)
-            );
-            pDevContext->IoFailureThreshold = 24;  // default
-            return;
-        }
-
-        WdfRegistryClose(hKey);
-    }
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_READ,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> <--QDBMAIN_GetRegistrySettings (ST 0x%x) Type %d \n",
-        pDevContext->PortName, ntStatus, pDevContext->FunctionType)
-    );
-
-    return;
-
-}  // QDBMAIN_GetRegistrySettings

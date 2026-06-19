@@ -422,7 +422,6 @@ VOID QDBPNP_EvtDeviceCleanupCallback(WDFOBJECT Object)
         pDevContext->SymbolicLink.Length = 0;
     }
     QDBPNP_SetStamp(pDevContext->PhysicalDeviceObject, 0, 0);
-    QDBPNP_SetFunctionProtocol(wdfDevice, 0);
 
     QDBPNP_WaitForDrainToStop(pDevContext);
     QDBRD_FreeIoBuffer(pDevContext);
@@ -545,6 +544,7 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
     pDevContext->PhysicalDeviceObject = WdfDeviceWdmGetPhysicalDevice(Device);
     pDevContext->MyDevice = WdfDeviceWdmGetDeviceObject(Device);
     pDevContext->TargetDevice = WdfIoTargetWdmGetTargetDeviceObject(pDevContext->MyIoTarget);
+    pDevContext->IoFailureThreshold = QDB_IO_FAILURE_THRESHOLD;
 
     // TODO: for DPL only
     pDevContext->PipeDrain = FALSE;
@@ -570,7 +570,6 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
 
     nts = QDBPNP_EnableSelectiveSuspend(Device);
 
-    QDBMAIN_GetRegistrySettings(Device);
     QDBPNP_SetStamp(pDevContext->PhysicalDeviceObject, 0, 1);
 
     // Start to drain IN pipe for DPL
@@ -929,70 +928,54 @@ UpdateRegistry:
  *
  * function: QDBPNP_SetFunctionProtocol
  *
- * purpose:  Writes the interface protocol code to the QCDeviceProtocol
- *           value in the device driver registry key.
+ * purpose:  Derives and stores the device function type in the device
+ *           context from the protocol code in USB interface descriptor
+ *           Protocol 0x80 identifies a DPL interface; all other values
+ *           (e.g. 0x70) identify a QDSS interface.
  *
- * arguments:Device       = WDF device handle
- *           ProtocolCode = protocol code value to store
+ * arguments:Device             = WDF device handle
+ *           ProtocolCode       = bInterfaceProtocol field from the USB
+ *                                interface descriptor
  *
- * returns:  NT status
+ * returns:  VOID
  *
  ****************************************************************************/
-NTSTATUS QDBPNP_SetFunctionProtocol(IN WDFDEVICE Device, ULONG ProtocolCode)
+VOID QDBPNP_SetFunctionProtocol(IN WDFDEVICE Device, UCHAR ProtocolCode)
 {
-    PDEVICE_CONTEXT pDevContext;
-    NTSTATUS        ntStatus;
-    UNICODE_STRING  ucValueName;
-    HANDLE          hRegKey;
+    PDEVICE_CONTEXT pDevContext = QdbDeviceGetContext(Device);
 
-    pDevContext = QdbDeviceGetContext(Device);
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_CONTROL,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->_SetFunctionProtocol: 0x%x\n", pDevContext->PortName, ProtocolCode)
-    );
-
-    ntStatus = IoOpenDeviceRegistryKey
-    (
-        pDevContext->PhysicalDeviceObject,
-        PLUGPLAY_REGKEY_DRIVER,
-        KEY_ALL_ACCESS,
-        &hRegKey
-    );
-
-    if (!NT_SUCCESS(ntStatus))
+    switch (ProtocolCode)
     {
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_CONTROL,
-            QDB_DBG_LEVEL_TRACE,
-            ("<%s> <--_SetFunctionProtocol: failed to open registry 0x%x\n", pDevContext->PortName, ntStatus)
-        );
-        return ntStatus;
+        case 0x80:
+        {
+            pDevContext->FunctionType = QDB_FUNCTION_TYPE_DPL;
+            break;
+        }
+        case 0x70:
+        {
+            pDevContext->FunctionType = QDB_FUNCTION_TYPE_QDSS;
+            break;
+        }
+        default:
+        {
+            pDevContext->FunctionType = QDB_FUNCTION_TYPE_QDSS;
+            QDB_DbgPrint
+            (
+                QDB_DBG_MASK_CONTROL,
+                QDB_DBG_LEVEL_INFO,
+                ("<%s> QDBPNP_SetFunctionProtocol: Unknown bInterfaceProtocol 0x%02x, fallback to QDSS\n",
+                pDevContext->PortName, ProtocolCode)
+            );
+        }
     }
 
-    RtlInitUnicodeString(&ucValueName, VEN_DEV_PROTOC);
-    ntStatus = ZwSetValueKey
-    (
-        hRegKey,
-        &ucValueName,
-        0,
-        REG_DWORD,
-        (PVOID)&ProtocolCode,
-        sizeof(ULONG)
-    );
-    ZwClose(hRegKey);
-
     QDB_DbgPrint
     (
         QDB_DBG_MASK_CONTROL,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> <--_SetFunctionProtocol: 0x%x ST 0x%x\n", pDevContext->PortName, ProtocolCode, ntStatus)
+        QDB_DBG_LEVEL_INFO,
+        ("<%s> QDBPNP_SetFunctionProtocol: bInterfaceProtocol 0x%02x -> FunctionType %d (0=QDSS 1=DPL)\n",
+        pDevContext->PortName, ProtocolCode, pDevContext->FunctionType)
     );
-
-    return ntStatus;
 }  // QDBPNP_SetFunctionProtocol
 
 /****************************************************************************
@@ -1415,7 +1398,7 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
                         ((ULONG)interfaceDesc.bInterfaceClass) << 8 |
                         ((ULONG)interfaceDesc.bAlternateSetting) << 16 |
                         ((ULONG)interfaceDesc.bInterfaceNumber) << 24;
-                    QDBPNP_SetFunctionProtocol(Device, pDevContext->IfProtocol);
+                    QDBPNP_SetFunctionProtocol(Device, interfaceDesc.bInterfaceProtocol);
                 }
 
                 switch (numPipes)

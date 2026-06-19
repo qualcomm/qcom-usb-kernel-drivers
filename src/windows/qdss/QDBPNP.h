@@ -58,7 +58,7 @@ VOID QDBPNP_SaveParentDeviceNameToRegistry
     ULONG NameLength
 );
 
-NTSTATUS QDBPNP_SetFunctionProtocol(IN WDFDEVICE Device, ULONG ProtocolCode);
+VOID QDBPNP_SetFunctionProtocol(IN WDFDEVICE Device, UCHAR ProtocolCode);
 
 NTSTATUS QDBPNP_ReadDebugMask(WDFDEVICE QCDevice);
 

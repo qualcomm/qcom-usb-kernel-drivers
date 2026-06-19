@@ -479,13 +479,13 @@ NTSTATUS QDBRD_AllocateRequestsRx(PDEVICE_CONTEXT pDevContext)
 
     KeInitializeSpinLock(&pDevContext->RxLock);
 
-    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
     {
         QDB_DbgPrint
         (
             QDB_DBG_MASK_READ,
             QDB_DBG_LEVEL_ERROR,
-            ("<%s> <--QDBRD_AllocateRequestsRx: not DPL\n", pDevContext->PortName)
+            ("<%s> <--QDBRD_AllocateRequestsRx: not QDSS\n", pDevContext->PortName)
         );
         return STATUS_NOT_SUPPORTED;
     }
@@ -577,7 +577,7 @@ VOID QDBRD_FreeIoBuffer(PDEVICE_CONTEXT pDevContext)
     PQDB_IO_REQUEST ioReq = pDevContext->RxRequest;
     ULONG numElements = pDevContext->NumOfRxReqs;
 
-    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
     {
         return;
     }
@@ -638,13 +638,13 @@ NTSTATUS QDBRD_PipeDrainStart(PDEVICE_CONTEXT pDevContext)
         ("<%s> -->QDBRD_PipeDrainStart\n", pDevContext->PortName)
     );
 
-    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
     {
         QDB_DbgPrint
         (
             QDB_DBG_MASK_READ,
             QDB_DBG_LEVEL_ERROR,
-            ("<%s> <--QDBRD_PipeDrainStart: not DPL\n", pDevContext->PortName)
+            ("<%s> <--QDBRD_PipeDrainStart: not QDSS\n", pDevContext->PortName)
         );
         return STATUS_NOT_SUPPORTED;
     }
@@ -701,7 +701,7 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
     BOOLEAN    bResult;
     WDFUSBPIPE pipeIN = pDevContext->TraceIN;
 
-    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
     {
         QDB_DbgPrint
         (
@@ -833,7 +833,7 @@ NTSTATUS QDBRD_PipeDrainStop(PDEVICE_CONTEXT pDevContext)
     // ULONG i;
     KIRQL oldLevel;
 
-    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
     {
         QDB_DbgPrint
         (
