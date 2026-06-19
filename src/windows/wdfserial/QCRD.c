@@ -613,11 +613,17 @@ void QCRD_ReadRequestHandlerThread
                     // the inter-byte gap timer (ReadIntervalTimeout) expires.
                     // COMPLETION_EVENT keeps the timer re-armed while data streams in;
                     // REQUEST_TIMEOUT_EVENT delivers buffered data when the gap occurs.
+                    //
+                    // Exception: if data is already in the ring buffer
+                    // when the IRP arrives, bypass the timer and deliver immediately.
+                    // The inter-byte gap has already elapsed for buffered bytes; waiting
+                    // for the timer would add one Windows clock tick (~16 ms) of latency
+                    // per byte, serialising delivery and causing severe throughput loss.
                     BOOLEAN useReadInterval = (pDevContext->ReadTimeout.bUseReadInterval &&
                                                pDevContext->Timeouts.ReadIntervalTimeout > 0 &&
                                                pDevContext->Timeouts.ReadIntervalTimeout != MAXULONG);
 
-                    if (useReadInterval)
+                    if (useReadInterval && QCUTIL_RingBufferBytesUsed(rxBuffer) == 0)
                     {
                         // If a new request is sitting in ReadQueue, move it to
                         // TimeoutReadQueue and arm the RI timer so it waits for
@@ -746,135 +752,133 @@ void QCRD_ReadRequestHandlerThread
                     }
                     else
                     {
-                        // Guard: check if TimeoutReadQueue has pending request and ReadQueue is empty
-                        // If so, skip immediate drain to preserve inter-byte gap semantics (QUD-1837)
-                        NTSTATUS timeoutCheckStatus = WdfIoQueueRetrieveNextRequest(pDevContext->TimeoutReadQueue, &pendingTimeoutRequest);
-                        if (pendingTimeoutRequest != NULL && QCUTIL_RingBufferBytesUsed(rxBuffer) > 0)
+                        // Preserve QUD-1837 semantics: if a request is already waiting
+                        // in TimeoutReadQueue and there is no new ReadQueue request,
+                        // keep waiting for REQUEST_TIMEOUT_EVENT instead of bypassing.
+                        if (useReadInterval &&
+                            !QCUTIL_IsIoQueueEmpty(pDevContext->TimeoutReadQueue) &&
+                            QCUTIL_IsIoQueueEmpty(pDevContext->ReadQueue))
                         {
-                            // TimeoutReadQueue has pending request with data in buffer
-                            // Check if ReadQueue also has a request
-                            WDFREQUEST readQueueRequest = NULL;
-                            NTSTATUS readQueueStatus = WdfIoQueueRetrieveNextRequest(pDevContext->ReadQueue, &readQueueRequest);
-                            
-                            if (readQueueStatus != STATUS_SUCCESS || readQueueRequest == NULL)
+                            QCSER_DbgPrint
+                            (
+                                QCSER_DBG_MASK_READ,
+                                QCSER_DBG_LEVEL_TRACE,
+                                ("<%ws> RIRP: QCRD_ReadRequestHandlerThread RI pending timeout request; keep timer-based completion, ring bytes: %llu\n",
+                                pDevContext->PortName, QCUTIL_RingBufferBytesUsed(rxBuffer))
+                            );
+                        }
+                        else
+                        {
+                            // If useReadInterval is true but data is already buffered,
+                            // cancel any pending inter-byte timer before draining.
+                            // KeCancelTimer returns FALSE if the DPC is already queued;
+                            // in that case ReadTimeoutDpc will fire after KeClearEvent and
+                            // set ReadRequestTimeoutEvent again. READ_THREAD_REQUEST_TIMEOUT_EVENT
+                            // will then find the ring buffer empty (drained below) and complete
+                            // any pending TimeoutReadQueue request with STATUS_TIMEOUT / 0 bytes.
+                            // This is correct RI semantics: the inter-byte gap elapsed and no
+                            // data was available for that request (it was consumed by ReadQueue).
+                            if (useReadInterval)
                             {
-                                // ReadQueue is empty, don't bypass - wait for timeout timer
+                                KeCancelTimer(&pDevContext->ReadTimer);
+                                KeClearEvent(&pDevContext->ReadRequestTimeoutEvent);
                                 QCSER_DbgPrint
                                 (
                                     QCSER_DBG_MASK_READ,
                                     QCSER_DBG_LEVEL_TRACE,
-                                    ("<%ws> RIRP: QCRD_ReadRequestHandlerThread skip immediate drain - TimeoutReadQueue pending, ReadQueue empty, waiting for timer\n", pDevContext->PortName)
+                                    ("<%ws> RIRP: QCRD_ReadRequestHandlerThread RI bypass: ring has %llu bytes, delivering immediately\n",
+                                    pDevContext->PortName, QCUTIL_RingBufferBytesUsed(rxBuffer))
                                 );
-                                WdfRequestForwardToIoQueue(pendingTimeoutRequest, pDevContext->TimeoutReadQueue);
-                                pendingTimeoutRequest = NULL;
-                                break;  // Wait for timeout to fire
                             }
-                            else
+
+                            // iterate through the ring buffer
+                            while (QCUTIL_RingBufferBytesUsed(rxBuffer) > 0)
                             {
-                                // ReadQueue has a fresh request, put it back and proceed with drain
-                                WdfRequestForwardToIoQueue(readQueueRequest, pDevContext->ReadQueue);
-                            }
-                        }
-                        
-                        // iterate through the ring buffer
-                        while (QCUTIL_RingBufferBytesUsed(rxBuffer) > 0)
-                        {
-                            // get a pending request and its parameter
-                            if (pDevContext->DeviceFunction == QCUSB_DEV_FUNC_VI)
-                            {
-                                if (QCUTIL_RingBufferBytesUsed(rxBuffer) >= pDevContext->QcStats.SessionTotal)
+                                // get a pending request and its parameter
+                                if (pDevContext->DeviceFunction == QCUSB_DEV_FUNC_VI)
                                 {
-                                    request = pDevContext->PendingReadRequest;
-                                    pDevContext->PendingReadRequest = NULL;
-                                    status = STATUS_SUCCESS;
+                                    if (QCUTIL_RingBufferBytesUsed(rxBuffer) >= pDevContext->QcStats.SessionTotal)
+                                    {
+                                        request = pDevContext->PendingReadRequest;
+                                        pDevContext->PendingReadRequest = NULL;
+                                        status = STATUS_SUCCESS;
+                                    }
+                                    else
+                                    {
+                                        request = NULL;
+                                    }
                                 }
                                 else
                                 {
-                                    request = NULL;
+                                    // When bypassing the RI timer due to pre-buffered data, we must NOT
+                                    // drain TimeoutReadQueue: those requests are waiting for the timer to
+                                    // expire (QUD-1837 inter-byte gap semantics). Only serve new requests
+                                    // from ReadQueue during bypass. TimeoutReadQueue requests will be
+                                    // handled by REQUEST_TIMEOUT_EVENT when the timer fires.
+                                    status = WdfIoQueueRetrieveNextRequest(pDevContext->ReadQueue, &request);
                                 }
-                            }
-                            else
-                            {
-                                status = WdfIoQueueRetrieveNextRequest(pDevContext->TimeoutReadQueue, &pendingTimeoutRequest);
-                                if (pendingTimeoutRequest != NULL)
+
+                                if (!NT_SUCCESS(status) || request == NULL)
                                 {
+                                    // no request in queue, or operation failed
                                     QCSER_DbgPrint
                                     (
                                         QCSER_DBG_MASK_READ,
-                                        QCSER_DBG_LEVEL_TRACE,
-                                        ("<%ws> RIRP: QCRD_ReadRequestHandlerThread completing pendingTimeoutRequest request: 0x%p\n", pDevContext->PortName, pendingTimeoutRequest)
+                                        QCSER_DBG_LEVEL_INFO,
+                                        ("<%ws> RIRP: QCRD_ReadRequestHandlerThread get pending request from read queue FAILED status: 0x%x\n", pDevContext->PortName, status)
                                     );
-                                    KeClearEvent(&pDevContext->ReadRequestTimeoutEvent);
-                                    KeCancelTimer(&pDevContext->ReadTimer);
-                                    request = pendingTimeoutRequest;
-                                    pendingTimeoutRequest = NULL;
+                                    break;
                                 }
-                                else
-                                {
-                                    status = WdfIoQueueRetrieveNextRequest(pDevContext->ReadQueue, &request);
-                                }
-                            }
 
-                            if (!NT_SUCCESS(status) || request == NULL)
-                            {
-                                // no request in queue, or operation failed
-                                QCSER_DbgPrint
-                                (
-                                    QCSER_DBG_MASK_READ,
-                                    QCSER_DBG_LEVEL_INFO,
-                                    ("<%ws> RIRP: QCRD_ReadRequestHandlerThread get pending request from read queue FAILED status: 0x%x\n", pDevContext->PortName, status)
-                                );
-                                break;
-                            }
-
-                            WDF_REQUEST_PARAMETERS_INIT(&requestParam);
-                            WdfRequestGetParameters(request, &requestParam);
-                            size_t availableLength = QCUTIL_RingBufferBytesUsed(rxBuffer);
-                            size_t requestedLength = requestParam.Parameters.Read.Length;
-                            QCSER_DbgPrint
-                            (
-                                QCSER_DBG_MASK_READ,
-                                QCSER_DBG_LEVEL_DETAIL,
-                                ("<%ws> RIRP: QCRD_ReadRequestHandlerThread request: 0x%p, requestedLength: %llu, availableBytes: %llu\n", pDevContext->PortName, request, requestedLength, availableLength)
-                            );
-
-                            size_t bytesCopied = 0;
-                            PUCHAR outputRxBuffer = NULL;
-                            WdfRequestRetrieveOutputBuffer(request, requestedLength, &outputRxBuffer, NULL);
-                            status = QCUTIL_RingBufferRead(rxBuffer, outputRxBuffer, requestedLength, &bytesCopied);
-                            if (NT_SUCCESS(status))
-                            {
-                                WdfRequestCompleteWithInformation(request, STATUS_SUCCESS, bytesCopied);
+                                WDF_REQUEST_PARAMETERS_INIT(&requestParam);
+                                WdfRequestGetParameters(request, &requestParam);
+                                size_t availableLength = QCUTIL_RingBufferBytesUsed(rxBuffer);
+                                size_t requestedLength = requestParam.Parameters.Read.Length;
                                 QCSER_DbgPrint
                                 (
                                     QCSER_DBG_MASK_READ,
                                     QCSER_DBG_LEVEL_DETAIL,
-                                    ("<%ws> RIRP: QCRD_ReadRequestHandlerThread rx data copy successfully length: %llu\n", pDevContext->PortName, bytesCopied)
+                                    ("<%ws> RIRP: QCRD_ReadRequestHandlerThread request: 0x%p, requestedLength: %llu, availableBytes: %llu\n", pDevContext->PortName, request, requestedLength, availableLength)
                                 );
-                                if (bBufferOverflow == TRUE)
+
+                                size_t bytesCopied = 0;
+                                PUCHAR outputRxBuffer = NULL;
+                                WdfRequestRetrieveOutputBuffer(request, requestedLength, &outputRxBuffer, NULL);
+                                status = QCUTIL_RingBufferRead(rxBuffer, outputRxBuffer, requestedLength, &bytesCopied);
+                                if (NT_SUCCESS(status))
                                 {
-                                    bBufferOverflow = FALSE;
-                                    KeSetEvent(&pDevContext->ReadRequestCompletionEvent, IO_NO_INCREMENT, FALSE);
+                                    WdfRequestCompleteWithInformation(request, STATUS_SUCCESS, bytesCopied);
+                                    QCSER_DbgPrint
+                                    (
+                                        QCSER_DBG_MASK_READ,
+                                        QCSER_DBG_LEVEL_DETAIL,
+                                        ("<%ws> RIRP: QCRD_ReadRequestHandlerThread rx data copy successfully length: %llu\n", pDevContext->PortName, bytesCopied)
+                                    );
+                                    if (bBufferOverflow == TRUE)
+                                    {
+                                        bBufferOverflow = FALSE;
+                                        KeSetEvent(&pDevContext->ReadRequestCompletionEvent, IO_NO_INCREMENT, FALSE);
+                                        QCSER_DbgPrint
+                                        (
+                                            QCSER_DBG_MASK_READ,
+                                            QCSER_DBG_LEVEL_ERROR,
+                                            ("<%ws> RIRP: QCRD_ReadRequestHandlerThread notify data consumed\n", pDevContext->PortName)
+                                        );
+                                    }
+                                }
+                                else
+                                {
+                                    // operation failed, do nothing but complete the request with failed status
+                                    WdfRequestCompleteWithInformation(request, status, 0);
                                     QCSER_DbgPrint
                                     (
                                         QCSER_DBG_MASK_READ,
                                         QCSER_DBG_LEVEL_ERROR,
-                                        ("<%ws> RIRP: QCRD_ReadRequestHandlerThread notify data consumed\n", pDevContext->PortName)
+                                        ("<%ws> RIRP: QCRD_ReadRequestHandlerThread rx data copy FAILED status: 0x%x\n", pDevContext->PortName, status)
                                     );
                                 }
-                            }
-                            else
-                            {
-                                // operation failed, do nothing but complete the request with failed status
-                                WdfRequestCompleteWithInformation(request, status, 0);
-                                QCSER_DbgPrint
-                                (
-                                    QCSER_DBG_MASK_READ,
-                                    QCSER_DBG_LEVEL_ERROR,
-                                    ("<%ws> RIRP: QCRD_ReadRequestHandlerThread rx data copy FAILED status: 0x%x\n", pDevContext->PortName, status)
-                                );
-                            }
                             pDevContext->AmountInInQueue = QCUTIL_RingBufferBytesUsed(rxBuffer);
+                            }
                         }
                     }
 
@@ -1796,9 +1800,17 @@ VOID QCRD_EvtIoReadCompletionAsync
     UNREFERENCED_PARAMETER(Target);
 
     PDEVICE_CONTEXT  pDevContext = (PDEVICE_CONTEXT)Context;
-    PREQUEST_CONTEXT pReqContext = QCReqGetContext(Request);
+    PREQUEST_CONTEXT pReqContext = QCReqGetContext(Request);    
     NTSTATUS         status = WdfRequestGetStatus(Request);
-    size_t           availableLength = (NT_SUCCESS(status) ? Params->IoStatus.Information : 0);
+    size_t           availableLength = 0;
+
+    if (NT_SUCCESS(status) && Params->Parameters.Usb.Completion != NULL)
+    {
+        size_t ioLen  = Params->IoStatus.Information;
+        size_t usbLen = Params->Parameters.Usb.Completion->Parameters.PipeRead.Length;
+        availableLength = (usbLen == 0) ? ioLen : min(ioLen, usbLen);
+    }
+
 
     if (NT_SUCCESS(status))
     {
