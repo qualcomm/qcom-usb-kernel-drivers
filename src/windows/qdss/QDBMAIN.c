@@ -16,11 +16,9 @@ GENERAL DESCRIPTION
 #include "QDBPNP.h"
 
 #ifdef EVENT_TRACING
-#define WPP_GLOBALLOGGER
+#include "QDBWPP.h"
 #include "QDBMAIN.tmh"      //  this is the file that will be auto generated
 #endif
-
-LONG DevInstanceNumber = 0;
 
 /****************************************************************************
  *
@@ -46,19 +44,7 @@ NTSTATUS DriverEntry
     WDF_DRIVER_CONFIG     qdbConfig;
     WDF_OBJECT_ATTRIBUTES qdbAttributes;
 
-    //call this to make sure NonPagedPoolNx is passed to ExAllocatePool in Win10 and above
-    ExInitializeDriverRuntime(DrvRtPoolNxOptIn);
-
-    QDB_DbgPrintG
-    (
-        0, 0,
-        //("-->DriverEntry (Build: %s/%s)\n", __DATE__, __TIME__)
-        ("-->DriverEntry (Build: )\n")
-    );
-
 #ifdef EVENT_TRACING
-    // include this to support WPP.
-    // This macro is required to initialize software tracing.
     WPP_INIT_TRACING(DriverObject, RegPath);
 #endif
 
@@ -93,7 +79,6 @@ NTSTATUS DriverEntry
     }
 
     return ntStatus;
-
 }  // DriverEntry
 
 /****************************************************************************
@@ -101,7 +86,7 @@ NTSTATUS DriverEntry
  * function: QDBMAIN_AllocateUnicodeString
  *
  * purpose:  Allocates a non-paged pool buffer for a UNICODE_STRING
- *           and initializes its Length and MaximumLength fields.
+ *           and initializes its MaximumLength fields.
  *
  * arguments:Ustring = pointer to the UNICODE_STRING to initialize
  *           Size    = size in bytes to allocate for the string buffer
@@ -112,13 +97,12 @@ NTSTATUS DriverEntry
  ****************************************************************************/
 NTSTATUS QDBMAIN_AllocateUnicodeString(PUNICODE_STRING Ustring, SIZE_T Size, ULONG Tag)
 {
-    Ustring->Buffer = (PWSTR)ExAllocatePoolWithTag(NonPagedPool, Size, Tag);
+    Ustring->Buffer = (PWSTR)ExAllocatePoolZero(NonPagedPoolNx, Size, Tag);
     if (Ustring->Buffer == NULL)
     {
         return STATUS_NO_MEMORY;
     }
     Ustring->MaximumLength = (USHORT)Size;
-    Ustring->Length = (USHORT)Size;
     return STATUS_SUCCESS;
 }  // QDBMAIN_AllocateUnicodeString
 

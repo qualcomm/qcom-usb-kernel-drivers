@@ -23,7 +23,6 @@ GENERAL DESCRIPTION
 #define VEN_DEV_MSM_SERNUM    L"QCDeviceMsmSerialNumber"
 #define VEN_DEV_PROTOC        L"QCDeviceProtocol"
 #define VEN_DEV_CID           L"QCDeviceCID"
-#define DEVICE_HW_KEY_ROOT    L"\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Enum\\"
 
 NTSTATUS QDBPNP_SetStamp
 (

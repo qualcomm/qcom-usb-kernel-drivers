@@ -12,9 +12,6 @@ GENERAL DESCRIPTION
     SPDX-License-Identifier: BSD-3-Clause
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
-#include <stdio.h>
-#include <wdm.h>
-#include <ntstrsafe.h>
 #include "QDBMAIN.h"
 #include "QDBPNP.h"
 #include "QDBDEV.h"
@@ -23,6 +20,7 @@ GENERAL DESCRIPTION
 #include "QDBWT.h"
 
 #ifdef EVENT_TRACING
+#include "QDBWPP.h"
 #include "QDBPNP.tmh"
 #endif
 
@@ -78,8 +76,6 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
         ("-->QDBPNP_EvtDriverDeviceAdd: driver 0x%p\n", Driver)
     );
 
-    InterlockedIncrement(&DevInstanceNumber);
-
     // 1. PnP, power, and power policy callback functions
     WDF_PNPPOWER_EVENT_CALLBACKS_INIT(&pnpPowerEventCB);
     pnpPowerEventCB.EvtDevicePrepareHardware = QDBPNP_EvtDevicePrepareHW;
@@ -127,7 +123,6 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
     }
 
     pDevContext = QdbDeviceGetContext(wdfDevice);
-    sprintf(pDevContext->PortName, "%s%04X", QDB_DBG_NAME_PREFIX, DevInstanceNumber);
     pDevContext->MaxXfrSize = QDB_USB_TRANSFER_SIZE_MAX;
 
     // TODO: for debug purpose
@@ -1199,7 +1194,7 @@ NTSTATUS QDBPNP_UsbConfigureDevice(IN WDFDEVICE Device)
     ntStatus = WdfMemoryCreate
     (
         &objAttrib,
-        NonPagedPool,
+        NonPagedPoolNx,
         QDB_TAG_GEN,
         bufSize,
         &memory,
@@ -1757,10 +1752,6 @@ NTSTATUS QDBPNP_CreateSymbolicName(WDFDEVICE Device)
     ANSI_STRING     friendlyNameA;
     CHAR            driverKey[512];
     PCHAR           pSwInstance = NULL;
-    BOOLEAN         bMatched = FALSE;
-
-#define LEFT_P L" ("
-#define RIGHT_P L")"
 
     pDevContext = QdbDeviceGetContext(Device);
 

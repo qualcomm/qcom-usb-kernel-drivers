@@ -15,59 +15,9 @@ GENERAL DESCRIPTION
 #include "QDBDSP.h"
 
 #ifdef EVENT_TRACING
+#include "QDBWPP.h"
 #include "QDBDSP.tmh"
 #endif
-
-/****************************************************************************
- *
- * function: QDBDSP_IoCompletion
- *
- * purpose:  WDF request completion callback for forwarded I/O requests.
- *           Extracts the completion status and completes the original
- *           request.
- *
- * arguments:Request          = WDF request handle
- *           Target           = WDF I/O target (unused)
- *           CompletionParams = completion parameters including I/O status
- *           Context          = pointer to the device context
- *
- * returns:  VOID
- *
- ****************************************************************************/
-VOID QDBDSP_IoCompletion
-(
-    WDFREQUEST                  Request,
-    WDFIOTARGET                 Target,
-    PWDF_REQUEST_COMPLETION_PARAMS CompletionParams,
-    WDFCONTEXT                  Context
-)
-{
-    NTSTATUS         ntStatus;
-    PDEVICE_CONTEXT  pDevContext;
-    UNREFERENCED_PARAMETER(Target);
-
-    pDevContext = (PDEVICE_CONTEXT)Context;
-    ntStatus = CompletionParams->IoStatus.Status;
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_CONTROL,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->QDBDSP_IoCompletion: 0x%p ST 0x%x\n", pDevContext->PortName, Request, ntStatus)
-    );
-
-    WdfRequestComplete(Request, ntStatus);
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_CONTROL,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> <--QDBDSP_IoCompletion: 0x%p ST 0x%x\n", pDevContext->PortName, Request, ntStatus)
-    );
-
-    return;
-}  // QDBDSP_IoCompletion
-
 
 /****************************************************************************
  *

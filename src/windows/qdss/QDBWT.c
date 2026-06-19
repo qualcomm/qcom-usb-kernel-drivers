@@ -13,6 +13,7 @@ GENERAL DESCRIPTION
 #include "QDBWT.h"
 
 #ifdef EVENT_TRACING
+#include "QDBWPP.h"
 #include "QDBWT.tmh"
 #endif
 

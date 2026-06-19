@@ -15,6 +15,7 @@ GENERAL DESCRIPTION
 #include "QDBRD.h"
 
 #ifdef EVENT_TRACING
+#include "QDBWPP.h"
 #include "QDBDEV.tmh"
 #endif
 

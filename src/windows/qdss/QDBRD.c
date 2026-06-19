@@ -13,6 +13,7 @@ GENERAL DESCRIPTION
 #include "QDBRD.h"
 
 #ifdef EVENT_TRACING
+#include "QDBWPP.h"
 #include "QDBRD.tmh"
 #endif
 
@@ -515,7 +516,7 @@ NTSTATUS QDBRD_AllocateRequestsRx(PDEVICE_CONTEXT pDevContext)
         ntStatus = WdfMemoryCreate
         (
             WDF_NO_OBJECT_ATTRIBUTES,
-            NonPagedPool,
+            NonPagedPoolNx,
             QDB_TAG_RD,
             QDB_MAX_IO_SIZE_RX,
             &(pDevContext->RxRequest[i].IoMemory),

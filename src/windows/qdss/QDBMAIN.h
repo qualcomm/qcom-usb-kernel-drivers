@@ -27,9 +27,7 @@ GENERAL DESCRIPTION
 DEFINE_GUID(QDBUSB_GUID,
     0xe093662a, 0xff18, 0x4579, 0x86, 0x81, 0x50, 0x6e, 0x9f, 0x56, 0x1d, 0x3d);
 
-
 // global variable
-extern LONG DevInstanceNumber;
 extern ULONG SimData[2724];
 
 #define MAX_NAME_LEN              1024
@@ -221,9 +219,5 @@ WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(FILE_CONTEXT, QdbFileGetContext)
 NTSTATUS QDBMAIN_AllocateUnicodeString(PUNICODE_STRING Ustring, SIZE_T Size, ULONG Tag);
 
 VOID QDBMAIN_GetRegistrySettings(WDFDEVICE Device);
-
-#ifdef EVENT_TRACING
-#include "QDBWPP.h"
-#endif
 
 #endif // QDBMAIN_H
