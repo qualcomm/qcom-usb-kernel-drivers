@@ -143,7 +143,7 @@ static std::wstring get_exe_directory()
 {
     WCHAR path[MAX_PATH];
     GetModuleFileNameW(NULL, path, MAX_PATH);
-    PathRemoveFileSpecW(path);
+    PathCchRemoveFileSpec(path, MAX_PATH);
     return path[0] ? std::wstring(path) : std::wstring(L".");
 }
 

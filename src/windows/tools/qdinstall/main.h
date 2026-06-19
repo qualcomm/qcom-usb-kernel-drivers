@@ -5,8 +5,8 @@
 
 #include <windows.h>
 #include <cfgmgr32.h>
+#include <pathcch.h>
 #include <string>
-#include <shlwapi.h>
 
 struct Options
 {
