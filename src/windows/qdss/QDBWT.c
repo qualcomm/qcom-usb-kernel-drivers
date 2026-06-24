@@ -21,8 +21,7 @@ GENERAL DESCRIPTION
  * function: QDBWT_IoWrite
  *
  * purpose:  WDF write dispatch callback. Validates the file context and
- *           pipe availability, then forwards the request to QDBWT_WriteUSB.
- *           Write is only supported on the DEBUG channel.
+ *           pipe availability, then constructs and sends the request.
  *
  * arguments:Queue   = WDF I/O queue handle
  *           Request = WDF write request handle
@@ -33,24 +32,24 @@ GENERAL DESCRIPTION
  ****************************************************************************/
 VOID QDBWT_IoWrite
 (
-    WDFQUEUE   Queue,
+    WDFQUEUE Queue,
     WDFREQUEST Request,
-    size_t     Length
+    size_t Length
 )
 {
-    PDEVICE_CONTEXT pDevContext;
-    PFILE_CONTEXT   fileContext = NULL;
-
-    pDevContext = QdbDeviceGetContext(WdfIoQueueGetDevice(Queue));
+    PDEVICE_CONTEXT pDevContext = QdbDeviceGetContext(WdfIoQueueGetDevice(Queue));
+    PFILE_CONTEXT   fileContext = QdbFileGetContext(WdfRequestGetFileObject(Request));
+    NTSTATUS        ntStatus;
+    WDFMEMORY       inputMemory;
+    WDFUSBPIPE      pipeOUT;
+    WDFIOTARGET     ioTarget;
 
     QDB_DbgPrint
     (
         QDB_DBG_MASK_WRITE,
         QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->QDBWT_IoWrite: 0x%p\n", pDevContext->PortName, Request)
+        ("<%s> -->QDBWT_IoWrite: request 0x%p\n", pDevContext->PortName, Request)
     );
-
-    fileContext = QdbFileGetContext(WdfRequestGetFileObject(Request));
 
     switch (fileContext->Type)
     {
@@ -66,7 +65,6 @@ VOID QDBWT_IoWrite
             WdfRequestCompleteWithInformation(Request, STATUS_INVALID_DEVICE_REQUEST, 0);
             return;
         }
-
         case QDB_FILE_TYPE_DEBUG:
         {
             if (fileContext->DebugOUT == NULL)
@@ -101,132 +99,77 @@ VOID QDBWT_IoWrite
         (
             QDB_DBG_MASK_WRITE,
             QDB_DBG_LEVEL_DETAIL,
-            ("<%s> QDBWT_IoWrite: req length 0\n", pDevContext->PortName)
+            ("<%s> QDBWT_IoWrite: skip length 0 TX (0x%p)\n", pDevContext->PortName, Request)
         );
         WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, 0);
         return;
     }
 
-    QDBWT_WriteUSB(Queue, Request, (ULONG)Length);
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_WRITE,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> <--QDBWT_IoWrite: failed 0x%p\n", pDevContext->PortName, Request)
-    );
-
-    return;
-}  // QDBWT_IoWrite
-
-/****************************************************************************
- *
- * function: QDBWT_WriteUSB
- *
- * purpose:  Formats a WDF USB write URB for the DEBUG OUT pipe and sends
- *           it to the USB I/O target asynchronously.
- *
- * arguments:Queue   = WDF I/O queue handle
- *           Request = WDF write request handle
- *           Length  = write length in bytes
- *
- * returns:  VOID
- *
- ****************************************************************************/
-VOID QDBWT_WriteUSB
-(
-    IN WDFQUEUE         Queue,
-    IN WDFREQUEST       Request,
-    IN ULONG            Length
-)
-{
-    NTSTATUS         ntStatus;
-    PDEVICE_CONTEXT  pDevContext;
-    PFILE_CONTEXT    fileContext = NULL;
-    PREQUEST_CONTEXT txContext = NULL;
-    WDFMEMORY        hTxBufferObj;
-    WDFUSBPIPE       pipeOUT;
-    WDFIOTARGET      ioTarget;
-    BOOLEAN          bResult;
-
-    pDevContext = QdbDeviceGetContext(WdfIoQueueGetDevice(Queue));
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_WRITE,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->QDBWT_WriteUSB: 0x%p (%dB)\n", pDevContext->PortName, Request, Length)
-    );
-
-    if (Length > QDB_USB_TRANSFER_SIZE_MAX)
+    if (Length > (size_t)QDB_USB_TRANSFER_SIZE_MAX)
     {
         QDB_DbgPrint
         (
             QDB_DBG_MASK_WRITE,
             QDB_DBG_LEVEL_ERROR,
-            ("<%s> QDBWT_WriteUSB: discard oversized TX (%uB)\n", pDevContext->PortName, Length)
+            ("<%s> QDBWT_IoWrite: discard oversized TX (0x%p) %Iu bytes\n", pDevContext->PortName, Request, Length)
         );
         WdfRequestCompleteWithInformation(Request, STATUS_INVALID_PARAMETER, 0);
         return;
     }
 
-    txContext = QdbRequestGetContext(Request);
-    txContext->Index = InterlockedIncrement(&(pDevContext->TxCount));
-    fileContext = QdbFileGetContext(WdfRequestGetFileObject(Request));
-    pipeOUT = fileContext->DebugOUT;
-
-    ntStatus = WdfRequestRetrieveInputMemory(Request, &hTxBufferObj);
+    // retrieve tx transfer
+    ntStatus = WdfRequestRetrieveInputMemory(Request, &inputMemory);
     if (!NT_SUCCESS(ntStatus))
     {
         QDB_DbgPrint
         (
             QDB_DBG_MASK_WRITE,
             QDB_DBG_LEVEL_ERROR,
-            ("<%s> QDBWT_WriteUSB: failure retrieving TX buffer (0x%x)\n", pDevContext->PortName, ntStatus)
+            ("<%s> QDBWT_IoWrite: failure retrieving TX buffer (0x%x)\n", pDevContext->PortName, ntStatus)
         );
         WdfRequestCompleteWithInformation(Request, ntStatus, 0);
         return;
     }
 
     // format URB and set URB flag to USBD_TRANSFER_DIRECTION_OUT
-    ntStatus = WdfUsbTargetPipeFormatRequestForWrite(pipeOUT, Request, hTxBufferObj, NULL);
+    pipeOUT = fileContext->DebugOUT;
+    ntStatus = WdfUsbTargetPipeFormatRequestForWrite(pipeOUT, Request, inputMemory, NULL);
     if (!NT_SUCCESS(ntStatus))
     {
         QDB_DbgPrint
         (
             QDB_DBG_MASK_WRITE,
             QDB_DBG_LEVEL_ERROR,
-            ("<%s> QDBWT_WriteUSB: failed to format URB (0x%x)\n", pDevContext->PortName, ntStatus)
+            ("<%s> QDBWT_IoWrite: failed to format URB (0x%x)\n", pDevContext->PortName, ntStatus)
         );
         WdfRequestCompleteWithInformation(Request, ntStatus, 0);
         return;
     }
 
-    ioTarget = WdfUsbTargetPipeGetIoTarget(pipeOUT);
-    txContext->IoBlock = hTxBufferObj;
-
-    // set completion routine and send...
+    // set completion routine and send out request
     WdfRequestSetCompletionRoutine(Request, QDBWT_WriteUSBCompletion, pDevContext);
-
-    bResult = WdfRequestSend(Request, ioTarget, WDF_NO_SEND_OPTIONS);
-    if (bResult == FALSE)
+    ioTarget = WdfUsbTargetPipeGetIoTarget(pipeOUT);
+    if (WdfRequestSend(Request, ioTarget, WDF_NO_SEND_OPTIONS) == FALSE)
     {
         ntStatus = WdfRequestGetStatus(Request);
+        WdfRequestCompleteWithInformation(Request, ntStatus, 0);
         QDB_DbgPrint
         (
             QDB_DBG_MASK_WRITE,
             QDB_DBG_LEVEL_ERROR,
-            ("<%s> QDBWT_WriteUSB: WdfRequestSend failed (0x%x)\n", pDevContext->PortName, ntStatus)
+            ("<%s> <--QDBWT_IoWrite: WdfRequestSend failed (0x%x)\n", pDevContext->PortName, ntStatus)
         );
     }
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_WRITE,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> <--QDBWT_WriteUSB: 0x%p (%dB)\n", pDevContext->PortName, Request, Length)
-    );
-}  // QDBWT_WriteUSB
+    else
+    {
+        QDB_DbgPrint
+        (
+            QDB_DBG_MASK_WRITE,
+            QDB_DBG_LEVEL_TRACE,
+            ("<%s> <--QDBWT_IoWrite: request sent 0x%p\n", pDevContext->PortName, Request)
+        );
+    }
+}  // QDBWT_IoWrite
 
 /****************************************************************************
  *
@@ -245,49 +188,41 @@ VOID QDBWT_WriteUSB
  ****************************************************************************/
 VOID QDBWT_WriteUSBCompletion
 (
-    WDFREQUEST                  Request,
-    WDFIOTARGET                 Target,
+    WDFREQUEST Request,
+    WDFIOTARGET Target,
     PWDF_REQUEST_COMPLETION_PARAMS CompletionParams,
-    WDFCONTEXT                  Context
+    WDFCONTEXT Context
 )
 {
-    PWDF_USB_REQUEST_COMPLETION_PARAMS usbInfo;
     NTSTATUS         ntStatus;
-    PDEVICE_CONTEXT  pDevContext;
-    PREQUEST_CONTEXT txContext;
-    WDFUSBPIPE       pipeOUT;
-    ULONG            writeLength = 0;
+    PDEVICE_CONTEXT  pDevContext = (PDEVICE_CONTEXT)Context;
+    size_t           writeLength = 0;
 
-    pDevContext = (PDEVICE_CONTEXT)Context;
-    txContext = QdbRequestGetContext(Request);
+    UNREFERENCED_PARAMETER(Target);
 
     QDB_DbgPrint
     (
-        QDB_DBG_MASK_READ,
+        QDB_DBG_MASK_WRITE,
         QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->QDBWT_WriteUSBCompletion: [%u] 0x%p)\n", pDevContext->PortName,
-        txContext->Index, Request)
+        ("<%s> -->QDBWT_WriteUSBCompletion: 0x%p)\n", pDevContext->PortName, Request)
     );
 
-    pipeOUT = (WDFUSBPIPE)Target;
-    usbInfo = CompletionParams->Parameters.Usb.Completion;
     ntStatus = CompletionParams->IoStatus.Status;
     if (!NT_SUCCESS(ntStatus))
     {
         // TODO: need to reset pipe at PASSIVE_LEVEL?
-        // QueuePassiveLevelCallback(WdfIoTargetGetDevice(Target), pipeOUT);
         QDB_DbgPrint
         (
             QDB_DBG_MASK_WRITE,
-            QDB_DBG_LEVEL_TRACE,
+            QDB_DBG_LEVEL_ERROR,
             ("<%s> QDBWT_WriteUSBCompletion: error completion 0x%p(0x%x)\n", pDevContext->PortName,
             Request, ntStatus)
         );
     }
     else
     {
-        writeLength = (ULONG)usbInfo->Parameters.PipeWrite.Length;
-        WdfRequestSetInformation(Request, writeLength);
+        writeLength = CompletionParams->Parameters.Usb.Completion->Parameters.PipeWrite.Length;
+        WdfRequestSetInformation(Request, (ULONG_PTR)writeLength);
     }
 
     WdfRequestComplete(Request, ntStatus);
@@ -296,10 +231,7 @@ VOID QDBWT_WriteUSBCompletion
     (
         QDB_DBG_MASK_WRITE,
         QDB_DBG_LEVEL_TRACE,
-        ("<%s> <--QDBWT_WriteUSBCompletion: 0x%p (%dB/%dB)\n", pDevContext->PortName,
+        ("<%s> <--QDBWT_WriteUSBCompletion: 0x%p (%IuB/%luB)\n", pDevContext->PortName,
         Request, writeLength, pDevContext->MaxXfrSize)
     );
-
-    return;
-
 }  // QDBWT_WriteUSBCompletion
