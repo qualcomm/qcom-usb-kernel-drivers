@@ -194,6 +194,7 @@
     <ClCompile Include="QDBMAIN.c" />
     <ClCompile Include="QDBPNP.c" />
     <ClCompile Include="QDBRD.c" />
+    <ClCompile Include="QDBREG.c" />
     <ClCompile Include="QDBWT.c" />
   </ItemGroup>
   <ItemGroup>
@@ -203,6 +204,7 @@
     <ClInclude Include="QDBMAIN.h" />
     <ClInclude Include="QDBPNP.h" />
     <ClInclude Include="QDBRD.h" />
+    <ClInclude Include="QDBREG.h" />
     <ClInclude Include="QDBWPP.h" />
     <ClInclude Include="QDBWT.h" />
     <ClInclude Include="resource.h" />
