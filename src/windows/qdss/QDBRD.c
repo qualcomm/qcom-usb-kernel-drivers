@@ -454,12 +454,12 @@ VOID QDBRD_ReadUSBCompletion
  *
  * function: QDBRD_AllocateRequestsRx
  *
- * purpose:  Allocates WDF request and memory objects for DPL pipe draining.
- *           Only applicable when the device function type is DPL.
+ * purpose:  Allocates WDF request and memory objects for QDSS pipe draining.
+ *           Only applicable when the device function type is QDSS.
  *
  * arguments:pDevContext = pointer to the device context
  *
- * returns:  NT status; STATUS_NOT_SUPPORTED if not a DPL device,
+ * returns:  NT status; STATUS_NOT_SUPPORTED if not a QDSS device,
  *           STATUS_NO_MEMORY if allocation fails
  *
  ****************************************************************************/
@@ -478,13 +478,13 @@ NTSTATUS QDBRD_AllocateRequestsRx(PDEVICE_CONTEXT pDevContext)
 
     KeInitializeSpinLock(&pDevContext->RxLock);
 
-    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
     {
         QDB_DbgPrint
         (
             QDB_DBG_MASK_READ,
             QDB_DBG_LEVEL_ERROR,
-            ("<%s> <--QDBRD_AllocateRequestsRx: not DPL\n", pDevContext->PortName)
+            ("<%s> <--QDBRD_AllocateRequestsRx: not QDSS\n", pDevContext->PortName)
         );
         return STATUS_NOT_SUPPORTED;
     }
@@ -563,7 +563,7 @@ NTSTATUS QDBRD_AllocateRequestsRx(PDEVICE_CONTEXT pDevContext)
  * function: QDBRD_FreeIoBuffer
  *
  * purpose:  Releases WDF memory and request objects previously allocated
- *           by QDBRD_AllocateRequestsRx. Only applicable for DPL devices.
+ *           by QDBRD_AllocateRequestsRx. Only applicable for QDSS devices.
  *
  * arguments:pDevContext = pointer to the device context
  *
@@ -576,7 +576,7 @@ VOID QDBRD_FreeIoBuffer(PDEVICE_CONTEXT pDevContext)
     PQDB_IO_REQUEST ioReq = pDevContext->RxRequest;
     ULONG numElements = pDevContext->NumOfRxReqs;
 
-    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
     {
         return;
     }
@@ -616,13 +616,13 @@ VOID QDBRD_FreeIoBuffer(PDEVICE_CONTEXT pDevContext)
  *
  * function: QDBRD_PipeDrainStart
  *
- * purpose:  Starts draining the DPL IN pipe by sending all pre-allocated
+ * purpose:  Starts draining the QDSS IN pipe by sending all pre-allocated
  *           RX requests to the USB target. No-op if draining is already
- *           active or the device is not a DPL function.
+ *           active or the device is not a QDSS function.
  *
  * arguments:pDevContext = pointer to the device context
  *
- * returns:  NT status; STATUS_NOT_SUPPORTED if not a DPL device
+ * returns:  NT status; STATUS_NOT_SUPPORTED if not a QDSS device
  *
  ****************************************************************************/
 NTSTATUS QDBRD_PipeDrainStart(PDEVICE_CONTEXT pDevContext)
@@ -637,13 +637,13 @@ NTSTATUS QDBRD_PipeDrainStart(PDEVICE_CONTEXT pDevContext)
         ("<%s> -->QDBRD_PipeDrainStart\n", pDevContext->PortName)
     );
 
-    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
     {
         QDB_DbgPrint
         (
             QDB_DBG_MASK_READ,
             QDB_DBG_LEVEL_ERROR,
-            ("<%s> <--QDBRD_PipeDrainStart: not DPL\n", pDevContext->PortName)
+            ("<%s> <--QDBRD_PipeDrainStart: not QDSS\n", pDevContext->PortName)
         );
         return STATUS_NOT_SUPPORTED;
     }
@@ -686,7 +686,7 @@ NTSTATUS QDBRD_PipeDrainStart(PDEVICE_CONTEXT pDevContext)
  * function: QDBRD_SendIOBlock
  *
  * purpose:  Formats and sends a single pre-allocated RX request to the
- *           DPL IN pipe. Skips if the request is already pending.
+ *           QDSS IN pipe. Skips if the request is already pending.
  *
  * arguments:pDevContext = pointer to the device context
  *           Index       = index into the RxRequest array
@@ -700,7 +700,7 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
     BOOLEAN    bResult;
     WDFUSBPIPE pipeIN = pDevContext->TraceIN;
 
-    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
     {
         QDB_DbgPrint
         (
@@ -819,12 +819,12 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
  *
  * function: QDBRD_PipeDrainStop
  *
- * purpose:  Stops DPL pipe draining by clearing the PipeDrain flag so
+ * purpose:  Stops QDSS pipe draining by clearing the PipeDrain flag so
  *           that completion routines will not re-submit requests.
  *
  * arguments:pDevContext = pointer to the device context
  *
- * returns:  NT status; STATUS_NOT_SUPPORTED if not a DPL device
+ * returns:  NT status; STATUS_NOT_SUPPORTED if not a QDSS device
  *
  ****************************************************************************/
 NTSTATUS QDBRD_PipeDrainStop(PDEVICE_CONTEXT pDevContext)
@@ -832,7 +832,7 @@ NTSTATUS QDBRD_PipeDrainStop(PDEVICE_CONTEXT pDevContext)
     // ULONG i;
     KIRQL oldLevel;
 
-    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
     {
         QDB_DbgPrint
         (
@@ -869,7 +869,7 @@ NTSTATUS QDBRD_PipeDrainStop(PDEVICE_CONTEXT pDevContext)
  *
  * function: QDBRD_PipeDrainCompletion
  *
- * purpose:  WDF completion routine for DPL pipe drain requests. Recycles
+ * purpose:  WDF completion routine for QDSS pipe drain requests. Recycles
  *           the WDF request and re-submits it if draining is still active
  *           and the failure threshold has not been exceeded. Signals
  *           DrainStoppedEvent when all drain requests have completed.
