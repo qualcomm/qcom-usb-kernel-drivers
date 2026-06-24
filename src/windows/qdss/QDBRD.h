@@ -33,14 +33,8 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index);
 
 NTSTATUS QDBRD_PipeDrainStart(PDEVICE_CONTEXT pDevContext);
 
-VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index);
-
 NTSTATUS QDBRD_PipeDrainStop(PDEVICE_CONTEXT pDevContext);
 
 EVT_WDF_REQUEST_COMPLETION_ROUTINE QDBRD_PipeDrainCompletion;
-
-VOID QDBRD_ProcessDrainedDPLBlock(PDEVICE_CONTEXT pDevContext, PVOID Buffer, ULONG Length);
-
-PVOID QDBRD_RetrievePacket(PVOID *DataPtr, PULONG DataLength, PULONG PacketLength);
 
 #endif // QDBRD_H

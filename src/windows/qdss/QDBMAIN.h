@@ -16,20 +16,16 @@ GENERAL DESCRIPTION
 #define QDBMAIN_H
 
 #include <ntddk.h>
-#include <ntintsafe.h>
 #include <initguid.h>
 #include <wdf.h>
-#include <usbdi.h>
-#include <usbdlib.h>
+#include <usb.h>
 #include <wdfusb.h>
 
 // {E093662A-FF18-4579-8681-506E9F561D3D}
 DEFINE_GUID(QDBUSB_GUID,
     0xe093662a, 0xff18, 0x4579, 0x86, 0x81, 0x50, 0x6e, 0x9f, 0x56, 0x1d, 0x3d);
 
-
 // global variable
-extern LONG DevInstanceNumber;
 extern ULONG SimData[2724];
 
 #define MAX_NAME_LEN              1024
@@ -93,15 +89,12 @@ extern ULONG SimData[2724];
 
 #endif // QDB_DBGPRINT
 
-#undef ntohs
-#define ntohs(x) \
-        ((USHORT)((((USHORT)(x) & 0x00ff) << 8) | \
-        (((USHORT)(x) & 0xff00) >> 8)))
-
 #define QDB_DBG_NAME_PREFIX "qdb"
 
 #define QDB_FUNCTION_TYPE_QDSS 0
 #define QDB_FUNCTION_TYPE_DPL  1
+
+#define QDB_IO_FAILURE_THRESHOLD 24
 
 #define QCDEV_IOCTL_INDEX 2048
 
@@ -133,17 +126,6 @@ typedef struct _QDB_IO_REQUEST
     int        IsPending;
 } QDB_IO_REQUEST, *PQDB_IO_REQUEST;
 
-#pragma pack(push, 1)
-
-typedef struct _QCQMAP_STRUCT
-{
-    UCHAR PadCD;
-    UCHAR MuxId;
-    USHORT PacketLen;
-} QCQMAP_STRUCT, *PQCQMAP_STRUCT;
-
-#pragma pack(pop)
-
 typedef struct _QDB_STATS
 {
     LONG  OutstandingRx;  // buffers not returned to app
@@ -159,21 +141,14 @@ typedef struct _DEVICE_CONTEXT
     WDFIOTARGET                   MyIoTarget;
     WDFUSBDEVICE                  WdfUsbDevice;
     WDFDEVICE                     MyDevice;
-    PDEVICE_OBJECT                PhysicalDeviceObject;
-    PDEVICE_OBJECT                TargetDevice;
     PUSB_CONFIGURATION_DESCRIPTOR ConfigDesc; // dynamically allocated
     CHAR                          SerialNumber[256];
     LONG                          IfProtocol;
-    UCHAR                         FriendlyName[MAX_NAME_LEN];
-    WCHAR                         FriendlyNameHolder[MAX_NAME_LEN];
-    UNICODE_STRING                SymbolicLink;
     BOOLEAN                       DeviceRemoval;
     KEVENT                        DrainStoppedEvent;
     ULONG                         DebugMask;
     ULONG                         DebugLevel;
     CHAR                          PortName[16];
-    WDFUSBINTERFACE               UsbInterfaceTRACE;
-    WDFUSBINTERFACE               UsbInterfaceDEBUG;
     WDFUSBPIPE                    TraceIN;
     WDFUSBPIPE                    DebugIN;
     WDFUSBPIPE                    DebugOUT;
@@ -184,8 +159,6 @@ typedef struct _DEVICE_CONTEXT
     WDFQUEUE                      RxQueue;
     WDFQUEUE                      TxQueue;
     WDFQUEUE                      DefaultQueue;
-    LONG                          RxCount;
-    LONG                          TxCount;
     KSPIN_LOCK                    RxLock;
     ULONG                         NumOfRxReqs;
     ULONG                         FunctionType;
@@ -194,12 +167,6 @@ typedef struct _DEVICE_CONTEXT
     BOOLEAN                       PipeDrain;
     QDB_STATS                     Stats;
 } DEVICE_CONTEXT, *PDEVICE_CONTEXT;
-
-typedef struct _REQUEST_CONTEXT
-{
-    WDFMEMORY        IoBlock;
-    ULONG            Index;   // for debugging purpose
-} REQUEST_CONTEXT, *PREQUEST_CONTEXT;
 
 #define QDB_FILE_TYPE_TRACE 1
 #define QDB_FILE_TYPE_DEBUG 2
@@ -215,15 +182,6 @@ typedef struct _FILE_CONTEXT
 } FILE_CONTEXT, *PFILE_CONTEXT;
 
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(DEVICE_CONTEXT, QdbDeviceGetContext)
-WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(REQUEST_CONTEXT, QdbRequestGetContext)
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(FILE_CONTEXT, QdbFileGetContext)
-
-NTSTATUS QDBMAIN_AllocateUnicodeString(PUNICODE_STRING Ustring, SIZE_T Size, ULONG Tag);
-
-VOID QDBMAIN_GetRegistrySettings(WDFDEVICE Device);
-
-#ifdef EVENT_TRACING
-#include "QDBWPP.h"
-#endif
 
 #endif // QDBMAIN_H

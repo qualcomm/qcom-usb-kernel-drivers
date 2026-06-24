@@ -13,6 +13,7 @@ GENERAL DESCRIPTION
 #include "QDBRD.h"
 
 #ifdef EVENT_TRACING
+#include "QDBWPP.h"
 #include "QDBRD.tmh"
 #endif
 
@@ -252,21 +253,17 @@ VOID QDBRD_ReadUSB
     NTSTATUS         ntStatus;
     PDEVICE_CONTEXT  pDevContext;
     PFILE_CONTEXT    fileContext = NULL;
-    PREQUEST_CONTEXT rxContext = NULL;
     WDFMEMORY        hRxBufferObj;
     WDFUSBPIPE       pipeIN;
     BOOLEAN          bResult;
-    ULONG            reqIdx;
 
     pDevContext = QdbDeviceGetContext(WdfIoQueueGetDevice(Queue));
-    rxContext = QdbRequestGetContext(Request);
-    rxContext->Index = reqIdx = InterlockedIncrement(&(pDevContext->RxCount));
 
     QDB_DbgPrint
     (
         QDB_DBG_MASK_READ,
         QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->QDBRD_ReadUSB: [%u] 0x%p (%dB)\n", pDevContext->PortName, reqIdx, Request, Length)
+        ("<%s> -->QDBRD_ReadUSB: 0x%p (%dB)\n", pDevContext->PortName, Request, Length)
     );
 
     fileContext = QdbFileGetContext(WdfRequestGetFileObject(Request));
@@ -318,8 +315,6 @@ VOID QDBRD_ReadUSB
         return;
     }
 
-    rxContext->IoBlock = hRxBufferObj;
-
     WdfRequestSetCompletionRoutine(Request, QDBRD_ReadUSBCompletion, pDevContext);
 
     if (Length > QDB_USB_TRANSFER_SIZE_MAX)
@@ -338,7 +333,7 @@ VOID QDBRD_ReadUSB
     (
         QDB_DBG_MASK_READ,
         QDB_DBG_LEVEL_DETAIL,
-        ("<%s> QDBRD_ReadUSB: Sending [%u] to 0x%p\n", pDevContext->PortName, reqIdx, pDevContext->MyIoTarget)
+        ("<%s> QDBRD_ReadUSB: Sending req 0x%p to 0x%p\n", pDevContext->PortName, Request, pDevContext->MyIoTarget)
     );
 
     // forward to USB layer
@@ -361,7 +356,7 @@ VOID QDBRD_ReadUSB
     (
         QDB_DBG_MASK_READ,
         QDB_DBG_LEVEL_TRACE,
-        ("<%s> <--QDBRD_ReadUSB: [%u] 0x%p (%dB)\n", pDevContext->PortName, reqIdx, Request, Length)
+        ("<%s> <--QDBRD_ReadUSB: 0x%p (%dB)\n", pDevContext->PortName, Request, Length)
     );
 }  // QDBRD_ReadUSB
 
@@ -392,19 +387,16 @@ VOID QDBRD_ReadUSBCompletion
     PWDF_USB_REQUEST_COMPLETION_PARAMS usbInfo;
     NTSTATUS         ntStatus;
     PDEVICE_CONTEXT  pDevContext;
-    PREQUEST_CONTEXT rxContext;
     WDFUSBPIPE       pipeIN;
     ULONG            readLength = 0;
 
     pDevContext = (PDEVICE_CONTEXT)Context;
-    rxContext = QdbRequestGetContext(Request);
 
     QDB_DbgPrint
     (
         QDB_DBG_MASK_READ,
         QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->QDBRD_ReadUSBCompletion:[%u] 0x%p\n", pDevContext->PortName,
-        rxContext->Index, Request)
+        ("<%s> -->QDBRD_ReadUSBCompletion:0x%p\n", pDevContext->PortName, Request)
     );
 
     pipeIN = (WDFUSBPIPE)Target;
@@ -515,7 +507,7 @@ NTSTATUS QDBRD_AllocateRequestsRx(PDEVICE_CONTEXT pDevContext)
         ntStatus = WdfMemoryCreate
         (
             WDF_NO_OBJECT_ATTRIBUTES,
-            NonPagedPool,
+            NonPagedPoolNx,
             QDB_TAG_RD,
             QDB_MAX_IO_SIZE_RX,
             &(pDevContext->RxRequest[i].IoMemory),
@@ -984,108 +976,3 @@ VOID QDBRD_PipeDrainCompletion
     );
 
 } // QDBRD_PipeDrainCompletion
-
-/****************************************************************************
- *
- * function: QDBRD_ProcessDrainedDPLBlock
- *
- * purpose:  Parses a drained DPL data block by iterating over QMAP-framed
- *           packets and incrementing the PacketsDrained statistics counter.
- *
- * arguments:pDevContext = pointer to the device context
- *           Buffer      = pointer to the received data buffer
- *           Length      = length of the data buffer in bytes
- *
- * returns:  VOID
- *
- ****************************************************************************/
-VOID QDBRD_ProcessDrainedDPLBlock(PDEVICE_CONTEXT pDevContext, PVOID Buffer, ULONG Length)
-{
-    PVOID dataPtr, pktPtr;
-    ULONG dataLen, pktLen;
-
-    dataPtr = Buffer;
-    dataLen = Length;
-
-    pktPtr = QDBRD_RetrievePacket(&dataPtr, &dataLen, &pktLen);
-
-    while (pktPtr != NULL)
-    {
-        pDevContext->Stats.PacketsDrained += 1;
-        pktPtr = QDBRD_RetrievePacket(&dataPtr, &dataLen, &pktLen);
-    }
-
-}  // QDBRD_ProcessDrainedDPLBlock
-
-/****************************************************************************
- *
- * function: QDBRD_RetrievePacket
- *
- * purpose:  Parses one QMAP-framed packet from the data buffer, advances
- *           the data pointer, and returns a pointer to the packet payload.
- *
- * arguments:DataPtr      = pointer to the current position in the buffer;
- *                          updated to point past the consumed packet
- *           DataLength   = remaining buffer length in bytes; decremented
- *                          by the consumed packet size
- *           PacketLength = receives the payload length in bytes
- *
- * returns:  pointer to the packet payload, or NULL on error
- *
- ****************************************************************************/
-PVOID QDBRD_RetrievePacket(PVOID *DataPtr, PULONG DataLength, PULONG PacketLength)
-{
-    PQCQMAP_STRUCT qmap;
-    UCHAR          padBytes = 0;
-    PCHAR          pktPtr, currentDataPtr;
-
-    if (*DataLength <= sizeof(QCQMAP_STRUCT))
-    {
-        // error: insufficient buffer data for QMAP header
-
-        *PacketLength = 0;
-        return NULL;
-    }
-
-    currentDataPtr = (PCHAR)(*DataPtr);
-
-    // QMAP header
-    qmap = (PQCQMAP_STRUCT)currentDataPtr;
-
-    // get total payload length including padding
-    *PacketLength = ntohs(qmap->PacketLen);  // byte swap
-
-    // get the packet
-    pktPtr = (PCHAR)((PCHAR)qmap + sizeof(QCQMAP_STRUCT));
-
-    // update DataPtr to the next location
-    currentDataPtr += (sizeof(QCQMAP_STRUCT) + (*PacketLength));
-    *DataPtr = (PVOID)currentDataPtr;
-
-    // update buffer's DataLength
-    if (*DataLength < (sizeof(QCQMAP_STRUCT) + (*PacketLength)))
-    {
-        // error: insufficient buffer data for indicated payload
-
-        *PacketLength = 0;
-        return NULL;
-    }
-    *DataLength -= (sizeof(QCQMAP_STRUCT) + (*PacketLength));
-
-    // get padding bytes
-    padBytes = (0x3F & (qmap->PadCD));
-
-    if (*PacketLength <= padBytes)
-    {
-        // error: malformed packet
-
-        *PacketLength = 0;
-        return NULL;
-    }
-
-    // adjust for actual packet length
-    *PacketLength -= padBytes;
-
-    return (PVOID)pktPtr;
-
-}  // QDBRD_RetrievePacket

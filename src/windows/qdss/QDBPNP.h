@@ -15,22 +15,14 @@ GENERAL DESCRIPTION
 #ifndef QDBPNP_H
 #define QDBPNP_H
 
-#include <wdf.h>
-
 #define DEVICE_LINK_NAME_PATH L"\\??\\"
 #define VEN_DEV_TIME          L"QCDeviceStamp"
 #define VEN_DEV_SERNUM        L"QCDeviceSerialNumber"
 #define VEN_DEV_MSM_SERNUM    L"QCDeviceMsmSerialNumber"
 #define VEN_DEV_PROTOC        L"QCDeviceProtocol"
 #define VEN_DEV_CID           L"QCDeviceCID"
-#define DEVICE_HW_KEY_ROOT    L"\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Enum\\"
-
-NTSTATUS QDBPNP_SetStamp
-(
-    PDEVICE_OBJECT PhysicalDeviceObject,
-    HANDLE         hRegKey,
-    BOOLEAN        Startup
-);
+#define VEN_DEV_PARENT        L"QCDeviceParent"
+#define VEN_DBG_MASK          L"QCDriverDebugMask"
 
 EVT_WDF_DRIVER_DEVICE_ADD QDBPNP_EvtDriverDeviceAdd;
 EVT_WDF_OBJECT_CONTEXT_CLEANUP QDBPNP_EvtDriverCleanupCallback;
@@ -50,13 +42,6 @@ NTSTATUS QDBPNP_CreateSymbolicName(WDFDEVICE Device);
 
 NTSTATUS QDBPNP_EnableSelectiveSuspend(WDFDEVICE Device);
 
-
-VOID QDBPNP_SaveParentDeviceNameToRegistry
-(
-    PDEVICE_CONTEXT pDevContext,
-    PVOID ParentDeviceName,
-    ULONG NameLength
-);
 NTSTATUS QDBPNP_GetParentDeviceName(PDEVICE_CONTEXT pDevContext);
 
 VOID QDBPNP_SetFunctionProtocol(IN WDFDEVICE Device, UCHAR ProtocolCode);
