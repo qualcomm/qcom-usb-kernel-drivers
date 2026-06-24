@@ -14,7 +14,6 @@ GENERAL DESCRIPTION
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #include <stdio.h>
 #include <wdm.h>
-#include <ntstrsafe.h>
 #include "QDBMAIN.h"
 #include "QDBPNP.h"
 #include "QDBDEV.h"
@@ -22,21 +21,13 @@ GENERAL DESCRIPTION
 #include "QDBRD.h"
 #include "QDBWT.h"
 
+#include <ntstrsafe.h>
+#include <devpkey.h>
+
 #ifdef EVENT_TRACING
 #include "QDBPNP.tmh"
 #endif
 
-#ifndef DEVPROP_TYPE_STRING
-#define DEVPROP_TYPE_STRING 0x00000012
-#endif
-
-#ifndef DEVPKEY_Device_FriendlyName
-// {A45C254E-DF1C-4EFD-8020-67D146A850E0}, PID 14
-static const DEVPROPKEY DEVPKEY_Device_FriendlyName = {
-    { 0xA45C254E, 0xDF1C, 0x4EFD, { 0x80, 0x20, 0x67, 0xD1, 0x46, 0xA8, 0x50, 0xE0 } },
-    14
-};
-#endif
 
 /****************************************************************************
  *
@@ -127,8 +118,8 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
     }
 
     pDevContext = QdbDeviceGetContext(wdfDevice);
-    sprintf(pDevContext->PortName, "%s%04X", QDB_DBG_NAME_PREFIX, DevInstanceNumber);
     pDevContext->MaxXfrSize = QDB_USB_TRANSFER_SIZE_MAX;
+    RtlCopyMemory(pDevContext->PortName, QDB_DBG_NAME_PREFIX, sizeof(QDB_DBG_NAME_PREFIX));
 
     // TODO: for debug purpose
     pDevContext->DebugMask = 0x0;
@@ -1734,122 +1725,159 @@ NTSTATUS QDBPNP_SetFriendlyName(WDFDEVICE Device, PUNICODE_STRING FriendlyName, 
  ****************************************************************************/
 NTSTATUS QDBPNP_CreateSymbolicName(WDFDEVICE Device)
 {
-    PDEVICE_CONTEXT pDevContext;
-    NTSTATUS        nts = STATUS_UNSUCCESSFUL;
-    ULONG           bufLen = MAX_NAME_LEN, resultLen = 0;
-    UNICODE_STRING  friendlyNameU, tempUcString;
-    ANSI_STRING     friendlyNameA;
-    CHAR            driverKey[512];
-    PCHAR           pSwInstance = NULL;
-    BOOLEAN         bMatched = FALSE;
-
-#define LEFT_P L" ("
-#define RIGHT_P L")"
+    PDEVICE_CONTEXT          pDevContext;
+    NTSTATUS                 nts;
+    WCHAR                    nameBuffer[MAX_NAME_LEN] = {0};
+    UNICODE_STRING           symbolicLink;
+    PWCHAR                   pInstanceId = NULL;
+    WDF_DEVICE_PROPERTY_DATA propertyData;
+    WDFMEMORY                driverKeyMemory = NULL;
+    WDFMEMORY                deviceDescMemory = NULL;
+    PWCHAR                   driverKey = NULL;
+    PWCHAR                   deviceDesc = NULL;
+    PWCHAR                   friendlyName = NULL;
 
     pDevContext = QdbDeviceGetContext(Device);
 
-    QDB_DbgPrint
+    QDB_DbgPrintG
     (
         QDB_DBG_MASK_CONTROL,
         QDB_DBG_LEVEL_TRACE,
         ("<%s> -->QDBPNP_CreateSymbolicName: Device 0x%p\n", pDevContext->PortName, Device)
     );
 
-    RtlZeroMemory(driverKey, 512);
-    RtlZeroMemory(pDevContext->FriendlyNameHolder, bufLen * sizeof(WCHAR));
-    RtlZeroMemory(pDevContext->FriendlyName, MAX_NAME_LEN);
-    pDevContext->SymbolicLink.Buffer = NULL;
-    pDevContext->SymbolicLink.Length = 0;
-    pDevContext->SymbolicLink.MaximumLength = 0;
-
-    nts = QDBMAIN_AllocateUnicodeString
-    (
-        &pDevContext->SymbolicLink,
-        MAX_NAME_LEN,
-        (ULONG)'MANF'
-    );
-    if (nts != STATUS_SUCCESS)
+    // Step 1: query DeviceDescription
+    nts = WdfDeviceAllocAndQueryProperty(Device, DevicePropertyDeviceDescription, NonPagedPoolNx, WDF_NO_OBJECT_ATTRIBUTES, &deviceDescMemory);
+    if (!NT_SUCCESS(nts))
     {
-        QDB_DbgPrint
+        QDB_DbgPrintG
         (
             QDB_DBG_MASK_CONTROL,
             QDB_DBG_LEVEL_ERROR,
-            ("<%s> <--QDBPNP_CreateSymbolicName: NO MEM 0x%x\n", pDevContext->PortName, nts)
+            ("<%s> <--QDBPNP_CreateSymbolicName: read DeviceDesc failed 0x%x\n", pDevContext->PortName, nts)
         );
         return nts;
     }
-
-    // fetch device description and use it to overwrite FriendlyName
-    bufLen = MAX_NAME_LEN;
-    nts = WdfDeviceQueryProperty
+    deviceDesc = WdfMemoryGetBuffer(deviceDescMemory, NULL);
+    QDB_DbgPrintG
     (
-        Device,
-        DevicePropertyDeviceDescription,
-        bufLen,
-        (PVOID)pDevContext->FriendlyNameHolder,
-        &resultLen
+        QDB_DBG_MASK_CONTROL,
+        QDB_DBG_LEVEL_INFO,
+        ("<%s> <--QDBPNP_CreateSymbolicName: deviceDesc = %ws\n", pDevContext->PortName, deviceDesc)
     );
 
-    if (nts == STATUS_SUCCESS)
+    // Step 2: query DriverKeyName, extract instance suffix (last segment after L'\\')
+    nts = WdfDeviceAllocAndQueryProperty(Device, DevicePropertyDriverKeyName, NonPagedPoolNx, WDF_NO_OBJECT_ATTRIBUTES, &driverKeyMemory);
+    if (NT_SUCCESS(nts))
     {
-        RtlInitUnicodeString(&friendlyNameU, pDevContext->FriendlyNameHolder);
-
-        RtlInitUnicodeString(&tempUcString, DEVICE_LINK_NAME_PATH);       //"\??\"
-        RtlCopyUnicodeString(&pDevContext->SymbolicLink, &tempUcString); //"\??\"
-        RtlAppendUnicodeStringToString
-        (
-            &pDevContext->SymbolicLink,
-            &friendlyNameU
-        );                             //"\??\<FriendlyName>"
-
-        nts = RtlUnicodeStringToAnsiString(&friendlyNameA, &pDevContext->SymbolicLink, TRUE);
-
-        if (nts == STATUS_SUCCESS)
+        driverKey = WdfMemoryGetBuffer(driverKeyMemory, NULL);
+        pInstanceId = wcsrchr(driverKey, L'\\');
+        if (pInstanceId != NULL)
         {
-            if (friendlyNameA.Length < MAX_NAME_LEN)
-            {
-                WDF_DEVICE_PROPERTY_DATA propertyData;
-                NTSTATUS                 pset;
-
-                RtlCopyMemory(pDevContext->FriendlyName, friendlyNameA.Buffer, friendlyNameA.Length);
-                QDB_DbgPrint
-                (
-                    QDB_DBG_MASK_CONTROL,
-                    QDB_DBG_LEVEL_DETAIL,
-                    ("<%s> QDBPNP_CreateSymbolicName(DeviceDesc): <%s>\n", pDevContext->PortName,
-                    pDevContext->FriendlyName)
-                );
-                RtlFreeAnsiString(&friendlyNameA);
-                nts = WdfDeviceCreateSymbolicLink(Device, &pDevContext->SymbolicLink);
-                // Update DEVPKEY_Device_FriendlyName to override any UDE default "UDE Client"
-                WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, &DEVPKEY_Device_FriendlyName);
-                propertyData.Lcid = 0; // LOCALE_NEUTRAL
-                propertyData.Flags = 0; // no flags
-                pset = WdfDeviceAssignProperty(
-                    Device,
-                    &propertyData,
-                    DEVPROP_TYPE_STRING,
-                    friendlyNameU.Length + sizeof(WCHAR), // include terminating NULL
-                    (PVOID)friendlyNameU.Buffer
-                );
-                QDB_DbgPrint(
-                    QDB_DBG_MASK_CONTROL,
-                    QDB_DBG_LEVEL_TRACE,
-                    ("<%s> QDBPNP_CreateSymbolicName: WdfDeviceAssignProperty(FriendlyName) status: 0x%x\n",
-                    pDevContext->PortName, pset)
-                );
-                // Persist the chosen friendly name under the device's hardware key to override UDE defaults
-                nts = QDBPNP_SetFriendlyName(Device, &friendlyNameU, (PWCHAR)driverKey);
-            }
+            pInstanceId = pInstanceId + 1;  // points past last '\\', e.g. "0006"
+            QDB_DbgPrintG
+            (
+                QDB_DBG_MASK_CONTROL,
+                QDB_DBG_LEVEL_INFO,
+                ("<%s> <--QDBPNP_CreateSymbolicName: driverKey = %ws\n", pDevContext->PortName, driverKey)
+            );
         }
     }
 
-    QDB_DbgPrint
+    if (pInstanceId != NULL)
+    {
+        // Step 3: set PortName to QDB_DBG_NAME_PREFIX + instanceId (e.g. "qdb0006")
+        nts = RtlStringCbPrintfA(pDevContext->PortName, sizeof(pDevContext->PortName),
+            "%s%ws", QDB_DBG_NAME_PREFIX, pInstanceId);
+        QDB_DbgPrintG
+        (
+            QDB_DBG_MASK_CONTROL,
+            QDB_DBG_LEVEL_INFO,
+            ("<%s> QDBPNP_CreateSymbolicName: assigned new portName, status: 0x%x\n", pDevContext->PortName, nts)
+        );
+
+        // Step 4: build friendly name and symbolic link name
+        nts = RtlStringCbPrintfW(nameBuffer, sizeof(nameBuffer), DEVICE_LINK_NAME_PATH L"%s (%s)", deviceDesc, pInstanceId);
+    }
+    else
+    {
+        nts = RtlStringCbPrintfW(nameBuffer, sizeof(nameBuffer), DEVICE_LINK_NAME_PATH L"%s", deviceDesc);
+    }
+
+    // Step 5: delete old memories
+    if (driverKeyMemory != NULL)
+    {
+        WdfObjectDelete(driverKeyMemory);
+    }
+    if (deviceDescMemory != NULL)
+    {
+        WdfObjectDelete(deviceDescMemory);
+    }
+
+    // nameBuffer constructed successfully
+    if (NT_SUCCESS(nts))
+    {
+        friendlyName = nameBuffer + wcslen(DEVICE_LINK_NAME_PATH);
+        QDB_DbgPrintG
+        (
+            QDB_DBG_MASK_CONTROL,
+            QDB_DBG_LEVEL_INFO,
+            ("<%s> QDBPNP_CreateSymbolicName: friendlyName = %ws\n", pDevContext->PortName, friendlyName)
+        );
+
+        // Step 6: create symbolic link path = "\??\" + friendlyName
+        RtlInitUnicodeString(&symbolicLink, nameBuffer);
+        nts = WdfDeviceCreateSymbolicLink(Device, &symbolicLink);
+        if (NT_SUCCESS(nts))
+        {
+            QDB_DbgPrintG
+            (
+                QDB_DBG_MASK_CONTROL,
+                QDB_DBG_LEVEL_INFO,
+                ("<%s> QDBPNP_CreateSymbolicName: symbolicLink = %ws\n", pDevContext->PortName, nameBuffer)
+            );
+        }
+        else
+        {
+            QDB_DbgPrintG
+            (
+                QDB_DBG_MASK_CONTROL,
+                QDB_DBG_LEVEL_INFO,
+                ("<%s> QDBPNP_CreateSymbolicName: WdfDeviceCreateSymbolicLink failed status 0x%x\n", pDevContext->PortName, nts)
+            );
+        }
+
+        // Step 7: update DEVPKEY_Device_FriendlyName
+        WDF_DEVICE_PROPERTY_DATA_INIT(&propertyData, &DEVPKEY_Device_FriendlyName);
+        propertyData.Lcid = 0;
+        propertyData.Flags = 0;
+        NTSTATUS ret = WdfDeviceAssignProperty(Device, &propertyData, DEVPROP_TYPE_STRING,
+            (ULONG)((wcslen(friendlyName) + 1) * sizeof(WCHAR)), friendlyName);
+        if (!NT_SUCCESS(ret))
+        {
+            QDB_DbgPrintG
+            (
+                QDB_DBG_MASK_CONTROL,
+                QDB_DBG_LEVEL_ERROR,
+                ("<%s> QDBPNP_CreateSymbolicName: friendlyName assign failed 0x%x\n", pDevContext->PortName, ret)
+            );
+        }
+    }
+    else
+    {
+        QDB_DbgPrintG
+        (
+            QDB_DBG_MASK_CONTROL,
+            QDB_DBG_LEVEL_ERROR,
+            ("<%s> QDBPNP_CreateSymbolicName: nameBuffer built failed 0x%x\n", pDevContext->PortName, nts)
+        );
+    }
+
+    QDB_DbgPrintG
     (
         QDB_DBG_MASK_CONTROL,
         QDB_DBG_LEVEL_TRACE,
-        ("<%s> <--QDBPNP_CreateSymbolicName: Device 0x%p(0x%x) SymbolicLink %dB\n", pDevContext->PortName,
-        Device, nts, pDevContext->SymbolicLink.Length)
+        ("<%s> <--QDBPNP_CreateSymbolicName: ST 0x%x\n", pDevContext->PortName, nts)
     );
 
     return nts;
