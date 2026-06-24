@@ -17,13 +17,17 @@ GENERAL DESCRIPTION
 EVT_WDF_IO_QUEUE_IO_DEVICE_CONTROL QDBDSP_IoDeviceControl;
 EVT_WDF_IO_QUEUE_IO_STOP QDBDSP_IoStop;
 EVT_WDF_IO_QUEUE_IO_RESUME QDBDSP_IoResume;
-IO_COMPLETION_ROUTINE QDBDSP_IrpIoCompletion;
+
+NTSTATUS QDBDSP_GetDPLStats
+(
+    PDEVICE_CONTEXT pDevContext,
+    WDFREQUEST      Request
+);
 
 NTSTATUS QDBDSP_GetParentId
 (
     PDEVICE_CONTEXT pDevContext,
-    PVOID           IoBuffer,
-    ULONG           BufferLen
+    WDFREQUEST      Request
 );
 
 #endif // QDBDSP_H
