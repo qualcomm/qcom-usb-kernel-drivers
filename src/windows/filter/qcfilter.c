@@ -14,10 +14,13 @@ GENERAL DESCRIPTION
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-#include "Ntddk.h"
-#include "Usbdi.h"
-#include "Usbdlib.h"
-#include <Ntstrsafe.h>
+#include <ntddk.h>
+#include <usbdi.h>
+#include <usbdlib.h>
+#include <ntstrsafe.h>
+#include <wdmsec.h>
+#include <initguid.h>
+#include <devpkey.h>
 
 #include "qcfilter.h"
 #include "qcfilterioc.h"
@@ -3464,13 +3467,15 @@ NTSTATUS QCFilterCreateFriendlyName
             RtlStringCbCatW(pDevExt->FriendlyNameHolder, MAX_NAME_LEN, RIGHT_P);
             RtlInitUnicodeString(&friendlyNameU, pDevExt->FriendlyNameHolder);
 
-            // Create FriendlyName in registry
-            nts = QCFilterSetFriendlyName
-            (
-                pDevExt,
+            // Set FriendlyName via PnP device property API
+            nts = IoSetDevicePropertyData(
                 QCPhysicalDeviceObject,
-                &friendlyNameU,
-                (PWCHAR)driverKey
+                &DEVPKEY_Device_FriendlyName,
+                LOCALE_NEUTRAL,
+                0,
+                DEVPROP_TYPE_STRING,
+                friendlyNameU.Length + sizeof(WCHAR),
+                friendlyNameU.Buffer
             );
         }
     }
@@ -3478,293 +3483,3 @@ NTSTATUS QCFilterCreateFriendlyName
     return nts;
 }  // QCFilterCreateFriendlyName
 
-/****************************************************************************
- *
- * function: QCFilterSetFriendlyName
- *
- * purpose:  Writes a FriendlyName registry value to the hardware key of the
- *           device whose SW driver key matches TargetDriverKey. Enumerates
- *           the hardware ID subkeys under HKLM\SYSTEM\...\Enum\<hwid> and
- *           sets the "FriendlyName" value in the matching subkey.
- *
- * arguments:pDevExt                = pointer to the filter device extension
- *           QCPhysicalDeviceObject = pointer to the physical device object
- *           FriendlyName           = pointer to the unicode friendly name string
- *           TargetDriverKey        = driver key name to match (e.g. "{GUID}\nnnn")
- *
- * returns:  NT status
- *
- ****************************************************************************/
-NTSTATUS QCFilterSetFriendlyName
-(
-    PDEVICE_EXTENSION pDevExt,
-    PDEVICE_OBJECT    QCPhysicalDeviceObject,
-    PUNICODE_STRING   FriendlyName,
-    PWCHAR            TargetDriverKey
-)
-{
-#define QC_NAME_LEN 1024
-#define DEVICE_HW_KEY_ROOT L"\\REGISTRY\\MACHINE\\SYSTEM\\CurrentControlSet\\Enum\\"
-    NTSTATUS        nts;
-    ULONG           bufLen, actualLen;
-    CHAR            hwId[QC_NAME_LEN], swKey[QC_NAME_LEN], devKey[QC_NAME_LEN];
-    PWCHAR          pId;
-    DWORD           idLen, restLen, subKeyIdx, subKeyLen;
-    int             selected = 0;
-    HANDLE          hwKeyHandle;
-    UNICODE_STRING  ucHwKeyPath;
-    OBJECT_ATTRIBUTES oa;
-
-    RtlZeroMemory(hwId, QC_NAME_LEN);
-    RtlZeroMemory(swKey, QC_NAME_LEN);
-    RtlZeroMemory(devKey, QC_NAME_LEN);
-
-    // get HW IDs
-    bufLen = QC_NAME_LEN;
-    nts = IoGetDeviceProperty
-    (
-        QCPhysicalDeviceObject,
-        DevicePropertyHardwareID,
-        bufLen,
-        (PVOID)hwId,
-        &actualLen
-    );
-    if (!NT_SUCCESS(nts))
-    {
-        QCFLT_DbgPrint
-        (
-            DBG_LEVEL_ERROR,
-            ("<%s> QDBPNP_SetFriendlyName: IoGetDeviceProperty (HWID) failure\n", pDevExt->PortName)
-        );
-        return nts;
-    }
-    else
-    {
-        QCFLT_DbgPrint
-        (
-            DBG_LEVEL_DETAIL,
-            ("<%s> QDBPNP_SetFriendlyName: IoGetDeviceProperty (HWID) len: %u\n", pDevExt->PortName, actualLen)
-        );
-    }
-    pId = (PWCHAR)hwId;
-    restLen = actualLen;
-
-    while ((idLen = wcsnlen(pId, restLen)) > 0)
-    {
-        if (idLen >= restLen) break;
-        selected = 1;
-        if (wcsstr(pId, L"REV_") != NULL)
-        {
-            selected = 0;
-        }
-        else
-        {
-            break;
-        }
-        pId += (idLen + 1); // including NULL
-        restLen -= (idLen + 1);
-    }
-    if (selected == 0)
-    {
-        QCFLT_DbgPrint
-        (
-            DBG_LEVEL_DETAIL,
-            ("<%s> QDBPNP_SetFriendlyName: failed to find devID\n", pDevExt->PortName)
-        );
-        return STATUS_UNSUCCESSFUL;
-    }
-
-    // HW ID: pId, idLen
-    // construct full HW key
-    nts = RtlStringCbCopyW((PWCHAR)devKey, QC_NAME_LEN, DEVICE_HW_KEY_ROOT);
-    if (nts != STATUS_SUCCESS)
-    {
-        QCFLT_DbgPrint
-        (
-            DBG_LEVEL_ERROR,
-            ("<%s> QDBPNP_SetFriendlyName: HW key root failure\n", pDevExt->PortName)
-        );
-        return nts;
-    }
-    nts = RtlStringCbCatW((PWCHAR)devKey, QC_NAME_LEN, pId);
-    if (nts != STATUS_SUCCESS)
-    {
-        QCFLT_DbgPrint
-        (
-            DBG_LEVEL_ERROR,
-            ("<%s> QDBPNP_SetFriendlyName: RtlStringCbCat failed\n", pDevExt->PortName)
-        );
-        return nts;
-    }
-    QCFLT_DbgPrint
-    (
-        DBG_LEVEL_DETAIL,
-        ("<%s> QDBPNP_SetFriendlyName: devKey <%ws>\n", pDevExt->PortName, (PWCHAR)devKey)
-    );
-
-    // open HW key
-    RtlInitUnicodeString(&ucHwKeyPath, (PWCHAR)devKey);
-    InitializeObjectAttributes
-    (
-        &oa,
-        &ucHwKeyPath,
-        (OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE),
-        NULL, NULL
-    );
-    nts = ZwOpenKey
-    (
-        &hwKeyHandle,
-        GENERIC_ALL,
-        &oa
-    );
-    if (nts != STATUS_SUCCESS)
-    {
-        QCFLT_DbgPrint
-        (
-            DBG_LEVEL_ERROR,
-            ("<%s> QDBPNP_SetFriendlyName: ZwOpenKey failed 0x%x\n", pDevExt->PortName, nts)
-        );
-        return nts;
-    }
-    // enum subkeys
-    subKeyIdx = 0;
-    while (nts == STATUS_SUCCESS)
-    {
-        CHAR           subKeyInfo[QC_NAME_LEN];
-        UNICODE_STRING ucSubKeyPath;
-        PKEY_BASIC_INFORMATION keyName;
-        OBJECT_ATTRIBUTES      oa;
-
-        RtlZeroMemory(subKeyInfo, QC_NAME_LEN);
-        nts = ZwEnumerateKey
-        (
-            hwKeyHandle,
-            subKeyIdx,
-            KeyBasicInformation,
-            (PVOID)subKeyInfo,
-            QC_NAME_LEN,
-            &subKeyLen
-        );
-        // open each subkey for R/W and find a match with SW key
-        if (nts == STATUS_SUCCESS)
-        {
-            HANDLE subKeyHandle;
-            CHAR   driverInfo[QC_NAME_LEN];
-            DWORD  infoLen;
-            UNICODE_STRING ucRegEntryName;
-
-            keyName = (PKEY_BASIC_INFORMATION)subKeyInfo;
-            QCFLT_DbgPrint
-            (
-                DBG_LEVEL_DETAIL,
-                ("<%s> QDBPNP_SetFriendlyName: subKey[%d]: <%ws>\n", pDevExt->PortName, subKeyIdx, keyName->Name)
-            );
-
-            RtlInitUnicodeString(&ucSubKeyPath, keyName->Name);
-            InitializeObjectAttributes
-            (
-                &oa,
-                &ucSubKeyPath,
-                (OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE),
-                hwKeyHandle,
-                NULL
-            );
-            nts = ZwOpenKey
-            (
-                &subKeyHandle,
-                GENERIC_ALL,
-                &oa
-            );
-            if (nts != STATUS_SUCCESS)
-            {
-                QCFLT_DbgPrint
-                (
-                    DBG_LEVEL_ERROR,
-                    ("<%s> QDBPNP_SetFriendlyName: ZwOpenKey failed (sub): 0x%x\n", pDevExt->PortName, nts)
-                );
-                break;
-            }
-
-            // retrieve driver key and match
-            RtlZeroMemory(driverInfo, QC_NAME_LEN);
-            RtlInitUnicodeString(&ucRegEntryName, L"Driver");
-            nts = ZwQueryValueKey
-            (
-                subKeyHandle,
-                &ucRegEntryName,
-                KeyValueFullInformation,
-                (PKEY_VALUE_FULL_INFORMATION)&driverInfo,
-                QC_NAME_LEN,
-                &infoLen
-            );
-            if (nts == STATUS_SUCCESS)
-            {
-                UNICODE_STRING swKey1, swKey2;
-                PKEY_VALUE_FULL_INFORMATION pDriverKey;
-                PCHAR pDrvKeyVal;
-
-                pDriverKey = (PKEY_VALUE_FULL_INFORMATION)&driverInfo;
-                pDrvKeyVal = (PCHAR)&driverInfo;
-                pDrvKeyVal += pDriverKey->DataOffset;
-                QCFLT_DbgPrint
-                (
-                    DBG_LEVEL_DETAIL,
-                    ("<%s> QDBPNP_SetFriendlyName: retrived %uB swKey <%ws>vs<%ws>\n", pDevExt->PortName,
-                    infoLen, (PWCHAR)pDrvKeyVal, TargetDriverKey)
-                );
-                RtlInitUnicodeString(&swKey1, TargetDriverKey);
-                RtlInitUnicodeString(&swKey2, (PWCHAR)pDrvKeyVal);
-                if (TRUE == RtlEqualUnicodeString(&swKey1, &swKey2, TRUE))
-                {
-                    UNICODE_STRING ucSetEntryName;
-
-                    // set FriendlyName
-                    RtlInitUnicodeString(&ucSetEntryName, L"FriendlyName");
-                    nts = ZwSetValueKey
-                    (
-                        subKeyHandle,
-                        &ucSetEntryName,
-                        0,
-                        REG_SZ,
-                        FriendlyName->Buffer,
-                        FriendlyName->Length + 2
-                    );
-                    if (!NT_SUCCESS(nts))
-                    {
-                        QCFLT_DbgPrint
-                        (
-                            DBG_LEVEL_ERROR,
-                            ("<%s> QDBPNP_SetFriendlyName: failed to set FriendlyName: 0x%x\n", pDevExt->PortName, nts)
-                        );
-                    }
-                }
-            }
-            else
-            {
-                QCFLT_DbgPrint
-                (
-                    DBG_LEVEL_ERROR,
-                    ("<%s> QDBPNP_SetFriendlyName: ZwQueryValueKey (swKey) failure 0x%x\n", pDevExt->PortName, nts)
-                );
-            }
-            ZwClose(subKeyHandle);
-        }
-        else
-        {
-            QCFLT_DbgPrint
-            (
-                DBG_LEVEL_ERROR,
-                ("<%s> QDBPNP_SetFriendlyName: ZwEnumerateKey failed/exhausted 0x%x\n", pDevExt->PortName, nts)
-            );
-            if (nts == STATUS_NO_MORE_ENTRIES)
-            {
-                nts = STATUS_SUCCESS;
-            }
-            break;
-        }
-        subKeyIdx++;
-    }  // while
-    ZwClose(hwKeyHandle);
-
-    return nts;
-}  // QCFilterSetFriendlyName

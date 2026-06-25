@@ -12,8 +12,8 @@ GENERAL DESCRIPTION
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-#include "Ntddk.h"
-#include "Usbdi.h"
+#include <ntddk.h>
+#include <usbdi.h>
 
 #include "qcfilter.h"
 #include "qcfilterioc.h"

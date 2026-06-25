@@ -14,10 +14,6 @@ GENERAL DESCRIPTION
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-#include <ntddk.h>
-#include <wdmsec.h>
-#include <initguid.h>
-
 //
 // GUID definition are required to be outside of header inclusion pragma to avoid
 // error during precompiled headers.
@@ -25,7 +21,6 @@ GENERAL DESCRIPTION
 // {B7D25408-B34A-4f67-BF36-F6182CC0EC48}
 DEFINE_GUID(QMI_DEVICE_INTERFACE_CLASS,
     0xb7d25408, 0xb34a, 0x4f67, 0xbf, 0x36, 0xf6, 0x18, 0x2c, 0xc0, 0xec, 0x48);
-
 
 #if !defined(_FILTER_H_)
 #define _FILTER_H_
@@ -473,14 +468,6 @@ NTSTATUS QCFilterCreateFriendlyName
 (
     PDEVICE_EXTENSION pDevExt,
     PDEVICE_OBJECT QCPhysicalDeviceObject
-);
-
-NTSTATUS QCFilterSetFriendlyName
-(
-    PDEVICE_EXTENSION pDevExt,
-    PDEVICE_OBJECT    QCPhysicalDeviceObject,
-    PUNICODE_STRING   FriendlyName,
-    PWCHAR            TargetDriverKey
 );
 
 #ifdef EVENT_TRACING
