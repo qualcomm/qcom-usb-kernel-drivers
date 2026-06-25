@@ -30,14 +30,7 @@ DEFINE_GUID(QMI_DEVICE_INTERFACE_CLASS,
 #if !defined(_FILTER_H_)
 #define _FILTER_H_
 
-#ifndef  STATUS_CONTINUE_COMPLETION
-#define STATUS_CONTINUE_COMPLETION      STATUS_SUCCESS
-#endif
-
 #define POOL_TAG   'liFT'
-
-#define NTDEVICE_NAME_STRING        L"\\Device\\QcFilter"
-#define SYMBOLIC_NAME_STRING        L"\\DosDevices\\QcFilter"
 
 #define VEN_DEV_SERNUM              L"QCDeviceSerialNumber"
 #define VEN_DEV_MSM_SERNUM          L"QCDeviceMsmSerialNumber"
@@ -458,12 +451,6 @@ BOOLEAN USBPNP_ValidateConfigDescriptor
 (
     PDEVICE_EXTENSION pDevExt,
     PUSB_CONFIGURATION_DESCRIPTOR ConfigDesc
-);
-
-BOOLEAN USBPNP_ValidateDeviceDescriptor
-(
-    PDEVICE_EXTENSION      pDevExt,
-    PUSB_DEVICE_DESCRIPTOR DevDesc
 );
 
 NTSTATUS USBPNP_SelectAndAddInterfaces

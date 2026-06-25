@@ -14,18 +14,10 @@ GENERAL DESCRIPTION
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-#include <stdio.h>
-#include <stdlib.h>
-////////////////////////////////////////////////////////////
-// WDK headers defined here
-//
 #include "Ntddk.h"
 #include "Usbdi.h"
 #include "Usbdlib.h"
-#include "Usbioctl.h"
-#include "Wdm.h"
 #include <Ntstrsafe.h>
-#include <string.h>
 
 #include "qcfilter.h"
 #include "qcfilterioc.h"
@@ -36,12 +28,10 @@ GENERAL DESCRIPTION
 #endif
 
 KEVENT ControlLock;
-ULONG InstanceCount = (ULONG)0;
 
 // To store the device name
 char gDeviceName[255];
 ULONG gDeviceIndex;
-ULONG gMuxDeviceIndex = (ULONG)NUM_START_INTERFACEID;
 
 LIST_ENTRY Control_DeviceList;
 KSPIN_LOCK Control_DeviceLock;
@@ -65,15 +55,10 @@ DriverEntry(PDRIVER_OBJECT  driverObject, PUNICODE_STRING registryPath)
     NTSTATUS            status = STATUS_SUCCESS;
     ULONG               ulIndex;
     PDRIVER_DISPATCH *dispatch;
-    ULONG i;
     ANSI_STRING asDevName;
     char *p;
 
 #ifdef EVENT_TRACING
-    //
-    // include this to support WPP.
-    //
-
     // This macro is required to initialize software tracing.
     WPP_INIT_TRACING(driverObject, registryPath);
 #endif
@@ -1075,15 +1060,12 @@ NTSTATUS QCFLT_CallUSBD
 
     IoCompleteRequest(irp, IO_NO_INCREMENT);
 
-ExitCallUSBD:
-
     if (ntStatus == STATUS_TIMEOUT)
     {
         ntStatus = STATUS_UNSUCCESSFUL;
     }
 
     return ntStatus;
-
 }  // QCUSB_CallUSBD
 
 /****************************************************************************
@@ -2358,9 +2340,6 @@ QCFLT_IsIrpInQueue(PDEVICE_EXTENSION pDevExt, PLIST_ENTRY Queue, PIRP Irp)
     PLIST_ENTRY headOfList, peekEntry;
     PIRP pIrp;
     BOOLEAN bInQueue = FALSE;
-    PCHAR pcIrpName;
-    KIRQL levelOrHandle;
-
 
     QCFLT_DbgPrint
     (
@@ -3120,12 +3099,10 @@ VOID QCFLT_PrintBytes
     ULONG DbgLevel
 )
 {
-    ULONG nWritten;
     char *buf, *p, *cBuf, *cp;
     char *buffer;
     ULONG count = 0, lastCnt = 0, spaceNeeded;
     ULONG i, j, s;
-    ULONG nts;
     PCHAR dbgOutputBuffer;
     ULONG myTextSize = 1280;
     PDEVICE_EXTENSION pDevExt = x;
@@ -3319,51 +3296,6 @@ BOOLEAN USBPNP_ValidateConfigDescriptor
 
 /****************************************************************************
  *
- * function: USBPNP_ValidateDeviceDescriptor
- *
- * purpose:  Validates the basic fields of a USB device descriptor to ensure
- *           it is well-formed before the driver processes it further.
- *
- * arguments:pDevExt  = pointer to the filter device extension (for logging)
- *           DevDesc  = pointer to the USB device descriptor to validate
- *
- * returns:  TRUE if the descriptor is valid; FALSE otherwise
- *
- ****************************************************************************/
-BOOLEAN USBPNP_ValidateDeviceDescriptor
-(
-    PDEVICE_EXTENSION      pDevExt,
-    PUSB_DEVICE_DESCRIPTOR DevDesc
-)
-{
-    if (DevDesc->bLength == 0)
-    {
-        QCFLT_DbgPrint
-        (
-            DBG_LEVEL_ERROR,
-            ("<%s> _ValidateDeviceDescriptor: 0 bLength\n", pDevExt->PortName)
-        );
-        return FALSE;
-    }
-
-    if (DevDesc->bDescriptorType != 0x01)
-    {
-        QCFLT_DbgPrint
-        (
-            DBG_LEVEL_ERROR,
-            ("<%s> _ValidateDeviceDescriptor: bad bDescriptorType 0x%x\n",
-            pDevExt->PortName, DevDesc->bDescriptorType)
-        );
-        return FALSE;
-    }
-    return TRUE;
-}  // USBPNP_ValidateDeviceDescriptor
-
-
-#define MAX_INTERFACE 64
-
-/****************************************************************************
- *
  * function: USBPNP_SelectAndAddInterfaces
  *
  * purpose:  Appends virtual MUX interface descriptors to the USB configuration
@@ -3409,7 +3341,6 @@ NTSTATUS USBPNP_SelectAndAddInterfaces
             pInterfaceDesc->bLength = sizeof(USB_INTERFACE_DESCRIPTOR);
             pInterfaceDesc->bDescriptorType = 0x04;
             pInterfaceDesc->bInterfaceNumber = NUM_START_INTERFACEID + (i * pDevExt->NumMuxRmnetIface) + j; //TODO: check the boundary
-            // InterlockedIncrement(&gMuxDeviceIndex);
             pInterfaceDesc->bAlternateSetting = 0x00;
             pInterfaceDesc->bNumEndpoints = 0x00;
             pInterfaceDesc->iInterface = 0x00;
@@ -3580,7 +3511,6 @@ NTSTATUS QCFilterSetFriendlyName
     PWCHAR          pId;
     DWORD           idLen, restLen, subKeyIdx, subKeyLen;
     int             selected = 0;
-    LONG            regResult;
     HANDLE          hwKeyHandle;
     UNICODE_STRING  ucHwKeyPath;
     OBJECT_ATTRIBUTES oa;
