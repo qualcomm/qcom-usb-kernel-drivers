@@ -131,9 +131,9 @@ VOID QDBDEV_EvtDeviceFileCreate
                 ("<%s> QDBDEV_EvtDeviceFileCreate: unrecognized channel name\n", pDevContext->PortName)
             );
         }
-
     }
 
+    QDBRD_StopDraining(pDevContext);
     WdfRequestComplete(Request, ntStatus);
 
     QDB_DbgPrint
@@ -149,7 +149,7 @@ VOID QDBDEV_EvtDeviceFileCreate
  *
  * function: QDBDEV_EvtDeviceFileCleanup
  *
- * purpose:  WDF file-cleanup callback. Resumes DPL pipe draining after
+ * purpose:  WDF file-cleanup callback. Resumes TraceIN pipe draining after
  *           the last handle to the file object is closed.
  *
  * arguments:FileObject = WDF file object being cleaned up
@@ -175,7 +175,7 @@ VOID QDBDEV_EvtDeviceFileCleanup(WDFFILEOBJECT FileObject)
         pDevContext->PortName, fileName, FileObject)
     );
 
-    QDBRD_PipeDrainStart(pDevContext);
+    QDBRD_StartDraining(pDevContext);
 
     QDB_DbgPrint
     (

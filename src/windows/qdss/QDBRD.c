@@ -163,9 +163,6 @@ VOID QDBRD_IoRead
         ("<%s> -->QDBRD_IoRead: 0x%p (%dB)\n", pDevContext->PortName, Request, Length)
     );
 
-    // Stop draining
-    QDBRD_PipeDrainStop(pDevContext);
-
     fileContext = QdbFileGetContext(WdfRequestGetFileObject(Request));
 
     if ((fileContext->Type == QDB_FILE_TYPE_TRACE) || (fileContext->Type == QDB_FILE_TYPE_DPL))
@@ -444,535 +441,223 @@ VOID QDBRD_ReadUSBCompletion
 
 /****************************************************************************
  *
- * function: QDBRD_AllocateRequestsRx
+ * function: QDBRD_ConfigureContinuousReader
  *
- * purpose:  Allocates WDF request and memory objects for QDSS pipe draining.
- *           Only applicable when the device function type is QDSS.
+ * purpose:  Configures the WDF USB continuous reader on the QDSS TraceIN
+ *           pipe. The reader keeps the pipe perpetually consumed while no
+ *           user application is reading. Only applicable for QDSS devices.
  *
  * arguments:pDevContext = pointer to the device context
  *
- * returns:  NT status; STATUS_NOT_SUPPORTED if not a QDSS device,
- *           STATUS_NO_MEMORY if allocation fails
+ * returns:  STATUS_NOT_SUPPORTED if not a device type is invalid,
+ *           STATUS_UNSUCCESSFUL if TraceIN pipe is not available
  *
  ****************************************************************************/
-NTSTATUS QDBRD_AllocateRequestsRx(PDEVICE_CONTEXT pDevContext)
+NTSTATUS QDBRD_ConfigureContinuousReader(PDEVICE_CONTEXT pDevContext)
 {
-    NTSTATUS              ntStatus;
-    WDF_OBJECT_ATTRIBUTES reqAttrib;
-    ULONG i;
+    WDF_USB_CONTINUOUS_READER_CONFIG readerConfig;
+    NTSTATUS ntStatus;
 
-    QDB_DbgPrint
+    QDB_DbgPrintG
     (
         QDB_DBG_MASK_CONTROL,
         QDB_DBG_LEVEL_DETAIL,
-        ("<%s> -->QDBRD_AllocateRequestsRx: size %dB\n", pDevContext->PortName, QDB_MAX_IO_SIZE_RX)
+        ("<%s> -->QDBRD_ConfigureContinuousReader\n", pDevContext->PortName)
     );
-
-    KeInitializeSpinLock(&pDevContext->RxLock);
 
     if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
     {
-        QDB_DbgPrint
+        QDB_DbgPrintG
         (
             QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_ERROR,
-            ("<%s> <--QDBRD_AllocateRequestsRx: not QDSS\n", pDevContext->PortName)
+            QDB_DBG_LEVEL_DETAIL,
+            ("<%s> <--QDBRD_ConfigureContinuousReader: not QDSS\n", pDevContext->PortName)
         );
         return STATUS_NOT_SUPPORTED;
     }
 
-    // WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&reqAttrib, REQUEST_CONTEXT);
-    WDF_OBJECT_ATTRIBUTES_INIT(&reqAttrib);
-
-    for (i = 0; i < IO_REQ_NUM_RX; i++)
+    if (pDevContext->TraceIN == NULL)
     {
-        pDevContext->RxRequest[i].DeviceContext = pDevContext;
-        pDevContext->RxRequest[i].Index = i;
-        pDevContext->NumOfRxReqs = i + 1;
-
-        // WDF request
-        ntStatus = WdfRequestCreate
+        QDB_DbgPrintG
         (
-            &reqAttrib,
-            NULL,
-            &(pDevContext->RxRequest[i].IoRequest)
+            QDB_DBG_MASK_READ,
+            QDB_DBG_LEVEL_ERROR,
+            ("<%s> <--QDBRD_ConfigureContinuousReader: TraceIN not available\n", pDevContext->PortName)
         );
-        if (ntStatus != STATUS_SUCCESS)
-        {
-            --pDevContext->NumOfRxReqs;
-            break;
-        }
+        return STATUS_UNSUCCESSFUL;
+    }
 
-        // WDF memory
-        ntStatus = WdfMemoryCreate
-        (
-            WDF_NO_OBJECT_ATTRIBUTES,
-            NonPagedPoolNx,
-            QDB_TAG_RD,
-            QDB_MAX_IO_SIZE_RX,
-            &(pDevContext->RxRequest[i].IoMemory),
-            &(pDevContext->RxRequest[i].IoBuffer)
-        );
-        if (ntStatus != STATUS_SUCCESS)
-        {
-            --pDevContext->NumOfRxReqs;
-            break;
-        }
+    WDF_USB_CONTINUOUS_READER_CONFIG_INIT
+    (
+        &readerConfig,
+        QDBRD_DrainReadComplete,
+        pDevContext,
+        QDB_MAX_IO_SIZE_RX
+    );
+    readerConfig.NumPendingReads = IO_REQ_NUM_RX;
+    readerConfig.EvtUsbTargetPipeReadersFailed = QDBRD_DrainReadFailed;
 
-        pDevContext->RxRequest[i].IsPending = 0;
+    ntStatus = WdfUsbTargetPipeConfigContinuousReader(pDevContext->TraceIN, &readerConfig);
 
-        // TEST CODE
-        {
-            QDB_DbgPrint
-            (
-                QDB_DBG_MASK_CONTROL,
-                QDB_DBG_LEVEL_DETAIL,
-                ("<%s> QDBRD_AllocateRequestsRx [%d]: WDF mem 0x%p (buf 0x%p)\n", pDevContext->PortName, i,
-                pDevContext->RxRequest[i].IoMemory, pDevContext->RxRequest[i].IoBuffer)
-            );
-        }
-
-    }  // for
-
-    QDB_DbgPrint
+    QDB_DbgPrintG
     (
         QDB_DBG_MASK_CONTROL,
         QDB_DBG_LEVEL_DETAIL,
-        ("<%s> <--QDBRD_AllocateRequestsRx: RxReqs %d\n", pDevContext->PortName, pDevContext->NumOfRxReqs)
+        ("<%s> <--QDBRD_ConfigureContinuousReader: ST 0x%x\n", pDevContext->PortName, ntStatus)
     );
 
-    if (pDevContext->NumOfRxReqs == 0)
-    {
-        return STATUS_NO_MEMORY;
-    }
-
-    return STATUS_SUCCESS;
-
-}  // QDBRD_AllocateRequestsRx
+    return ntStatus;
+}
 
 /****************************************************************************
  *
- * function: QDBRD_FreeIoBuffer
+ * function: QDBRD_DrainReadComplete
  *
- * purpose:  Releases WDF memory and request objects previously allocated
- *           by QDBRD_AllocateRequestsRx. Only applicable for QDSS devices.
+ * purpose:  WDF continuous reader completion callback for draining. Data is
+ *           intentionally discarded to keep the pipe flowing.
  *
- * arguments:pDevContext = pointer to the device context
+ * arguments:Pipe                = WDF USB pipe handle
+ *           Buffer              = WDF memory object containing received data
+ *           NumBytesTransferred = number of bytes received
+ *           Context             = pointer to the device context
  *
  * returns:  VOID
  *
  ****************************************************************************/
-VOID QDBRD_FreeIoBuffer(PDEVICE_CONTEXT pDevContext)
-{
-    ULONG i;
-    PQDB_IO_REQUEST ioReq = pDevContext->RxRequest;
-    ULONG numElements = pDevContext->NumOfRxReqs;
-
-    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
-    {
-        return;
-    }
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_READ,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->QDBRD_FreeIoBuffer: numElements %d\n", pDevContext->PortName, numElements)
-    );
-
-    if (numElements == 0)
-    {
-        return;
-    }
-
-    for (i = 0; i < numElements; i++)
-    {
-        if (ioReq[i].IoBuffer != NULL)
-        {
-            WdfObjectDelete(ioReq[i].IoMemory);
-            WdfObjectDelete(ioReq[i].IoRequest);
-        }
-        ioReq[i].IoBuffer = NULL;
-    }
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_READ,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> <--QDBRD_FreeIoBuffer: numElements %d\n", pDevContext->PortName, numElements)
-    );
-
-}  // QDBRD_FreeIoBuffer
-
-/****************************************************************************
- *
- * function: QDBRD_PipeDrainStart
- *
- * purpose:  Starts draining the QDSS IN pipe by sending all pre-allocated
- *           RX requests to the USB target. No-op if draining is already
- *           active or the device is not a QDSS function.
- *
- * arguments:pDevContext = pointer to the device context
- *
- * returns:  NT status; STATUS_NOT_SUPPORTED if not a QDSS device
- *
- ****************************************************************************/
-NTSTATUS QDBRD_PipeDrainStart(PDEVICE_CONTEXT pDevContext)
-{
-    KIRQL    oldLevel;
-    ULONG i;
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_READ,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->QDBRD_PipeDrainStart\n", pDevContext->PortName)
-    );
-
-    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
-    {
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_ERROR,
-            ("<%s> <--QDBRD_PipeDrainStart: not QDSS\n", pDevContext->PortName)
-        );
-        return STATUS_NOT_SUPPORTED;
-    }
-
-    KeAcquireSpinLock(&pDevContext->RxLock, &oldLevel);
-    if (pDevContext->PipeDrain == TRUE)
-    {
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_TRACE,
-            ("<%s> <--QDBRD_PipeDrainStart: no action\n", pDevContext->PortName)
-        );
-        KeReleaseSpinLock(&pDevContext->RxLock, oldLevel);
-        return STATUS_SUCCESS;
-    }
-
-    pDevContext->PipeDrain = TRUE;
-    pDevContext->Stats.BytesDrained = 0;
-    KeReleaseSpinLock(&pDevContext->RxLock, oldLevel);
-
-    // send read requests
-    for (i = 0; i < pDevContext->NumOfRxReqs; i++)
-    {
-        QDBRD_SendIOBlock(pDevContext, i);
-    }
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_READ,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> <--QDBRD_PipeDrainStart\n", pDevContext->PortName)
-    );
-
-    return STATUS_SUCCESS;
-}  // QDBRD_PipeDrainStart
-
-/****************************************************************************
- *
- * function: QDBRD_SendIOBlock
- *
- * purpose:  Formats and sends a single pre-allocated RX request to the
- *           QDSS IN pipe. Skips if the request is already pending.
- *
- * arguments:pDevContext = pointer to the device context
- *           Index       = index into the RxRequest array
- *
- * returns:  VOID
- *
- ****************************************************************************/
-VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
-{
-    NTSTATUS   ntStatus;
-    BOOLEAN    bResult;
-    WDFUSBPIPE pipeIN = pDevContext->TraceIN;
-
-    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
-    {
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_ERROR,
-            ("<%s> QDBRD_SendIOBlock: wrong dev type %u\n", pDevContext->PortName, pDevContext->FunctionType)
-        );
-        return;
-    }
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_READ,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->QDBRD_SendIOBlock: [%d/%d] EP 0x%p target 0x%p F%u\n",
-        pDevContext->PortName, Index, pDevContext->NumOfRxReqs, pipeIN,
-        pDevContext->MyIoTarget, pDevContext->Stats.IoFailureCount)
-    );
-
-    if (pDevContext->RxRequest[Index].IsPending != 0)
-    {
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_TRACE,
-            ("<%s> <--QDBRD_SendIOBlock[%d]: still pending\n", pDevContext->PortName, Index)
-        );
-        return;
-    }
-
-    ntStatus = WdfIoTargetFormatRequestForRead
-    (
-        pDevContext->MyIoTarget,
-        pDevContext->RxRequest[Index].IoRequest,
-        pDevContext->RxRequest[Index].IoMemory,
-        0, 0
-    );
-    if (!NT_SUCCESS(ntStatus))
-    {
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_ERROR,
-            ("<%s> <--QDBRD_SendIOBlock: failed to format RX req[%d]\n", pDevContext->PortName, Index)
-        );
-        return;
-    }
-
-    if (pipeIN == NULL)
-    {
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_ERROR,
-            ("<%s> <--QDBRD_SendIOBlock: no EP available\n", pDevContext->PortName)
-        );
-        return;
-    }
-
-    ntStatus = WdfUsbTargetPipeFormatRequestForRead
-    (
-        pipeIN,
-        pDevContext->RxRequest[Index].IoRequest,
-        pDevContext->RxRequest[Index].IoMemory,
-        NULL
-    );
-    if (!NT_SUCCESS(ntStatus))
-    {
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_ERROR,
-            ("<%s> <--QDBRD_SendIOBlock: failed to format URB (0x%x)\n", pDevContext->PortName, ntStatus)
-        );
-        return;
-    }
-
-    WdfRequestSetCompletionRoutine
-    (
-        pDevContext->RxRequest[Index].IoRequest,
-        QDBRD_PipeDrainCompletion,
-        &(pDevContext->RxRequest[Index])
-    );
-
-    pDevContext->RxRequest[Index].IsPending = 1;
-    InterlockedIncrement(&(pDevContext->Stats.DrainingRx));
-    bResult = WdfRequestSend
-    (
-        pDevContext->RxRequest[Index].IoRequest,
-        pDevContext->MyIoTarget,
-        WDF_NO_SEND_OPTIONS
-    );
-    if (bResult == FALSE)
-    {
-        ntStatus = WdfRequestGetStatus(pDevContext->RxRequest[Index].IoRequest);
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_ERROR,
-            ("<%s> QDBRD_SendIOBlock: WdfRequestSend failed [%d] (0x%x)\n", pDevContext->PortName, Index, ntStatus)
-        );
-
-        // In this case, completion routine will not be called, so need to rewind
-        InterlockedDecrement(&(pDevContext->Stats.DrainingRx));
-    }
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_READ,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> <--QDBRD_SendIOBlock: [%d]\n", pDevContext->PortName, Index)
-    );
-} // QDBRD_SendIOBlock
-
-/****************************************************************************
- *
- * function: QDBRD_PipeDrainStop
- *
- * purpose:  Stops QDSS pipe draining by clearing the PipeDrain flag so
- *           that completion routines will not re-submit requests.
- *
- * arguments:pDevContext = pointer to the device context
- *
- * returns:  NT status; STATUS_NOT_SUPPORTED if not a QDSS device
- *
- ****************************************************************************/
-NTSTATUS QDBRD_PipeDrainStop(PDEVICE_CONTEXT pDevContext)
-{
-    // ULONG i;
-    KIRQL oldLevel;
-
-    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
-    {
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_ERROR,
-            ("<%s> QDBRD_PipeDrainStop: wrong dev type %u\n", pDevContext->PortName, pDevContext->FunctionType)
-        );
-        return STATUS_NOT_SUPPORTED;
-    }
-
-    KeAcquireSpinLock(&pDevContext->RxLock, &oldLevel);
-    if (pDevContext->PipeDrain == FALSE)
-    {
-        KeReleaseSpinLock(&pDevContext->RxLock, oldLevel);
-        return STATUS_SUCCESS;
-    }
-
-    // set to FALSE so that completion routine won't send Request
-    pDevContext->PipeDrain = FALSE;
-    KeReleaseSpinLock(&pDevContext->RxLock, oldLevel);
-
-    /***
-       for (i = 0; i < pDevContext->NumOfRxReqs; i++)
-       {
-          WdfRequestCancelSentRequest(pDevContext->RxRequest[i].IoRequest);
-       }
-    ***/
-
-    return STATUS_SUCCESS;
-
-}  // QDBRD_PipeDrainStop
-
-/****************************************************************************
- *
- * function: QDBRD_PipeDrainCompletion
- *
- * purpose:  WDF completion routine for QDSS pipe drain requests. Recycles
- *           the WDF request and re-submits it if draining is still active
- *           and the failure threshold has not been exceeded. Signals
- *           DrainStoppedEvent when all drain requests have completed.
- *
- * arguments:Request          = WDF request handle
- *           Target           = WDF USB pipe I/O target
- *           CompletionParams = USB completion parameters including byte count
- *           Context          = pointer to the QDB_IO_REQUEST structure
- *
- * returns:  VOID
- *
- ****************************************************************************/
-VOID QDBRD_PipeDrainCompletion
+VOID QDBRD_DrainReadComplete
 (
-    WDFREQUEST                  Request,
-    WDFIOTARGET                 Target,
-    PWDF_REQUEST_COMPLETION_PARAMS CompletionParams,
-    WDFCONTEXT                  Context
+    WDFUSBPIPE  Pipe,
+    WDFMEMORY   Buffer,
+    size_t      NumBytesTransferred,
+    WDFCONTEXT  Context
 )
 {
-    NTSTATUS        ntStatus;
-    PDEVICE_CONTEXT pDevContext;
-    PQDB_IO_REQUEST ioReq;
-    ULONG           readLength = 0;
-    WDF_REQUEST_REUSE_PARAMS reqPrams;
-    BOOLEAN         sendAgain = TRUE;
-    PWDF_USB_REQUEST_COMPLETION_PARAMS usbInfo;
+    PDEVICE_CONTEXT pDevContext = (PDEVICE_CONTEXT)Context;
 
-    UNREFERENCED_PARAMETER(Request);
-    UNREFERENCED_PARAMETER(Target);
+    UNREFERENCED_PARAMETER(Pipe);
+    UNREFERENCED_PARAMETER(Buffer);
 
-    ioReq = (PQDB_IO_REQUEST)Context;
-    pDevContext = ioReq->DeviceContext;
+    // Discard received data — update stats only
+    pDevContext->Stats.BytesDrained += (ULONG)NumBytesTransferred;
 
-    usbInfo = CompletionParams->Parameters.Usb.Completion;
-    ntStatus = CompletionParams->IoStatus.Status;
-    QDB_DbgPrint
+    QDB_DbgPrintG
     (
         QDB_DBG_MASK_READ,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->QDBRD_PipeDrainCompletion: [%d] (ST 0x%x)\n", pDevContext->PortName,
-        ioReq->Index, ntStatus)
+        QDB_DBG_LEVEL_ERROR,
+        ("<%s> QDBRD_DrainReadComplete: %uB drained (total %u)\n",
+        pDevContext->PortName, (ULONG)NumBytesTransferred, pDevContext->Stats.BytesDrained)
     );
-    if (!NT_SUCCESS(ntStatus))
-    {
+}
 
-        if ((ntStatus != STATUS_CANCELLED) && (ntStatus != STATUS_UNSUCCESSFUL))
-        {
-            sendAgain = FALSE;
-        }
-        else if (++pDevContext->Stats.IoFailureCount > pDevContext->IoFailureThreshold)
-        {
-            sendAgain = FALSE;
-        }
+/****************************************************************************
+ *
+ * function: QDBRD_DrainReadFailed
+ *
+ * purpose:  WDF continuous reader failure callback. Called when the
+ *           framework encounters a USB error on the QDSS TraceIN pipe
+ *           while draining. Returning FALSE stops the reader.
+ *
+ * arguments:Pipe       = WDF USB pipe handle
+ *           Status     = NT status of the failed transfer
+ *           UsbdStatus = USBD status code of the failed transfer
+ *
+ * returns:  FALSE to stop the continuous reader on error
+ *
+ ****************************************************************************/
+BOOLEAN QDBRD_DrainReadFailed
+(
+    WDFUSBPIPE   Pipe,
+    NTSTATUS     Status,
+    USBD_STATUS  UsbdStatus
+)
+{
+    PDEVICE_CONTEXT pDevContext;
+
+    pDevContext = QdbDeviceGetContext(WdfIoTargetGetDevice(WdfUsbTargetPipeGetIoTarget(Pipe)));
+
+    QDB_DbgPrintG
+    (
+        QDB_DBG_MASK_READ,
+        QDB_DBG_LEVEL_ERROR,
+        ("<%s> QDBRD_DrainReadFailed: ST 0x%x, USBD ST 0x%x — stopping continuous reader\n",
+        pDevContext->PortName, Status, UsbdStatus)
+    );
+
+    return FALSE;
+}
+
+/****************************************************************************
+ *
+ * function: QDBRD_StartDraining
+ *
+ * purpose:  Starts data draining on the QDSS TraceIN pipe.
+ *
+ * arguments:pDevContext = pointer to the device context
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
+VOID QDBRD_StartDraining(PDEVICE_CONTEXT pDevContext)
+{
+    NTSTATUS nts;
+
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS ||
+        pDevContext->TraceIN == NULL)
+    {
+        QDB_DbgPrint
+        (
+            QDB_DBG_MASK_READ,
+            QDB_DBG_LEVEL_DETAIL,
+            ("<%s> QDBRD_StartDraining: skip (not QDSS or no TraceIN)\n", pDevContext->PortName)
+        );
     }
     else
     {
-        pDevContext->Stats.IoFailureCount = 0;
-        readLength = (ULONG)usbInfo->Parameters.PipeRead.Length;
-        pDevContext->Stats.BytesDrained += readLength;
+        nts = WdfIoTargetStart(WdfUsbTargetPipeGetIoTarget(pDevContext->TraceIN));
         QDB_DbgPrint
         (
             QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_ERROR,
-            ("<%s> QDBRD_PipeDrainCompletion: read %uB/%u\n", pDevContext->PortName, readLength, pDevContext->Stats.BytesDrained)
+            QDB_DBG_LEVEL_DETAIL,
+            ("<%s> QDBRD_StartDraining: ST 0x%x\n", pDevContext->PortName, nts)
         );
     }
+}
 
-    // recycle WDF request
-    WDF_REQUEST_REUSE_PARAMS_INIT(&reqPrams, WDF_REQUEST_REUSE_NO_FLAGS, STATUS_SUCCESS);
-    WdfRequestReuse(ioReq->IoRequest, &reqPrams);
-
-    if ((pDevContext->PipeDrain == FALSE) || (pDevContext->DeviceRemoval == TRUE))
+/****************************************************************************
+ *
+ * function: QDBRD_StopDraining
+ *
+ * purpose:  Stops data draining on the QDSS TraceIN pipe.
+ *
+ * arguments:pDevContext = pointer to the device context
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
+VOID QDBRD_StopDraining(PDEVICE_CONTEXT pDevContext)
+{
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS ||
+        pDevContext->TraceIN == NULL)
     {
         QDB_DbgPrint
         (
             QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_ERROR,
-            ("<%s> QDBRD_PipeDrainCompletion: stopping draining [%d]\n", pDevContext->PortName, ioReq->Index)
+            QDB_DBG_LEVEL_DETAIL,
+            ("<%s> QDBRD_StopDraining: skip (not QDSS or no TraceIN)\n", pDevContext->PortName)
         );
-        sendAgain = FALSE;
     }
-
-    pDevContext->RxRequest[ioReq->Index].IsPending = 0;
-    if (sendAgain == TRUE)
+    else
     {
-        // re-send request
-        QDBRD_SendIOBlock(pDevContext, ioReq->Index);
+        WdfIoTargetStop
+        (
+            WdfUsbTargetPipeGetIoTarget(pDevContext->TraceIN),
+            WdfIoTargetCancelSentIo
+        );
+        QDB_DbgPrint
+        (
+            QDB_DBG_MASK_READ,
+            QDB_DBG_LEVEL_DETAIL,
+            ("<%s> QDBRD_StopDraining: done\n", pDevContext->PortName)
+        );
     }
-
-    if (InterlockedDecrement(&(pDevContext->Stats.DrainingRx)) == 0)
-    {
-        // signal the halt of draining
-        if (pDevContext->DeviceRemoval == TRUE)
-        {
-            QDB_DbgPrint
-            (
-                QDB_DBG_MASK_READ,
-                QDB_DBG_LEVEL_ERROR,
-                ("<%s> QDBRD_PipeDrainCompletion: drain stopped, signaling\n", pDevContext->PortName)
-            );
-            KeSetEvent(&pDevContext->DrainStoppedEvent, IO_NO_INCREMENT, FALSE);
-        }
-    }
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_READ,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> <--QDBRD_PipeDrainCompletion: [%d] pending %d\n", pDevContext->PortName, ioReq->Index,
-        pDevContext->Stats.DrainingRx)
-    );
-
-} // QDBRD_PipeDrainCompletion
+}

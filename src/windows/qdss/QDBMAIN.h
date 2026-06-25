@@ -115,17 +115,6 @@ extern ULONG SimData[2724];
                                                METHOD_BUFFERED, \
                                                FILE_ANY_ACCESS)
 
-typedef struct _QDB_IO_REQUEST
-{
-    LIST_ENTRY List;
-    PVOID      DeviceContext;
-    WDFREQUEST IoRequest;
-    WDFMEMORY  IoMemory;
-    PVOID      IoBuffer;
-    int        Index;
-    int        IsPending;
-} QDB_IO_REQUEST, *PQDB_IO_REQUEST;
-
 typedef struct _QDB_STATS
 {
     LONG  OutstandingRx;  // buffers not returned to app
@@ -144,8 +133,6 @@ typedef struct _DEVICE_CONTEXT
     PUSB_CONFIGURATION_DESCRIPTOR ConfigDesc; // dynamically allocated
     CHAR                          SerialNumber[256];
     LONG                          IfProtocol;
-    BOOLEAN                       DeviceRemoval;
-    KEVENT                        DrainStoppedEvent;
     ULONG                         DebugMask;
     ULONG                         DebugLevel;
     CHAR                          PortName[16];
@@ -159,12 +146,8 @@ typedef struct _DEVICE_CONTEXT
     WDFQUEUE                      RxQueue;
     WDFQUEUE                      TxQueue;
     WDFQUEUE                      DefaultQueue;
-    KSPIN_LOCK                    RxLock;
-    ULONG                         NumOfRxReqs;
     ULONG                         FunctionType;
     ULONG                         IoFailureThreshold;
-    QDB_IO_REQUEST                RxRequest[IO_REQ_NUM_RX];
-    BOOLEAN                       PipeDrain;
     QDB_STATS                     Stats;
 } DEVICE_CONTEXT, *PDEVICE_CONTEXT;
 

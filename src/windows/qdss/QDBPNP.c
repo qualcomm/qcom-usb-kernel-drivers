@@ -6,7 +6,7 @@ GENERAL DESCRIPTION
     Plug-and-Play and power management callbacks for the QDSS USB
     function driver. Handles device enumeration, USB interface and
     pipe selection, symbolic link and friendly name creation, selective
-    suspend configuration, and DPL pipe drain lifecycle management.
+    suspend configuration, and TraceIn pipe drain lifecycle management.
 
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
@@ -69,6 +69,8 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
     // 1. PnP, power, and power policy callback functions
     WDF_PNPPOWER_EVENT_CALLBACKS_INIT(&pnpPowerEventCB);
     pnpPowerEventCB.EvtDevicePrepareHardware = QDBPNP_EvtDevicePrepareHW;
+    pnpPowerEventCB.EvtDeviceD0Entry         = QDBPNP_EvtDeviceD0Entry;
+    pnpPowerEventCB.EvtDeviceD0Exit          = QDBPNP_EvtDeviceD0Exit;
     WdfDeviceInitSetPnpPowerEventCallbacks(DeviceInit, &pnpPowerEventCB);
 
     // 2. File event callback functions
@@ -368,13 +370,9 @@ VOID QDBPNP_EvtDeviceCleanupCallback(WDFOBJECT Object)
         ("<%s> -->QDBPNP_EvtDeviceCleanupCallback: 0x%p\n", pDevContext->PortName, wdfDevice)
     );
 
-    pDevContext->DeviceRemoval = TRUE;
-    pDevContext->PipeDrain = FALSE;
-
     QDBREG_SetDriverRegistryDword(wdfDevice, VEN_DEV_TIME, 0);
 
-    QDBPNP_WaitForDrainToStop(pDevContext);
-    QDBRD_FreeIoBuffer(pDevContext);
+    QDBRD_StopDraining(pDevContext);
 
     QDB_DbgPrint
     (
@@ -386,69 +384,12 @@ VOID QDBPNP_EvtDeviceCleanupCallback(WDFOBJECT Object)
 
 /****************************************************************************
  *
- * function: QDBPNP_WaitForDrainToStop
- *
- * purpose:  Waits for the DPL pipe drain to complete by polling the
- *           DrainStoppedEvent with a 100 ms timeout until DrainingRx
- *           reaches zero.
- *
- * arguments:pDevContext = pointer to the device context
- *
- * returns:  VOID
- *
- ****************************************************************************/
-VOID QDBPNP_WaitForDrainToStop(PDEVICE_CONTEXT pDevContext)
-{
-    LARGE_INTEGER   delayValue;
-    NTSTATUS        ntStatus;
-
-    delayValue.QuadPart = -(1 * 1000 * 1000); // 0.1 sec
-    ntStatus = KeWaitForSingleObject
-    (
-        &pDevContext->DrainStoppedEvent,
-        Executive,
-        KernelMode,
-        FALSE,
-        &delayValue
-    );
-    if (ntStatus == STATUS_TIMEOUT)
-    {
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_CONTROL,
-            QDB_DBG_LEVEL_TRACE,
-            ("<%s> QDBPNP_WaitForDrainToStop: wait for drain to stop: %d\n",
-            pDevContext->PortName, pDevContext->Stats.DrainingRx)
-        );
-        while (pDevContext->Stats.DrainingRx != 0)
-        {
-            QDB_DbgPrint
-            (
-                QDB_DBG_MASK_CONTROL,
-                QDB_DBG_LEVEL_TRACE,
-                ("<%s> QDBPNP_WaitForDrainToStop: wait for drain to stop\n", pDevContext->PortName)
-            );
-            delayValue.QuadPart = -(1 * 1000 * 1000); // 0.1 sec
-            KeWaitForSingleObject
-            (
-                &pDevContext->DrainStoppedEvent,
-                Executive,
-                KernelMode,
-                FALSE,
-                &delayValue
-            );
-        }
-    }
-}  // QDBPNP_WaitForDrainToStop
-
-/****************************************************************************
- *
  * function: QDBPNP_EvtDevicePrepareHW
  *
  * purpose:  WDF PnP callback invoked when hardware resources are assigned.
  *           Initializes the device context, enumerates and configures the
  *           USB device, enables selective suspend, reads registry settings,
- *           and starts DPL pipe draining.
+ *           and configures the continuous reader for QDSS pipe draining.
  *
  * arguments:Device                 = WDF device handle
  *           ResourceList           = raw hardware resource list (unused)
@@ -479,8 +420,6 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
     );
 
     // Init context
-    KeInitializeEvent(&pDevContext->DrainStoppedEvent, SynchronizationEvent, FALSE);
-    pDevContext->DeviceRemoval = FALSE;
     pDevContext->TraceIN = NULL;
     pDevContext->DebugIN = NULL;
     pDevContext->DebugOUT = NULL;
@@ -488,8 +427,6 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
     pDevContext->MyDevice = Device;
     pDevContext->IoFailureThreshold = QDB_IO_FAILURE_THRESHOLD;
 
-    // TODO: for QDSS only
-    pDevContext->PipeDrain = FALSE;
     pDevContext->Stats.OutstandingRx = 0;
     pDevContext->Stats.DrainingRx = 0;
     pDevContext->Stats.NumRxExhausted = 0;
@@ -514,9 +451,7 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
 
     QDBREG_SetDriverRegistryDword(Device, VEN_DEV_TIME, 1);
 
-    // Start to drain IN pipe for QDSS
-    QDBRD_AllocateRequestsRx(pDevContext);
-    QDBRD_PipeDrainStart(pDevContext);
+    QDBRD_ConfigureContinuousReader(pDevContext);
 
     QDB_DbgPrint
     (
@@ -526,6 +461,72 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
 
     return STATUS_SUCCESS;
 }  // QDBPNP_EvtDevicePrepareHW
+
+/****************************************************************************
+ *
+ * function: QDBPNP_EvtDeviceD0Entry
+ *
+ * purpose:  WDF power callback. Starts the continuous reader so that the
+ *           pipe is drained automatically while no user application reads.
+ *
+ * arguments:Device        = WDF device handle
+ *           PreviousState = power state the device is transitioning from
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
+NTSTATUS QDBPNP_EvtDeviceD0Entry
+(
+    WDFDEVICE              Device,
+    WDF_POWER_DEVICE_STATE PreviousState
+)
+{
+    PDEVICE_CONTEXT pDevContext = QdbDeviceGetContext(Device);
+
+    QDB_DbgPrintG
+    (
+        QDB_DBG_MASK_CONTROL,
+        QDB_DBG_LEVEL_DETAIL,
+        ("<%s> QDBPNP_EvtDeviceD0Entry: prev state [%u]\n", pDevContext->PortName, PreviousState)
+    );
+
+    QDBRD_StartDraining(pDevContext);
+
+    return STATUS_SUCCESS;
+}
+
+/****************************************************************************
+ *
+ * function: QDBPNP_EvtDeviceD0Exit
+ *
+ * purpose:  WDF power callback. Stops the continuous reader so no I/O
+*            is outstanding while the device is in a low-power state.
+ *
+ * arguments:Device      = WDF device handle
+ *           TargetState = power state the device is transitioning to
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
+NTSTATUS QDBPNP_EvtDeviceD0Exit
+(
+    WDFDEVICE              Device,
+    WDF_POWER_DEVICE_STATE TargetState
+)
+{
+    PDEVICE_CONTEXT pDevContext = QdbDeviceGetContext(Device);
+
+    QDB_DbgPrintG
+    (
+        QDB_DBG_MASK_CONTROL,
+        QDB_DBG_LEVEL_DETAIL,
+        ("<%s> QDBPNP_EvtDeviceD0Exit: target state [%u]\n", pDevContext->PortName, TargetState)
+    );
+
+    QDBRD_StopDraining(pDevContext);
+
+    return STATUS_SUCCESS;
+}  // QDBPNP_EvtDeviceD0Exit
 
 /****************************************************************************
  *
