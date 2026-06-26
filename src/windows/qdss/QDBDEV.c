@@ -78,8 +78,6 @@ VOID QDBDEV_EvtDeviceFileCreate
     }
     else
     {
-        pFileContext->DeviceContext = pDevContext;
-
         RtlInitUnicodeString(&ucTraceFile, QDSS_TRACE_FILE);
         RtlInitUnicodeString(&ucDebugFile, QDSS_DEBUG_FILE);
         RtlInitUnicodeString(&ucDplFile, QDSS_DPL_FILE);
@@ -87,7 +85,6 @@ VOID QDBDEV_EvtDeviceFileCreate
         if (RtlCompareUnicodeString(&ucTraceFile, fileName, TRUE) == 0)
         {
             pFileContext->Type = QDB_FILE_TYPE_TRACE;
-            pFileContext->TraceIN = pDevContext->TraceIN;
             ntStatus = STATUS_SUCCESS;
             QDB_DbgPrint
             (
@@ -99,8 +96,6 @@ VOID QDBDEV_EvtDeviceFileCreate
         else if (RtlCompareUnicodeString(&ucDebugFile, fileName, TRUE) == 0)
         {
             pFileContext->Type = QDB_FILE_TYPE_DEBUG;
-            pFileContext->DebugIN = pDevContext->DebugIN;
-            pFileContext->DebugOUT = pDevContext->DebugOUT;
             ntStatus = STATUS_SUCCESS;
             QDB_DbgPrint
             (
@@ -112,7 +107,6 @@ VOID QDBDEV_EvtDeviceFileCreate
         else if (RtlCompareUnicodeString(&ucDplFile, fileName, TRUE) == 0)
         {
             pFileContext->Type = QDB_FILE_TYPE_DPL;
-            pFileContext->TraceIN = pDevContext->TraceIN;
             ntStatus = STATUS_SUCCESS;
             QDB_DbgPrint
             (
@@ -164,7 +158,7 @@ VOID QDBDEV_EvtDeviceFileCleanup(WDFFILEOBJECT FileObject)
     PUNICODE_STRING fileName;
 
     pFileContext = QdbFileGetContext(FileObject);
-    pDevContext = pFileContext->DeviceContext;
+    pDevContext = QdbDeviceGetContext(WdfFileObjectGetDevice(FileObject));
     fileName = WdfFileObjectGetFileName(FileObject);
 
     QDB_DbgPrint

@@ -37,9 +37,6 @@ extern ULONG SimData[2724];
 #define QCOM_USB_ID_TYPE_SERIAL   L"_SN:"
 #define QCOM_USB_ID_DELIMITER     L'_'
 #define QCOM_USB_ID_DELIMITER_END L' '
-#define QDB_TAG_RD  (ULONG)'RBDQ'
-#define QDB_TAG_WT  (ULONG)'WBDQ'
-#define QDB_TAG_GEN (ULONG)'GBDQ'
 
 // === bits allocation ===
 // 0x0000000F - Debug level
@@ -99,8 +96,6 @@ extern ULONG SimData[2724];
 #define QDB_FUNCTION_TYPE_QDSS 0
 #define QDB_FUNCTION_TYPE_DPL  1
 
-#define QDB_IO_FAILURE_THRESHOLD 24
-
 #define QCDEV_IOCTL_INDEX 2048
 
 // Reserve  QCDEV_IOCTL_INDEX + 60 to 69 for QDB_DPL function
@@ -135,24 +130,16 @@ typedef struct _DEVICE_CONTEXT
     WDFIOTARGET                   MyIoTarget;
     WDFUSBDEVICE                  WdfUsbDevice;
     WDFDEVICE                     MyDevice;
-    PUSB_CONFIGURATION_DESCRIPTOR ConfigDesc; // dynamically allocated
-    CHAR                          SerialNumber[256];
-    LONG                          IfProtocol;
     ULONG                         DebugMask;
     ULONG                         DebugLevel;
     CHAR                          PortName[16];
     WDFUSBPIPE                    TraceIN;
     WDFUSBPIPE                    DebugIN;
     WDFUSBPIPE                    DebugOUT;
-    WDF_USB_PIPE_INFORMATION      TracePipeInfo;
-    WDF_USB_PIPE_INFORMATION      DebugINPipeInfo;
-    WDF_USB_PIPE_INFORMATION      DebugOUTPipeInfo;
-    ULONG                         MaxXfrSize; // not really used
     WDFQUEUE                      RxQueue;
     WDFQUEUE                      TxQueue;
     WDFQUEUE                      DefaultQueue;
     ULONG                         FunctionType;
-    ULONG                         IoFailureThreshold;
     QDB_STATS                     Stats;
 } DEVICE_CONTEXT, *PDEVICE_CONTEXT;
 
@@ -162,10 +149,6 @@ typedef struct _DEVICE_CONTEXT
 
 typedef struct _FILE_CONTEXT
 {
-    PDEVICE_CONTEXT DeviceContext;
-    WDFUSBPIPE TraceIN;
-    WDFUSBPIPE DebugIN;
-    WDFUSBPIPE DebugOUT;
     UCHAR      Type;
 } FILE_CONTEXT, *PFILE_CONTEXT;
 

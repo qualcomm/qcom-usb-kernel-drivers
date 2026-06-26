@@ -111,7 +111,6 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
     }
 
     pDevContext = QdbDeviceGetContext(wdfDevice);
-    pDevContext->MaxXfrSize = QDB_USB_TRANSFER_SIZE_MAX;
     RtlCopyMemory(pDevContext->PortName, QDB_DBG_NAME_PREFIX, sizeof(QDB_DBG_NAME_PREFIX));
 
     // TODO: for debug purpose
@@ -425,14 +424,7 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
     pDevContext->DebugOUT = NULL;
     pDevContext->MyIoTarget = WdfDeviceGetIoTarget(Device);
     pDevContext->MyDevice = Device;
-    pDevContext->IoFailureThreshold = QDB_IO_FAILURE_THRESHOLD;
-
-    pDevContext->Stats.OutstandingRx = 0;
-    pDevContext->Stats.DrainingRx = 0;
-    pDevContext->Stats.NumRxExhausted = 0;
-    pDevContext->Stats.BytesDrained = 0;
-    pDevContext->Stats.PacketsDrained = 0;
-    pDevContext->Stats.IoFailureCount = 0;
+    RtlZeroMemory(&pDevContext->Stats, sizeof(QDB_STATS));
 
     // Device descriptor
     ntStatus = QDBPNP_EnumerateDevice(Device);
@@ -947,7 +939,7 @@ NTSTATUS QDBPNP_UsbConfigureDevice(IN WDFDEVICE Device)
 {
     PDEVICE_CONTEXT               pDevContext;
     NTSTATUS                      ntStatus;
-    USHORT                        bufSize;
+    USHORT                        bufSize = 0;
     PUSB_CONFIGURATION_DESCRIPTOR configDesc = NULL;
     WDF_OBJECT_ATTRIBUTES         objAttrib;
     WDFMEMORY                     memory;
@@ -962,13 +954,12 @@ NTSTATUS QDBPNP_UsbConfigureDevice(IN WDFDEVICE Device)
     );
 
     // get the size of config desc
-    bufSize = 0; // function call should return BUFFER_TOO_SMALL
     ntStatus = WdfUsbTargetDeviceRetrieveConfigDescriptor
     (
         pDevContext->WdfUsbDevice, NULL, &bufSize
     );
 
-    if ((bufSize == 0) || (ntStatus != STATUS_BUFFER_TOO_SMALL))
+    if (ntStatus != STATUS_BUFFER_TOO_SMALL)
     {
         return ntStatus;
     }
@@ -982,7 +973,7 @@ NTSTATUS QDBPNP_UsbConfigureDevice(IN WDFDEVICE Device)
     (
         &objAttrib,
         NonPagedPoolNx,
-        QDB_TAG_GEN,
+        0,
         bufSize,
         &memory,
         &configDesc
@@ -1011,8 +1002,6 @@ NTSTATUS QDBPNP_UsbConfigureDevice(IN WDFDEVICE Device)
         return ntStatus;
     }
 
-    pDevContext->ConfigDesc = configDesc;
-
     QDB_DbgPrint
     (
         QDB_DBG_MASK_CONTROL,
@@ -1034,21 +1023,7 @@ NTSTATUS QDBPNP_UsbConfigureDevice(IN WDFDEVICE Device)
     )
     );
 
-
-    if (pDevContext->ConfigDesc->bNumInterfaces == 0)
-    {
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_CONTROL,
-            QDB_DBG_LEVEL_TRACE,
-            ("<%s> QDBPNP_UsbConfigureDevice: no interface found\n", pDevContext->PortName)
-        );
-        ntStatus = STATUS_UNSUCCESSFUL;
-    }
-    else
-    {
-        ntStatus = QDBPNP_SelectInterfaces(Device);
-    }
+    ntStatus = QDBPNP_SelectInterfaces(Device);
 
     QDB_DbgPrint
     (
@@ -1082,30 +1057,38 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
     UCHAR                               numInterfaces;
     BOOLEAN                             bTraceFound = FALSE;
     BOOLEAN                             bDebugFound = FALSE;
+    WDF_USB_PIPE_INFORMATION            pipeInfoTrace;
+    WDF_USB_PIPE_INFORMATION            pipeInfoDebug0, pipeInfoDebug1;
+    WDFUSBPIPE                          pipe0, pipe1;
 
     pDevContext = QdbDeviceGetContext(Device);
+    numInterfaces = WdfUsbTargetDeviceGetNumInterfaces(pDevContext->WdfUsbDevice);
 
     QDB_DbgPrint
     (
         QDB_DBG_MASK_CONTROL,
         QDB_DBG_LEVEL_TRACE,
         ("<%s> -->QDBPNP_SelectInterfaces: Device 0x%p numIFs=%d\n", pDevContext->PortName,
-        Device, pDevContext->ConfigDesc->bNumInterfaces)
+        Device, numInterfaces)
     );
 
-    if (pDevContext->ConfigDesc->bNumInterfaces == 1)
+    if (numInterfaces == 0)
+    {
+        QDB_DbgPrintG
+        (
+            QDB_DBG_MASK_CONTROL,
+            QDB_DBG_LEVEL_ERROR,
+            ("<%s> QDBPNP_SelectInterfaces: no interface found\n", pDevContext->PortName)
+        );
+        ntStatus = STATUS_UNSUCCESSFUL;
+    }
+    else if (numInterfaces == 1)
     {
         WDF_USB_DEVICE_SELECT_CONFIG_PARAMS_INIT_SINGLE_INTERFACE(&cfgParams);
     }
     else
     {
-        // enable all interfacs with alt setting 0
-        WDF_USB_DEVICE_SELECT_CONFIG_PARAMS_INIT_MULTIPLE_INTERFACES
-        (
-            &cfgParams,
-            0, // pDevContext->ConfigDesc->bNumInterfaces,
-            NULL
-        );
+        WDF_USB_DEVICE_SELECT_CONFIG_PARAMS_INIT_MULTIPLE_INTERFACES(&cfgParams, 0, NULL);
     }
 
     ntStatus = WdfUsbTargetDeviceSelectConfig
@@ -1118,7 +1101,7 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
     if (NT_SUCCESS(ntStatus))
     {
         // for testing only, customized for single-interface device
-        if (pDevContext->ConfigDesc->bNumInterfaces == 1)
+        if (numInterfaces == 1)
         {
             WDFUSBINTERFACE                         configuredInterface;
             WDF_USB_INTERFACE_SELECT_SETTING_PARAMS interfaceSelectSetting;
@@ -1162,7 +1145,6 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
     // TRACE and DEBUG interface requirements
     if (NT_SUCCESS(ntStatus))
     {
-        numInterfaces = WdfUsbTargetDeviceGetNumInterfaces(pDevContext->WdfUsbDevice);
         if (numInterfaces > 0)
         {
             UCHAR i;
@@ -1199,7 +1181,6 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
 
                     WdfUsbInterfaceGetDescriptor(usbInterface, 0, &interfaceDesc);
                     ULONG ifProtocol = (ULONG)interfaceDesc.bInterfaceProtocol |
-                    pDevContext->IfProtocol = (ULONG)interfaceDesc.bInterfaceProtocol |
                         ((ULONG)interfaceDesc.bInterfaceClass) << 8 |
                         ((ULONG)interfaceDesc.bAlternateSetting) << 16 |
                         ((ULONG)interfaceDesc.bInterfaceNumber) << 24;
@@ -1222,12 +1203,12 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
                             break;
                         }
                         // varify if the EP is bulk IN
-                        WDF_USB_PIPE_INFORMATION_INIT(&pDevContext->TracePipeInfo);
+                        WDF_USB_PIPE_INFORMATION_INIT(&pipeInfoTrace);
                         pDevContext->TraceIN = WdfUsbInterfaceGetConfiguredPipe
                         (
                             usbInterface,
                             0, // pipe index
-                            &pDevContext->TracePipeInfo
+                            &pipeInfoTrace
                         );
                         if (pDevContext->TraceIN == NULL)
                         {
@@ -1246,24 +1227,24 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
                             QDB_DBG_LEVEL_ERROR,
                             ("<%s> PipeInfo: MaxPktSz %d EP 0x%X Interval %d Index %d Type %d MaxXfrSz %d\n",
                             pDevContext->PortName,
-                            pDevContext->TracePipeInfo.MaximumPacketSize,
-                            pDevContext->TracePipeInfo.EndpointAddress,
-                            pDevContext->TracePipeInfo.Interval,
-                            pDevContext->TracePipeInfo.SettingIndex,
-                            pDevContext->TracePipeInfo.PipeType,
-                            pDevContext->TracePipeInfo.MaximumTransferSize
+                            pipeInfoTrace.MaximumPacketSize,
+                            pipeInfoTrace.EndpointAddress,
+                            pipeInfoTrace.Interval,
+                            pipeInfoTrace.SettingIndex,
+                            pipeInfoTrace.PipeType,
+                            pipeInfoTrace.MaximumTransferSize
                         )
                         );
 
-                        if ((pDevContext->TracePipeInfo.PipeType != WdfUsbPipeTypeBulk) ||
-                            ((pDevContext->TracePipeInfo.EndpointAddress & 0x80) == 0))
+                        if ((pipeInfoTrace.PipeType != WdfUsbPipeTypeBulk) ||
+                            ((pipeInfoTrace.EndpointAddress & 0x80) == 0))
                         {
                             QDB_DbgPrint
                             (
                                 QDB_DBG_MASK_CONTROL,
                                 QDB_DBG_LEVEL_ERROR,
                                 ("<%s> invalid TraceIN (EP 0x%X)\n", pDevContext->PortName,
-                                pDevContext->TracePipeInfo.EndpointAddress)
+                                pipeInfoTrace.EndpointAddress)
                             );
                             break;
                         }
@@ -1275,9 +1256,6 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
                     }
                     case 2: // DEBUG
                     {
-                        WDFUSBPIPE               pipe0, pipe1;
-                        WDF_USB_PIPE_INFORMATION pipeInfo0, pipeInfo1;
-
                         if (bDebugFound == TRUE)
                         {
                             QDB_DbgPrint
@@ -1289,10 +1267,10 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
                             break;
                         }
                         // verify the EPs are IN and OUT
-                        WDF_USB_PIPE_INFORMATION_INIT(&pipeInfo0);
-                        WDF_USB_PIPE_INFORMATION_INIT(&pipeInfo1);
-                        pipe0 = WdfUsbInterfaceGetConfiguredPipe(usbInterface, 0, &pipeInfo0);
-                        pipe1 = WdfUsbInterfaceGetConfiguredPipe(usbInterface, 1, &pipeInfo1);
+                        WDF_USB_PIPE_INFORMATION_INIT(&pipeInfoDebug0);
+                        WDF_USB_PIPE_INFORMATION_INIT(&pipeInfoDebug1);
+                        pipe0 = WdfUsbInterfaceGetConfiguredPipe(usbInterface, 0, &pipeInfoDebug0);
+                        pipe1 = WdfUsbInterfaceGetConfiguredPipe(usbInterface, 1, &pipeInfoDebug1);
                         if ((pipe0 == NULL) || (pipe1 == NULL))
                         {
                             QDB_DbgPrint
@@ -1311,12 +1289,12 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
                             QDB_DBG_LEVEL_ERROR,
                             ("<%s> PipeInfo[0]: MaxPktSz %d EP 0x%X Interval %d Index %d Type %d MaxXfrSz %d\n",
                             pDevContext->PortName,
-                            pipeInfo0.MaximumPacketSize,
-                            pipeInfo0.EndpointAddress,
-                            pipeInfo0.Interval,
-                            pipeInfo0.SettingIndex,
-                            pipeInfo0.PipeType,
-                            pipeInfo0.MaximumTransferSize
+                            pipeInfoDebug0.MaximumPacketSize,
+                            pipeInfoDebug0.EndpointAddress,
+                            pipeInfoDebug0.Interval,
+                            pipeInfoDebug0.SettingIndex,
+                            pipeInfoDebug0.PipeType,
+                            pipeInfoDebug0.MaximumTransferSize
                         )
                         );
                         QDB_DbgPrint
@@ -1325,32 +1303,32 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
                             QDB_DBG_LEVEL_ERROR,
                             ("<%s> PipeInfo[1]: MaxPktSz %d EP 0x%X Interval %d Index %d Type %d MaxXfrSz %d\n",
                             pDevContext->PortName,
-                            pipeInfo1.MaximumPacketSize,
-                            pipeInfo1.EndpointAddress,
-                            pipeInfo1.Interval,
-                            pipeInfo1.SettingIndex,
-                            pipeInfo1.PipeType,
-                            pipeInfo1.MaximumTransferSize
+                            pipeInfoDebug1.MaximumPacketSize,
+                            pipeInfoDebug1.EndpointAddress,
+                            pipeInfoDebug1.Interval,
+                            pipeInfoDebug1.SettingIndex,
+                            pipeInfoDebug1.PipeType,
+                            pipeInfoDebug1.MaximumTransferSize
                         )
                         );
 
                         // pipes have to be BULK
-                        if ((pipeInfo0.PipeType != WdfUsbPipeTypeBulk) ||
-                            (pipeInfo1.PipeType != WdfUsbPipeTypeBulk))
+                        if ((pipeInfoDebug0.PipeType != WdfUsbPipeTypeBulk) ||
+                            (pipeInfoDebug1.PipeType != WdfUsbPipeTypeBulk))
                         {
                             QDB_DbgPrint
                             (
                                 QDB_DBG_MASK_CONTROL,
                                 QDB_DBG_LEVEL_ERROR,
                                 ("<%s> invalid DebugIN/DebugOUT (EP 0x%X/0x%X)\n", pDevContext->PortName,
-                                pipeInfo0.EndpointAddress, pipeInfo1.EndpointAddress)
+                                pipeInfoDebug0.EndpointAddress, pipeInfoDebug1.EndpointAddress)
                             );
                             break;
                         }
                         // pipes have to be IN and OUT
-                        if ((pipeInfo0.EndpointAddress & 0x80) == 0)
+                        if ((pipeInfoDebug0.EndpointAddress & 0x80) == 0)
                         {
-                            if ((pipeInfo1.EndpointAddress & 0x80) == 0)
+                            if ((pipeInfoDebug1.EndpointAddress & 0x80) == 0)
                             {
                                 break;
                             }
@@ -1358,12 +1336,10 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
                             // pipe0 is OUT, pipe1 is IN
                             pDevContext->DebugIN = pipe1;
                             pDevContext->DebugOUT = pipe0;
-                            RtlCopyMemory(&pDevContext->DebugINPipeInfo, &pipeInfo1, sizeof(WDF_USB_PIPE_INFORMATION));
-                            RtlCopyMemory(&pDevContext->DebugOUTPipeInfo, &pipeInfo0, sizeof(WDF_USB_PIPE_INFORMATION));
                         }
                         else
                         {
-                            if ((pipeInfo1.EndpointAddress & 0x80) != 0)
+                            if ((pipeInfoDebug1.EndpointAddress & 0x80) != 0)
                             {
                                 break;
                             }
@@ -1371,8 +1347,6 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
                             // pipe0 is IN, pipe1 is OUT
                             pDevContext->DebugIN = pipe0;
                             pDevContext->DebugOUT = pipe1;
-                            RtlCopyMemory(&pDevContext->DebugINPipeInfo, &pipeInfo0, sizeof(WDF_USB_PIPE_INFORMATION));
-                            RtlCopyMemory(&pDevContext->DebugOUTPipeInfo, &pipeInfo1, sizeof(WDF_USB_PIPE_INFORMATION));
                         }
 
                         // disable USB transfer length check
@@ -1426,12 +1400,12 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
     QDB_DbgPrint
     (
         QDB_DBG_MASK_CONTROL,
-        QDB_DBG_LEVEL_CRITICAL,
-        ("<%s> QDBPNP_SelectInterfaces: ST 0x%x TraceIN 0x%p(EP%x) DebugIN 0x%p(EP%x) DebugOUT 0x%p(EP%x)\n",
+        QDB_DBG_LEVEL_INFO,
+        ("<%s> QDBPNP_SelectInterfaces: ST 0x%x TraceIN 0x%p(EP%x) Debug0 0x%p(EP%x) Debug1 0x%p(EP%x)\n",
         pDevContext->PortName, ntStatus,
-        pDevContext->TraceIN, pDevContext->TracePipeInfo.EndpointAddress,
-        pDevContext->DebugIN, pDevContext->DebugINPipeInfo.EndpointAddress,
-        pDevContext->DebugOUT, pDevContext->DebugOUTPipeInfo.EndpointAddress
+        pDevContext->TraceIN, pipeInfoTrace.EndpointAddress,
+        pDevContext->DebugIN, pipeInfoDebug0.EndpointAddress,
+        pDevContext->DebugOUT, pipeInfoDebug1.EndpointAddress
     )
     );
     QDB_DbgPrint

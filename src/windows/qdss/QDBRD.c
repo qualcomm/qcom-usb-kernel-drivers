@@ -174,7 +174,7 @@ VOID QDBRD_IoRead
 
 #else // QDB_DATA_EMULATION
 
-        if (fileContext->TraceIN == NULL)
+        if (pDevContext->TraceIN == NULL)
         {
             QDB_DbgPrint
             (
@@ -190,7 +190,7 @@ VOID QDBRD_IoRead
     }
     else if (fileContext->Type == QDB_FILE_TYPE_DEBUG)
     {
-        if ((fileContext->DebugIN == NULL) || (fileContext->DebugOUT == NULL))
+        if ((pDevContext->DebugIN == NULL) || (pDevContext->DebugOUT == NULL))
         {
             QDB_DbgPrint
             (
@@ -266,11 +266,11 @@ VOID QDBRD_ReadUSB
     fileContext = QdbFileGetContext(WdfRequestGetFileObject(Request));
     if ((fileContext->Type == QDB_FILE_TYPE_TRACE) || (fileContext->Type == QDB_FILE_TYPE_DPL))
     {
-        pipeIN = fileContext->TraceIN;
+        pipeIN = pDevContext->TraceIN;
     }
     else if (fileContext->Type == QDB_FILE_TYPE_DEBUG)
     {
-        pipeIN = fileContext->DebugIN;
+        pipeIN = pDevContext->DebugIN;
     }
     else
     {
@@ -428,7 +428,7 @@ VOID QDBRD_ReadUSBCompletion
         QDB_DBG_MASK_READ,
         QDB_DBG_LEVEL_TRACE,
         ("<%s> <--QDBRD_ReadUSBCompletion: 0x%p (%dB/%dB) - P%u\n", pDevContext->PortName,
-        Request, readLength, pDevContext->MaxXfrSize, pDevContext->Stats.OutstandingRx)
+        Request, readLength, QDB_USB_TRANSFER_SIZE_MAX, pDevContext->Stats.OutstandingRx)
     );
 
     return;

@@ -68,7 +68,7 @@ VOID QDBWT_IoWrite
         }
         case QDB_FILE_TYPE_DEBUG:
         {
-            if (fileContext->DebugOUT == NULL)
+            if (pDevContext->DebugOUT == NULL)
             {
                 QDB_DbgPrint
                 (
@@ -133,7 +133,7 @@ VOID QDBWT_IoWrite
     }
 
     // format URB and set URB flag to USBD_TRANSFER_DIRECTION_OUT
-    pipeOUT = fileContext->DebugOUT;
+    pipeOUT = pDevContext->DebugOUT;
     ntStatus = WdfUsbTargetPipeFormatRequestForWrite(pipeOUT, Request, inputMemory, NULL);
     if (!NT_SUCCESS(ntStatus))
     {
@@ -233,6 +233,6 @@ VOID QDBWT_WriteUSBCompletion
         QDB_DBG_MASK_WRITE,
         QDB_DBG_LEVEL_TRACE,
         ("<%s> <--QDBWT_WriteUSBCompletion: 0x%p (%IuB/%luB)\n", pDevContext->PortName,
-        Request, writeLength, pDevContext->MaxXfrSize)
+        Request, writeLength, QDB_USB_TRANSFER_SIZE_MAX)
     );
 }  // QDBWT_WriteUSBCompletion
