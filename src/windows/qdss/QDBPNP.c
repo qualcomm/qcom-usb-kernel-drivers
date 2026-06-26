@@ -448,6 +448,7 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
     }
 
     ntStatus = QDBPNP_EnableSelectiveSuspend(Device);
+    QDBPNP_GetParentDeviceName(pDevContext);
 
     QDBREG_SetDriverRegistryDword(Device, VEN_DEV_TIME, 1);
 
@@ -530,300 +531,6 @@ NTSTATUS QDBPNP_EvtDeviceD0Exit
 
 /****************************************************************************
  *
- * function: QDBPNP_GetCID
- *
- * purpose:  Parses the product string for a "_CID:" field and writes the
- *           extracted CID value to the device driver software registry key.
- *           If the field is not found or ProductStrLen is 0, the registry
- *           value is removed.
- *
- * arguments:Device        = WDF device handle
- *           ProductString = pointer to the product string buffer (Unicode)
- *           ProductStrLen = length of the product string in bytes;
- *                           0 removes the registry entry
- *
- * returns:  NT status
- *
- ****************************************************************************/
-NTSTATUS QDBPNP_GetCID
-(
-    WDFDEVICE Device,
-    PCHAR  ProductString,
-    USHORT ProductStrLen  // value 0 means to clear/remove the reg entry
-)
-{
-    PDEVICE_CONTEXT pDevContext;
-    NTSTATUS        ntStatus;
-    PCHAR           pCidLoc = NULL;
-    INT             strLen = 0;
-    BOOLEAN         bSetEntry = FALSE;
-
-    pDevContext = QdbDeviceGetContext(Device);
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_CONTROL,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->QDBPNP_GetCID: Dev 0x%p\n", pDevContext->PortName, pDevContext)
-    );
-
-    if (ProductStrLen == 0)
-    {
-        goto UpdateRegistry;
-    }
-
-    pCidLoc = ProductString;
-
-    // search for "_CID:"
-    if (ProductStrLen > 0)
-    {
-        INT idx, adjusted = 0;
-        PCHAR p = pCidLoc;
-        BOOLEAN bMatchFound = FALSE;
-
-        for (idx = 0; idx < ProductStrLen; idx++)
-        {
-            if ((*p == '_') && (*(p + 1) == 0) &&
-                (*(p + 2) == 'C') && (*(p + 3) == 0) &&
-                (*(p + 4) == 'I') && (*(p + 5) == 0) &&
-                (*(p + 6) == 'D') && (*(p + 7) == 0) &&
-                (*(p + 8) == ':') && (*(p + 9) == 0))
-            {
-                pCidLoc = p + 10;
-                adjusted += 10;
-                bMatchFound = TRUE;
-                bSetEntry = TRUE;
-                break;
-            }
-            p++;
-            adjusted++;
-        }
-
-        // Adjust length
-        if (bMatchFound == TRUE)
-        {
-            INT tmpLen = ProductStrLen;
-
-            tmpLen -= adjusted;
-            p = pCidLoc;
-            while (tmpLen > 0)
-            {
-                if (((*p == ' ') && (*(p + 1) == 0)) ||  // space
-                    ((*p == '_') && (*(p + 1) == 0)))    // or _ for another field
-                {
-                    break;
-                }
-                else
-                {
-                    p += 2;       // advance 1 unicode byte
-                    tmpLen -= 2;  // remaining string length
-                }
-            }
-            strLen = (USHORT)(p - pCidLoc);
-        }
-        else
-        {
-            QDB_DbgPrint
-            (
-                QDB_DBG_MASK_CONTROL,
-                QDB_DBG_LEVEL_TRACE,
-                ("<%s> QDBPNP_GetCID: no CID found\n", pDevContext->PortName)
-            );
-            ntStatus = STATUS_UNSUCCESSFUL;
-            bSetEntry = FALSE;
-        }
-    }
-
-UpdateRegistry:
-    if ((bSetEntry == TRUE) && (strLen > 0) && (pCidLoc != NULL))
-    {
-        ntStatus = QDBREG_SetDriverRegistryStringA(Device, VEN_DEV_CID, pCidLoc);
-    }
-    else
-    {
-        ntStatus = QDBREG_DeleteDriverRegistryValue(Device, VEN_DEV_CID);
-    }
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_CONTROL,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> <--QDB_GetCID: strLen %d ST 0x%x\n", pDevContext->PortName, strLen, ntStatus)
-    );
-
-    return ntStatus;
-} // QDBPNP_GetCID
-
-/****************************************************************************
- *
- * function: QDBPNP_GetDeviceSerialNumber
- *
- * purpose:  Queries the USB string descriptor at the given index, optionally
- *           extracts the "_SN:" field, and writes the serial number to the
- *           device driver registry key. Also invokes QDBPNP_GetCID when
- *           MatchPrefix is TRUE.
- *
- * arguments:Device      = WDF device handle
- *           Index       = USB string descriptor index to query
- *           MatchPrefix = TRUE to search for "_SN:" prefix in the string
- *
- * returns:  NT status
- *
- ****************************************************************************/
-NTSTATUS QDBPNP_GetDeviceSerialNumber(IN WDFDEVICE Device, UCHAR Index, BOOLEAN MatchPrefix)
-{
-    PDEVICE_CONTEXT  pDevContext;
-    NTSTATUS         ntStatus;
-    USHORT           strLen = 128;
-    USHORT           productStrLen = 0;
-    PCHAR            pSerLoc = NULL;
-    BOOLEAN          bSetEntry = FALSE;
-    PWCHAR           pValueName;
-
-    pDevContext = QdbDeviceGetContext(Device);
-
-    if (Index == 0)
-    {
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_CONTROL,
-            QDB_DBG_LEVEL_TRACE,
-            ("<%s> <--_GetDeviceSerialNumber: index is NULL\n", pDevContext->PortName)
-        );
-        goto UpdateRegistry;
-    }
-
-    RtlZeroMemory(pDevContext->SerialNumber, 256);
-
-    ntStatus = WdfUsbTargetDeviceQueryString
-    (
-        pDevContext->WdfUsbDevice,
-        NULL,
-        NULL,
-        (PUSHORT)pDevContext->SerialNumber,
-        &strLen,
-        (UCHAR)Index,
-        0x0409
-    );
-    if (ntStatus != STATUS_SUCCESS)
-    {
-        RtlZeroMemory(pDevContext->SerialNumber, 256);
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_CONTROL,
-            QDB_DBG_LEVEL_TRACE,
-            ("<%s> QDBPNP_GetDeviceSerialNumber: failure 0x%x\n", pDevContext->PortName, ntStatus)
-        );
-        goto UpdateRegistry;
-    }
-    else
-    {
-        strLen *= sizeof(WCHAR);
-
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_CONTROL,
-            QDB_DBG_LEVEL_TRACE,
-            ("<%s> _GetDeviceSerialNumber: QueryString 0x%x (%dB)\n", pDevContext->PortName, ntStatus, strLen)
-        );
-    }
-
-    productStrLen = strLen;
-    pSerLoc = (PCHAR)pDevContext->SerialNumber;
-    bSetEntry = TRUE;
-
-    // search for "_SN:"
-    if ((MatchPrefix == TRUE) && (strLen > 0))
-    {
-        USHORT idx, adjusted = 0;
-        PCHAR p = (PCHAR)pSerLoc;
-        BOOLEAN bMatchFound = FALSE;
-
-        for (idx = 0; idx < strLen; idx++)
-        {
-            if ((*p == '_') && (*(p + 1) == 0) &&
-                (*(p + 2) == 'S') && (*(p + 3) == 0) &&
-                (*(p + 4) == 'N') && (*(p + 5) == 0) &&
-                (*(p + 6) == ':') && (*(p + 7) == 0))
-            {
-                pSerLoc = p + 8;
-                adjusted += 8;
-                bMatchFound = TRUE;
-                break;
-            }
-            p++;
-            adjusted++;
-        }
-
-        // Adjust length
-        if (bMatchFound == TRUE)
-        {
-            INT tmpLen = strLen;
-
-            tmpLen -= adjusted;
-            p = pSerLoc;
-            while (tmpLen > 0)
-            {
-                if (((*p == ' ') && (*(p + 1) == 0)) ||  // space
-                    ((*p == '_') && (*(p + 1) == 0)))    // or _ for another field
-                {
-                    break;
-                }
-                else
-                {
-                    p += 2;       // advance 1 unicode byte
-                    tmpLen -= 2;  // remaining string length
-                }
-            }
-            strLen = (USHORT)(p - pSerLoc); // 8;
-        }
-        else
-        {
-            QDB_DbgPrint
-            (
-                QDB_DBG_MASK_CONTROL,
-                QDB_DBG_LEVEL_TRACE,
-                ("<%s> <--QDBPNP_GetDeviceSerialNumber: no SN found\n", pDevContext->PortName)
-            );
-            ntStatus = STATUS_UNSUCCESSFUL;
-            bSetEntry = FALSE;
-        }
-    }
-
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_CONTROL,
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> _GetDeviceSerialNumber: adjusted strLen %d\n", pDevContext->PortName, strLen)
-    );
-
-UpdateRegistry:
-    if (MatchPrefix == FALSE)
-    {
-        pValueName = VEN_DEV_SERNUM;
-    }
-    else
-    {
-        pValueName = VEN_DEV_MSM_SERNUM;
-    }
-    if (bSetEntry == TRUE)
-    {
-        ntStatus = QDBREG_SetDriverRegistryStringA(Device, pValueName, pSerLoc);
-    }
-    else
-    {
-        ntStatus = QDBREG_DeleteDriverRegistryValue(Device, pValueName);
-    }
-    if (MatchPrefix == TRUE)
-    {
-        QDBPNP_GetCID(Device, (PCHAR)pDevContext->SerialNumber, productStrLen);
-    }
-
-    return ntStatus;
-} // QDBPNP_GetDeviceSerialNumber
-
-/****************************************************************************
- *
  * function: QDBPNP_SetFunctionProtocol
  *
  * purpose:  Derives and stores the device function type in the device
@@ -857,7 +564,7 @@ VOID QDBPNP_SetFunctionProtocol(IN WDFDEVICE Device, UCHAR ProtocolCode)
         default:
         {
             pDevContext->FunctionType = QDB_FUNCTION_TYPE_QDSS;
-            QDB_DbgPrint
+            QDB_DbgPrintG
             (
                 QDB_DBG_MASK_CONTROL,
                 QDB_DBG_LEVEL_INFO,
@@ -868,7 +575,7 @@ VOID QDBPNP_SetFunctionProtocol(IN WDFDEVICE Device, UCHAR ProtocolCode)
         }
     }
 
-    QDB_DbgPrint
+    QDB_DbgPrintG
     (
         QDB_DBG_MASK_CONTROL,
         QDB_DBG_LEVEL_INFO,
@@ -876,6 +583,146 @@ VOID QDBPNP_SetFunctionProtocol(IN WDFDEVICE Device, UCHAR ProtocolCode)
         pDevContext->PortName, ProtocolCode, pDevContext->FunctionType)
     );
 }  // QDBPNP_SetFunctionProtocol
+
+/****************************************************************************
+ *
+ * function: QDBPNP_GetProductDescriptorString
+ *
+ * purpose:  Allocates and queries a USB string descriptor by index.
+ *           The WDFMEMORY object is parented to UsbDevice and freed
+ *           automatically when the USB device is destroyed.
+ *
+ * arguments:UsbDevice     = WDF USB device handle
+ *           StringIndex   = USB string descriptor index to query
+ *           pStringMemory = [out] allocated WDFMEMORY; valid on success
+ *           pString       = [out] output string; optional, may be NULL
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
+NTSTATUS QDBPNP_GetProductDescriptorString
+(
+    _In_      WDFUSBDEVICE    UsbDevice,
+    _In_      UCHAR           StringIndex,
+    _Out_     WDFMEMORY      *pStringMemory,
+    _Out_opt_ PUNICODE_STRING pString
+)
+{
+    NTSTATUS status;
+    USHORT   numChars = 0;
+    WDF_OBJECT_ATTRIBUTES memoryAttributes;
+
+    if (UsbDevice == NULL || pStringMemory == NULL)
+    {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    WDF_OBJECT_ATTRIBUTES_INIT(&memoryAttributes);
+    memoryAttributes.ParentObject = UsbDevice;
+
+    status = WdfUsbTargetDeviceAllocAndQueryString
+    (
+        UsbDevice,
+        &memoryAttributes,
+        pStringMemory,
+        &numChars,
+        StringIndex,
+        0x0409
+    );
+
+    if (NT_SUCCESS(status))
+    {
+        if (pString != NULL)
+        {
+            pString->Buffer = WdfMemoryGetBuffer(*pStringMemory, NULL);
+            pString->Length = numChars * sizeof(WCHAR);
+            pString->MaximumLength = numChars * sizeof(WCHAR);
+        }
+    }
+
+    return status;
+}
+
+/****************************************************************************
+ *
+ * function: QDBPNP_GetDeviceIdString
+ *
+ * purpose:  Scans a USB product descriptor string for a tagged ID field
+ *           matching the given keyword (e.g. QCOM_USB_ID_TYPE_CHIP or
+ *           QCOM_USB_ID_TYPE_SERIAL) and construct the value as a
+ *           UNICODE_STRING in-place onto the out buffer
+ *
+ * arguments:productDescription = read-only USB product descriptor string;
+ *                                 need not be null-terminated
+ *           keyword            = tagged field keyword to search for
+ *                                (e.g. QCOM_USB_ID_TYPE_CHIP = L"_CID:")
+ *           value              = [out] output UNICODE_STRING pointing into
+ *                                productDescription; valid on STATUS_SUCCESS
+ *
+ * returns:  STATUS_SUCCESS           - field found; value is populated
+ *           STATUS_NOT_FOUND         - field not present in string
+ *           STATUS_INVALID_PARAMETER - invalid input strings
+ *
+ ****************************************************************************/
+NTSTATUS QDBPNP_GetDeviceIdString
+(
+    _In_  PCUNICODE_STRING productDescription,
+    _In_  PCUNICODE_STRING keyword,
+    _Out_ PUNICODE_STRING  value
+)
+{
+    PWCHAR p, buffer, bufferEnd;
+
+    if (productDescription == NULL || productDescription->Buffer == NULL ||
+        keyword == NULL || keyword->Buffer == NULL || value == NULL)
+    {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    RtlZeroMemory(value, sizeof(UNICODE_STRING));
+
+    buffer = productDescription->Buffer;
+    bufferEnd = buffer + productDescription->Length / sizeof(WCHAR);
+    for (p = buffer; p < bufferEnd; p++)
+    {
+        if (value->Buffer != NULL)
+        {
+            if (*p == QCOM_USB_ID_DELIMITER || *p == QCOM_USB_ID_DELIMITER_END)
+            {
+                break;
+            }
+        }
+        else if (*p == QCOM_USB_ID_DELIMITER)
+        {
+            if (p + keyword->Length / sizeof(WCHAR) >= bufferEnd)
+            {
+                break;
+            }
+            if (RtlCompareMemory(p, keyword->Buffer, keyword->Length) == keyword->Length)
+            {
+                p = p + keyword->Length / sizeof(WCHAR);
+                if (*p != QCOM_USB_ID_DELIMITER &&
+                    *p != QCOM_USB_ID_DELIMITER_END && p < bufferEnd)
+                {
+                    value->Buffer = p;
+                }
+                else
+                {
+                    p = p - 1;
+                }
+            }
+        }
+    }
+
+    if (value->Buffer != NULL)
+    {
+        value->Length = (p - value->Buffer) * sizeof(WCHAR);
+        value->MaximumLength = value->Length;
+        return STATUS_SUCCESS;
+    }
+
+    return STATUS_NOT_FOUND;
+}
 
 /****************************************************************************
  *
@@ -931,37 +778,95 @@ NTSTATUS QDBPNP_EnumerateDevice(IN WDFDEVICE Device)
         &usbDeviceDesc
     );
 
-    QDBPNP_GetParentDeviceName(pDevContext);
-
-    ntStatus = QDBPNP_GetDeviceSerialNumber(Device, usbDeviceDesc.iProduct, TRUE);
-    if ((!NT_SUCCESS(ntStatus)) && (usbDeviceDesc.iProduct != 2))
+    // Get device serial number
+    WDFMEMORY stringMemory = NULL;
+    UNICODE_STRING productString;
+    QDBREG_DeleteDriverRegistryValue(Device, VEN_DEV_SERNUM);
+    ntStatus = QDBPNP_GetProductDescriptorString(pDevContext->WdfUsbDevice, usbDeviceDesc.iSerialNumber, &stringMemory, &productString);
+    if (NT_SUCCESS(ntStatus))
     {
-        QDB_DbgPrint
+        ntStatus = QDBREG_SetDriverRegistryStringU(Device, VEN_DEV_SERNUM, &productString);
+        if (NT_SUCCESS(ntStatus))
+        {
+            QDB_DbgPrintG
+            (
+                QDB_DBG_MASK_CONTROL,
+                QDB_DBG_LEVEL_INFO,
+                ("<%s> -->QDBPNP_EnumerateDevice: serial number %wZ to registry\n", pDevContext->PortName, &productString)
+            );
+        }
+        WdfObjectDelete(stringMemory);
+        stringMemory = NULL;
+    }
+
+    // Get device msm serial number
+    UNICODE_STRING keywordLabel, serialString, cidString;
+    RtlInitUnicodeString(&keywordLabel, QCOM_USB_ID_TYPE_SERIAL);
+    QDBREG_DeleteDriverRegistryValue(Device, VEN_DEV_MSM_SERNUM);
+    ntStatus = QDBPNP_GetProductDescriptorString(pDevContext->WdfUsbDevice, usbDeviceDesc.iProduct, &stringMemory, &productString);
+    if (NT_SUCCESS(ntStatus))
+    {
+        ntStatus = QDBPNP_GetDeviceIdString(&productString, &keywordLabel, &serialString);
+    }
+
+    if (!NT_SUCCESS(ntStatus) && usbDeviceDesc.iProduct != 0x02)
+    {
+        if (stringMemory != NULL)
+        {
+            WdfObjectDelete(stringMemory);
+            stringMemory = NULL;
+        }
+        ntStatus = QDBPNP_GetProductDescriptorString(pDevContext->WdfUsbDevice, 0x02, &stringMemory, &productString);
+        if (NT_SUCCESS(ntStatus))
+        {
+            ntStatus = QDBPNP_GetDeviceIdString(&productString, &keywordLabel, &serialString);
+        }
+    }
+
+    if (!NT_SUCCESS(ntStatus))
+    {
+        QDB_DbgPrintG
         (
             QDB_DBG_MASK_CONTROL,
             QDB_DBG_LEVEL_ERROR,
-            ("<%s> QDBPNP_EnumerateDevice: _SERN: Failed with iProduct 0x%x, try default\n",
-            pDevContext->PortName, usbDeviceDesc.iProduct)
+            ("<%s> <--QDBPNP_EnumerateDevice: failed to get serial number\n", pDevContext->PortName)
         );
-        QDBPNP_GetDeviceSerialNumber(Device, 0x02, TRUE);
     }
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_CONTROL,
-        QDB_DBG_LEVEL_ERROR,
-        ("<%s> QDBPNP_EnumerateDevice: _SERN: tried iProduct: ST(0x%x)\n",
-        pDevContext->PortName, ntStatus)
-    );
+    else
+    {
+        ntStatus = QDBREG_SetDriverRegistryStringU(Device, VEN_DEV_MSM_SERNUM, &serialString);
+        if (NT_SUCCESS(ntStatus))
+        {
+            QDB_DbgPrintG
+            (
+                QDB_DBG_MASK_CONTROL,
+                QDB_DBG_LEVEL_INFO,
+                ("<%s> -->QDBPNP_EnumerateDevice: msm serial number %wZ to registry\n", pDevContext->PortName, &serialString)
+            );
+        }
+        RtlInitUnicodeString(&keywordLabel, QCOM_USB_ID_TYPE_CHIP);
+        QDBREG_DeleteDriverRegistryValue(Device, VEN_DEV_CID);
+        ntStatus = QDBPNP_GetDeviceIdString(&productString, &keywordLabel, &cidString);
+        if (NT_SUCCESS(ntStatus))
+        {
+            ntStatus = QDBREG_SetDriverRegistryStringU(Device, VEN_DEV_CID, &cidString);
+            if (NT_SUCCESS(ntStatus))
+            {
+                QDB_DbgPrintG
+                (
+                    QDB_DBG_MASK_CONTROL,
+                    QDB_DBG_LEVEL_INFO,
+                    ("<%s> -->QDBPNP_EnumerateDevice: cid number %wZ to registry\n", pDevContext->PortName, &cidString)
+                );
+            }
+        }
+    }
 
-    QDBPNP_GetDeviceSerialNumber(Device, usbDeviceDesc.iSerialNumber, FALSE);
-    QDB_DbgPrint
-    (
-        QDB_DBG_MASK_CONTROL,
-        QDB_DBG_LEVEL_ERROR,
-        ("<%s> QDBPNP_EnumerateDevice: _SERN: tried iSerialNumber 0x%x ST(0x%x)\n",
-        pDevContext->PortName, usbDeviceDesc.iSerialNumber, ntStatus)
-    );
-    ntStatus = STATUS_SUCCESS; // make possible failure none-critical
+    if (stringMemory != NULL)
+    {
+        WdfObjectDelete(stringMemory);
+        stringMemory = NULL;
+    }
 
     if (usbDeviceDesc.bNumConfigurations == 0)
     {
@@ -1293,10 +1198,12 @@ NTSTATUS QDBPNP_SelectInterfaces(WDFDEVICE Device)
                     USB_INTERFACE_DESCRIPTOR interfaceDesc;
 
                     WdfUsbInterfaceGetDescriptor(usbInterface, 0, &interfaceDesc);
+                    ULONG ifProtocol = (ULONG)interfaceDesc.bInterfaceProtocol |
                     pDevContext->IfProtocol = (ULONG)interfaceDesc.bInterfaceProtocol |
                         ((ULONG)interfaceDesc.bInterfaceClass) << 8 |
                         ((ULONG)interfaceDesc.bAlternateSetting) << 16 |
                         ((ULONG)interfaceDesc.bInterfaceNumber) << 24;
+                    QDBREG_SetDriverRegistryDword(Device, VEN_DEV_PROTOC, ifProtocol);
                     QDBPNP_SetFunctionProtocol(Device, interfaceDesc.bInterfaceProtocol);
                 }
 

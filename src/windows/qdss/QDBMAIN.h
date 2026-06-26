@@ -32,6 +32,11 @@ extern ULONG SimData[2724];
 #define QDB_USB_TRANSFER_SIZE_MAX 1024*1024
 #define QDB_MAX_IO_SIZE_RX        1024*16
 #define IO_REQ_NUM_RX             4
+
+#define QCOM_USB_ID_TYPE_CHIP     L"_CID:"
+#define QCOM_USB_ID_TYPE_SERIAL   L"_SN:"
+#define QCOM_USB_ID_DELIMITER     L'_'
+#define QCOM_USB_ID_DELIMITER_END L' '
 #define QDB_TAG_RD  (ULONG)'RBDQ'
 #define QDB_TAG_WT  (ULONG)'WBDQ'
 #define QDB_TAG_GEN (ULONG)'GBDQ'

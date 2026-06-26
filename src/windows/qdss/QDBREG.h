@@ -16,6 +16,25 @@ GENERAL DESCRIPTION
 #include <wdf.h>
 
 /****************************************************************************
+ * QDBREG_SetDriverRegistryStringU
+ *
+ * Writes a REG_SZ Unicode string to the driver's software registry key.
+ *
+ * Arguments:
+ *   device          - WDF device handle
+ *   pValueName      - registry value name
+ *   PUNICODE_STRING - Unicode string to write
+ *
+ * Returns: NT status
+ ****************************************************************************/
+NTSTATUS QDBREG_SetDriverRegistryStringU
+(
+    _In_ WDFDEVICE       device,
+    _In_ PWCHAR const    pValueName,
+    _In_ PUNICODE_STRING pValueString
+);
+
+/****************************************************************************
  * QDBREG_SetDriverRegistryStringW
  *
  * Writes a REG_SZ Unicode string to the driver's software registry key.
@@ -54,27 +73,6 @@ NTSTATUS QDBREG_GetDriverRegistryStringW
     _In_                        PWCHAR const pValueName,
     _Out_writes_bytes_(bufLen)  PWCHAR       pOutBuf,
     _In_                        ULONG        bufLen
-);
-
-/****************************************************************************
- * QDBREG_SetDriverRegistryStringA
- *
- * Writes a REG_SZ value to the driver's software registry key from a
- * null-terminated ANSI string.  The string is converted to Unicode
- * before being written so that the registry entry is stored as REG_SZ.
- *
- * Arguments:
- *   device     - WDF device handle
- *   pValueName - registry value name
- *   pValue     - null-terminated ANSI string to write
- *
- * Returns: NT status
- ****************************************************************************/
-NTSTATUS QDBREG_SetDriverRegistryStringA
-(
-    _In_ WDFDEVICE   device,
-    _In_ PWCHAR const pValueName,
-    _In_ PCHAR  const pValue
 );
 
 /****************************************************************************

@@ -49,5 +49,19 @@ VOID QDBPNP_SetFunctionProtocol(IN WDFDEVICE Device, UCHAR ProtocolCode);
 
 NTSTATUS QDBPNP_ReadDebugMask(WDFDEVICE QCDevice);
 
+NTSTATUS QDBPNP_GetProductDescriptorString
+(
+    _In_      WDFUSBDEVICE    UsbDevice,
+    _In_      UCHAR           StringIndex,
+    _Out_     WDFMEMORY      *pStringMemory,
+    _Out_opt_ PUNICODE_STRING pString
+);
+
+NTSTATUS QDBPNP_GetDeviceIdString
+(
+    _In_  PCUNICODE_STRING productDescription,
+    _In_  PCUNICODE_STRING keyword,
+    _Out_ PUNICODE_STRING  value
+);
 
 #endif // QDBPNP_H

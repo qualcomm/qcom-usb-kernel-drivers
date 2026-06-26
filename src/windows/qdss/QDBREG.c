@@ -12,6 +12,40 @@ GENERAL DESCRIPTION
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 #include "QDBREG.h"
 
+NTSTATUS QDBREG_SetDriverRegistryStringU
+(
+    _In_ WDFDEVICE       device,
+    _In_ PWCHAR const    pValueName,
+    _In_ PUNICODE_STRING pValueString
+)
+{
+    NTSTATUS       status;
+    WDFKEY         key;
+    UNICODE_STRING ucValueName;
+
+    if (device == NULL || pValueName == NULL || pValueString == NULL)
+    {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    status = WdfDeviceOpenRegistryKey
+    (
+        device,
+        PLUGPLAY_REGKEY_DRIVER,
+        KEY_SET_VALUE,
+        WDF_NO_OBJECT_ATTRIBUTES,
+        &key
+    );
+    if (NT_SUCCESS(status))
+    {
+        RtlInitUnicodeString(&ucValueName, pValueName);
+        status = WdfRegistryAssignUnicodeString(key, &ucValueName, pValueString);
+        WdfRegistryClose(key);
+    }
+
+    return status;
+}
+
 NTSTATUS QDBREG_SetDriverRegistryStringW
 (
     _In_ WDFDEVICE    device,
@@ -90,48 +124,6 @@ NTSTATUS QDBREG_GetDriverRegistryStringW
         {
             pOutBuf[ucValue.Length / sizeof(WCHAR)] = L'\0';
         }
-    }
-
-    return status;
-}
-
-NTSTATUS QDBREG_SetDriverRegistryStringA
-(
-    _In_ WDFDEVICE   device,
-    _In_ PWCHAR const pValueName,
-    _In_ PCHAR  const pValue
-)
-{
-    NTSTATUS       status;
-    WDFKEY         key;
-    UNICODE_STRING ucValueName;
-    UNICODE_STRING ucValue;
-    ANSI_STRING    ansiValue;
-
-    if (device == NULL || pValueName == NULL || pValue == NULL)
-    {
-        return STATUS_INVALID_PARAMETER;
-    }
-
-    status = WdfDeviceOpenRegistryKey
-    (
-        device,
-        PLUGPLAY_REGKEY_DRIVER,
-        KEY_SET_VALUE,
-        WDF_NO_OBJECT_ATTRIBUTES,
-        &key
-    );
-    if (NT_SUCCESS(status))
-    {
-        RtlInitAnsiString(&ansiValue, pValue);
-        status = RtlAnsiStringToUnicodeString(&ucValue, &ansiValue, TRUE);
-        if (NT_SUCCESS(status))
-        {
-            RtlInitUnicodeString(&ucValueName, pValueName);
-            status = WdfRegistryAssignUnicodeString(key, &ucValueName, &ucValue);
-            RtlFreeUnicodeString(&ucValue);
-        }
-        WdfRegistryClose(key);
     }
 
     return status;
