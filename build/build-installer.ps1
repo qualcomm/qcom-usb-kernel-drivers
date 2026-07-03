@@ -12,7 +12,7 @@ param(
 # ==============================================================================
 
 $Script:OutputRoot   = Join-Path $PSScriptRoot "target"
-$Script:PayloadName  = "payload.zip"
+$Script:PayloadName  = "payload_$Arch.zip"
 $Script:VersionFile  = Join-Path $PSScriptRoot "..\src\windows\qcversion.h"
 
 # Items to include in the payload zip (files or directories under target/).
