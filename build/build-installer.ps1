@@ -136,6 +136,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Reflection;
+using System.Text;
 
 [assembly: AssemblyTitle("__PRODUCT_NAME__")]
 [assembly: AssemblyDescription("__PRODUCT_NAME__")]
@@ -156,6 +157,21 @@ namespace PayloadInstaller
             "Qualcomm", "Qualcomm USB Drivers");
 
         static readonly string QdinstallExe = Path.Combine(InstallPath, "qdinstall.exe");
+        static readonly string LogDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "Qualcomm", "QUD");
+
+        // Resolved once mode is known; see BuildLogFilePath().
+        static string LogFile = null;
+
+        static string BuildLogFilePath(string mode)
+        {
+            string prefix = (mode == "uninstall") ? "kernel_drivers_uninstall_log" : "kernel_drivers_install_log";
+            return Path.Combine(LogDir, prefix + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".txt");
+        }
+
+        // Timeout in milliseconds to wait for qpm-cli / qsc-cli before giving up.
+        const int LEGACY_TOOL_TIMEOUT_MS = 30000;
 
         static readonly string[] LegacyPackages = {
             "qualcomm_userspace_driver",
@@ -164,90 +180,252 @@ namespace PayloadInstaller
             "qud.internal"
         };
 
-        static int RunCommand(string fileName, string arguments, bool consoleOutput = true)
+        // ------------------------------------------------------------------ //
+        // Logging helpers                                                      //
+        // ------------------------------------------------------------------ //
+
+        static StreamWriter _log = null;
+
+        static void OpenLog(string mode)
         {
             try
             {
-                ProcessStartInfo psi = new ProcessStartInfo();
-                psi.FileName = fileName;
-                if (arguments != null)
-                    psi.Arguments = arguments;
-                psi.UseShellExecute = false;
-                if (!consoleOutput)
-                {
-                    psi.RedirectStandardOutput = true;
-                    psi.RedirectStandardError  = true;
-                }
-                Process proc = Process.Start(psi);
-                proc.WaitForExit();
-                return proc.ExitCode;
+                LogFile = BuildLogFilePath(mode);
+                Directory.CreateDirectory(LogDir);
+                _log = new StreamWriter(LogFile, true, Encoding.UTF8);
+                _log.AutoFlush = true;
+                LogLine("==================================================================");
+                LogLine("[LOG] Qualcomm USB Userspace Driver Installer  v__VERSION__");
+                LogLine("[LOG] Session started : " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                LogLine("[LOG] Log file        : " + LogFile);
+                LogLine("==================================================================");
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine("Warning: Failed to run " + fileName + ": " + ex.Message);
+                Console.Error.WriteLine("Warning: could not open log file '" + LogFile + "': " + ex.Message);
+            }
+        }
+
+        static void CloseLog()
+        {
+            if (_log != null)
+            {
+                try { _log.Close(); } catch { }
+                _log = null;
+            }
+        }
+
+        static void LogLine(string message)
+        {
+            if (_log == null) return;
+            try { _log.WriteLine("[" + DateTime.Now.ToString("HH:mm:ss") + "] " + message); }
+            catch { }
+        }
+
+        static void Print(string message)
+        {
+            Console.WriteLine(message);
+            LogLine(message);
+        }
+
+        static void PrintError(string message)
+        {
+            Console.Error.WriteLine(message);
+            LogLine("[ERROR] " + message);
+        }
+
+        // ------------------------------------------------------------------ //
+        // Process execution                                                    //
+        // ------------------------------------------------------------------ //
+
+        // timeoutMs <= 0 means wait forever (use only for trusted internal tools).
+        static int RunCommand(string fileName, string arguments, int timeoutMs = -1)
+        {
+            LogLine("[RUN] " + fileName + (arguments != null ? " " + arguments : ""));
+            try
+            {
+                ProcessStartInfo psi = new ProcessStartInfo();
+                psi.FileName               = fileName;
+                if (arguments != null)
+                    psi.Arguments          = arguments;
+                psi.UseShellExecute        = false;
+                psi.RedirectStandardOutput = true;
+                psi.RedirectStandardError  = true;
+                psi.StandardOutputEncoding = Encoding.UTF8;
+                psi.StandardErrorEncoding  = Encoding.UTF8;
+
+                Process proc = Process.Start(psi);
+
+                // Drain stdout and stderr asynchronously to prevent buffer deadlock.
+                proc.OutputDataReceived += OnOutputData;
+                proc.ErrorDataReceived  += OnErrorData;
+                proc.BeginOutputReadLine();
+                proc.BeginErrorReadLine();
+
+                bool exited;
+                if (timeoutMs > 0)
+                    exited = proc.WaitForExit(timeoutMs);
+                else
+                {
+                    proc.WaitForExit();
+                    exited = true;
+                }
+
+                if (!exited)
+                {
+                    LogLine("[WARN] Process did not exit within " + timeoutMs + " ms  -  killing: " + fileName);
+                    Console.Error.WriteLine("Warning: '" + fileName + "' timed out after "
+                        + (timeoutMs / 1000) + " s and was terminated.");
+                    try { proc.Kill(); } catch { }
+                    proc.WaitForExit(5000);
+                    return -1;
+                }
+
+                // Call WaitForExit() a second time (no-arg) to flush async streams.
+                proc.WaitForExit();
+
+                int code = proc.ExitCode;
+                LogLine("[EXIT] " + fileName + " exited with code " + code);
+                return code;
+            }
+            catch (Exception ex)
+            {
+                string msg = "Warning: Failed to run '" + fileName + "': " + ex.Message;
+                Console.Error.WriteLine(msg);
+                LogLine("[WARN] " + msg);
                 return -1;
             }
         }
 
-        // Removal of legacy drivers installed by QPM/QSC
-        static void UninstallLegacy()
+        // ------------------------------------------------------------------ //
+        // Async output handlers                                               //
+        // ------------------------------------------------------------------ //
+
+        static void OnOutputData(object sender, DataReceivedEventArgs e)
         {
+            if (e.Data != null)
+                LogLine("[STDOUT] " + e.Data);
+        }
+
+        static void OnErrorData(object sender, DataReceivedEventArgs e)
+        {
+            if (e.Data != null)
+                LogLine("[STDERR] " + e.Data);
+        }
+
+        // ------------------------------------------------------------------ //
+        // Uninstall                                                            //
+        // ------------------------------------------------------------------ //
+
+        // Remove legacy qpm-cli / qsc-cli packages only.
+        // Called as the first step of both Install() and Uninstall().
+        static void RemoveLegacyPackages()
+        {
+            LogLine("[STEP] Starting legacy package cleanup");
             foreach (string pkg in LegacyPackages)
             {
-                Console.WriteLine("\nUninstalling legacy product: " + pkg + "...");
-                RunCommand("qpm-cli", "--uninstall " + pkg + " --silent", false);
-                RunCommand("qsc-cli", "tool uninstall -n " + pkg, false);
+                Print("\nUninstalling legacy product: " + pkg + "...");
+
+                int qpmRet = RunCommand("qpm-cli",
+                    "--uninstall " + pkg + " --silent --force",
+                    LEGACY_TOOL_TIMEOUT_MS);
+                LogLine("[INFO] qpm-cli returned: " + qpmRet);
+
+                int qscRet = RunCommand("qsc-cli",
+                    "tool uninstall -n " + pkg,
+                    LEGACY_TOOL_TIMEOUT_MS);
+                LogLine("[INFO] qsc-cli returned: " + qscRet);
             }
         }
 
-        // Uninstall any previous installation.
-        static int Uninstall()
+        // Remove the currently installed driver (qdinstall -x) and wipe InstallPath.
+        // Called as the second step of both Install() and Uninstall().
+        static int RemoveCurrentInstallation()
         {
             int result = 0;
             if (File.Exists(QdinstallExe))
             {
-                Console.WriteLine("\nRunning uninstaller: " + QdinstallExe);
-                result = RunCommand(QdinstallExe, "-u");
+                Print("\nRemoving current installation: " + QdinstallExe);
+                LogLine("[STEP] Invoking qdinstall.exe -x");
+                result = RunCommand(QdinstallExe, "-x");
+                if (result != 0)
+                    LogLine("[WARN] qdinstall.exe -x returned: " + result + " (continuing)");
+            }
+            else
+            {
+                LogLine("[INFO] qdinstall.exe not found at '" + QdinstallExe + "', skipping driver removal");
             }
 
             if (Directory.Exists(InstallPath))
             {
+                LogLine("[STEP] Deleting install directory: " + InstallPath);
                 try
                 {
                     Directory.Delete(InstallPath, true);
+                    LogLine("[INFO] Install directory deleted");
                 }
                 catch (IOException ex)
                 {
-                    Console.Error.WriteLine("Warning: failed to delete " + InstallPath + ": " + ex.Message);
+                    PrintError("Warning: failed to delete " + InstallPath + ": " + ex.Message);
                 }
             }
-
-            if (result == 0)
-                Console.WriteLine("\nUninstall completed successfully.");
-            else
-                Console.Error.WriteLine("\nUninstall failed with exit code: " + result);
 
             return result;
         }
 
-        // Install drivers and remove previous installation
-        static int Install()
+        static int Uninstall()
         {
-            UninstallLegacy();
-            Uninstall();
+            // Step 1: remove legacy packages installed via qpm-cli / qsc-cli.
+            RemoveLegacyPackages();
+
+            // Step 2: uninstall the current driver and wipe the install directory.
+            int result = RemoveCurrentInstallation();
+
+            if (result == 0)
+                Print("\nUninstall completed successfully.");
+            else
+                PrintError("\nUninstall failed with exit code: " + result);
+
+            return result;
+        }
+
+        // ------------------------------------------------------------------ //
+        // Install                                                              //
+        // ------------------------------------------------------------------ //
+
+                static int Install()
+        {
+            // Create InstallPath first so the log file can be opened inside it.
+            Directory.CreateDirectory(InstallPath);
+            OpenLog("install");
+
+            LogLine("[STEP] Starting installation");
+            LogLine("[INFO] Install path: " + InstallPath);
+
+            // Step 1: remove legacy packages installed via qpm-cli / qsc-cli.
+            Print("\nStep 1/4: Removing legacy installations...");
+            RemoveLegacyPackages();
+
+            // Step 2: uninstall the existing driver and wipe InstallPath.
+            Print("\nStep 2/4: Uninstalling current driver installation...");
+            LogLine("[STEP] Running self-uninstall before fresh install");
+            RemoveCurrentInstallation();
+            Print("Uninstall step complete.");
+
+            // Re-create the directory after RemoveCurrentInstallation() wiped it.
+            Directory.CreateDirectory(InstallPath);
 
             try
             {
-                Directory.CreateDirectory(InstallPath);
-
-                // Stream-extract embedded payload directly into InstallPath
-                Console.WriteLine("\nExtracting payload to: " + InstallPath);
+                // Step 3: extract the fresh payload.
+                Print("\nStep 3/4: Extracting payload to: " + InstallPath);
+                LogLine("[STEP] Extracting embedded payload");
                 Assembly assembly = Assembly.GetExecutingAssembly();
                 using (Stream resourceStream = assembly.GetManifestResourceStream("__PAYLOAD_NAME__"))
                 {
                     if (resourceStream == null)
                     {
-                        Console.Error.WriteLine("Error: Embedded payload resource not found.");
+                        PrintError("Error: Embedded payload resource not found.");
                         return 1;
                     }
                     using (ZipArchive archive = new ZipArchive(resourceStream, ZipArchiveMode.Read))
@@ -255,25 +433,31 @@ namespace PayloadInstaller
                         archive.ExtractToDirectory(InstallPath);
                     }
                 }
-                Console.WriteLine("Extraction complete.");
+                Print("Extraction complete.");
+                LogLine("[INFO] Payload extracted successfully");
 
-                Console.WriteLine("\nRunning installer...");
+                // Step 4: install the fresh driver.
+                Print("\nStep 4/4: Installing driver...");
+                LogLine("[STEP] Invoking qdinstall.exe -i");
                 int result = RunCommand(QdinstallExe, "-i -p \"" + InstallPath + "\"");
 
                 if (result == 0)
                 {
-                    Console.WriteLine("\nInstall completed successfully.");
+                    Print("\nInstall completed successfully.");
+                    LogLine("[INFO] Installation finished successfully");
                 }
                 else
                 {
-                    Console.Error.WriteLine("\nInstall failed with exit code: " + result);
-                    Console.Error.WriteLine("Install files preserved at: " + InstallPath);
+                    PrintError("\nInstall failed with exit code: " + result);
+                    PrintError("Install files preserved at: " + InstallPath);
+                    LogLine("[INFO] Installation failed  -  files preserved at: " + InstallPath);
                 }
                 return result;
             }
             catch (Exception ex)
             {
-                Console.Error.WriteLine("Error: " + ex.Message);
+                PrintError("Error: " + ex.Message);
+                LogLine("[EXCEPTION] " + ex.ToString());
                 return 1;
             }
         }
@@ -289,7 +473,7 @@ namespace PayloadInstaller
             Console.WriteLine("================================================");
             Console.WriteLine();
 
-            // Parse arguments
+                        // Parse arguments
             string mode = "install"; // default (no args)
             if (args.Length > 0)
             {
@@ -317,12 +501,26 @@ namespace PayloadInstaller
                 return 0;
             }
 
+            int exitCode;
             if (mode == "uninstall")
             {
-                return Uninstall();
+                // For a standalone uninstall the log dir already exists;
+                // open the log before doing anything.
+                Directory.CreateDirectory(LogDir);
+                OpenLog("uninstall");
+                LogLine("[STEP] Mode: uninstall");
+                exitCode = Uninstall();
+            }
+            else
+            {
+                LogLine("[STEP] Mode: install");
+                exitCode = Install();
             }
 
-            return Install();
+            LogLine("[STEP] Session ended : " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "  exit=" + exitCode);
+            CloseLog();
+            Console.WriteLine("\nPlease find the installation logs at: " + LogFile);
+            return exitCode;
         }
     }
 }
@@ -389,9 +587,11 @@ $cscArgs = @(
     "/target:exe",
     "/out:$outputExe",
     "/win32manifest:$manifestFile",
-    "/resource:$PayloadFullPath,$($Script:PayloadName)",
+        "/resource:$PayloadFullPath,$($Script:PayloadName)",
     "/reference:System.IO.Compression.dll",
     "/reference:System.IO.Compression.FileSystem.dll",
+    "/reference:System.dll",
+    "/reference:System.Core.dll",
     $sourceFile
 )
 
