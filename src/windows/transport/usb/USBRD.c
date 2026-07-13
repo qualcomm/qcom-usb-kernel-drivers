@@ -468,6 +468,15 @@ NTSTATUS ReadCompletionRoutine
 {
     PDEVICE_EXTENSION pDevExt = (PDEVICE_EXTENSION)pContext;
 
+    // Guard against NULL context during concurrent device removal.
+    // When multiple devices are surprise-removed simultaneously, the
+    // completion routine may fire after the device extension has been
+    // torn down, leading to a NULL pointer dereference at DISPATCH_LEVEL.
+    if (pDevExt == NULL)
+    {
+        return STATUS_MORE_PROCESSING_REQUIRED;
+    }
+
 #ifdef QCOM_TRACE_IN
     DbgPrint("L2 OFF\n");
 #endif

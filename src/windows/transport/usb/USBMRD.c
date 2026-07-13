@@ -634,13 +634,30 @@ NTSTATUS MultiReadCompletionRoutine
 )
 {
     PUSBMRD_L2BUFFER  pL2Ctx = (PUSBMRD_L2BUFFER)Context;
-    PDEVICE_EXTENSION pDevExt = pL2Ctx->DeviceExtension;
-    KIRQL             Irql = KeGetCurrentIrql();
+    PDEVICE_EXTENSION pDevExt;
+    KIRQL             Irql;
 #ifdef QCUSB_TARGET_XP
     KLOCK_QUEUE_HANDLE levelOrHandle;
 #else
     KIRQL levelOrHandle;
 #endif
+
+    // Guard against NULL context during concurrent device removal.
+    // When multiple devices are surprise-removed simultaneously, the
+    // completion routine may fire after the device extension has been
+    // torn down, leading to a NULL pointer dereference at DISPATCH_LEVEL.
+    if (pL2Ctx == NULL)
+    {
+        return STATUS_MORE_PROCESSING_REQUIRED;
+    }
+
+    pDevExt = pL2Ctx->DeviceExtension;
+    if (pDevExt == NULL)
+    {
+        return STATUS_MORE_PROCESSING_REQUIRED;
+    }
+
+    Irql = KeGetCurrentIrql();
 
     QcAcquireSpinLockWithLevel(&pDevExt->L2Lock, &levelOrHandle, Irql);
 
