@@ -810,12 +810,33 @@ void QCRD_ReadRequestHandlerThread
                                 }
                                 else
                                 {
-                                    // When bypassing the RI timer due to pre-buffered data, we must NOT
-                                    // drain TimeoutReadQueue: those requests are waiting for the timer to
-                                    // expire (QUD-1837 inter-byte gap semantics). Only serve new requests
-                                    // from ReadQueue during bypass. TimeoutReadQueue requests will be
-                                    // handled by REQUEST_TIMEOUT_EVENT when the timer fires.
-                                    status = WdfIoQueueRetrieveNextRequest(pDevContext->ReadQueue, &request);
+                                    if (useReadInterval)
+                                    {
+                                        // RI bypass: only serve from ReadQueue to preserve QUD-1837
+                                        // inter-byte gap semantics. TimeoutReadQueue requests are
+                                        // waiting for the RI timer to expire and must not be stolen.
+                                        status = WdfIoQueueRetrieveNextRequest(pDevContext->ReadQueue, &request);
+                                    }
+                                    else
+                                    {
+                                        // Non-RI cases (Case 5/11, etc.): check TimeoutReadQueue first,
+                                        // then ReadQueue. For these cases the timeout is a simple "wait
+                                        // for data or N ms" — data should be served immediately when it
+                                        // arrives, regardless of which queue holds the request.
+                                        status = WdfIoQueueRetrieveNextRequest(pDevContext->TimeoutReadQueue, &request);
+                                        if (NT_SUCCESS(status) && request != NULL)
+                                        {
+                                            // Found pending request in TimeoutReadQueue — cancel timer
+                                            // since we are serving data now (timeout no longer needed).
+                                            KeCancelTimer(&pDevContext->ReadTimer);
+                                            KeClearEvent(&pDevContext->ReadRequestTimeoutEvent);
+                                        }
+                                        else
+                                        {
+                                            // No request in TimeoutReadQueue, try ReadQueue
+                                            status = WdfIoQueueRetrieveNextRequest(pDevContext->ReadQueue, &request);
+                                        }
+                                    }
                                 }
 
                                 if (!NT_SUCCESS(status) || request == NULL)
@@ -1112,6 +1133,48 @@ void QCRD_ReadRequestHandlerThread
                             );
                         }
                         pDevContext->AmountInInQueue = QCUTIL_RingBufferBytesUsed(rxBuffer);
+                    }
+                }
+                else if (pDevContext->ReadTimeout.bReturnOnAnyChars &&
+                         QCUTIL_RingBufferBytesUsed(rxBuffer) > 0)
+                {
+                    // Case 5/11 defensive path: data arrived but was not served by
+                    // REQUEST_ARRIVE_EVENT (should not happen after the drain-loop fix,
+                    // but guard against races). Drain the buffer instead of discarding.
+                    WDFREQUEST timeoutRequest = NULL;
+                    status = WdfIoQueueRetrieveNextRequest(pDevContext->TimeoutReadQueue, &timeoutRequest);
+                    if (NT_SUCCESS(status) && timeoutRequest != NULL)
+                    {
+                        WDF_REQUEST_PARAMETERS toRequestParam;
+                        WDF_REQUEST_PARAMETERS_INIT(&toRequestParam);
+                        WdfRequestGetParameters(timeoutRequest, &toRequestParam);
+
+                        size_t toRequested = toRequestParam.Parameters.Read.Length;
+                        size_t toBytesCopied = 0;
+                        PUCHAR toOutputBuffer = NULL;
+
+                        WdfRequestRetrieveOutputBuffer(timeoutRequest, toRequested, &toOutputBuffer, NULL);
+                        status = QCUTIL_RingBufferRead(rxBuffer, toOutputBuffer, toRequested, &toBytesCopied);
+                        if (NT_SUCCESS(status) && toBytesCopied > 0)
+                        {
+                            WdfRequestCompleteWithInformation(timeoutRequest, STATUS_SUCCESS, toBytesCopied);
+                            QCSER_DbgPrint
+                            (
+                                QCSER_DBG_MASK_READ,
+                                QCSER_DBG_LEVEL_DETAIL,
+                                ("<%ws> RIRP: QCRD_ReadRequestHandlerThread timeout bReturnOnAnyChars drain completed, bytes: %llu\n",
+                                pDevContext->PortName, toBytesCopied)
+                            );
+                        }
+                        else
+                        {
+                            WdfRequestCompleteWithInformation(timeoutRequest, STATUS_TIMEOUT, 0);
+                        }
+                        pDevContext->AmountInInQueue = QCUTIL_RingBufferBytesUsed(rxBuffer);
+                    }
+                    else
+                    {
+                        QCUTIL_IoQueuePopAndComplete(pDevContext->TimeoutReadQueue, STATUS_TIMEOUT, 0);
                     }
                 }
                 else
