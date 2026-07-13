@@ -195,7 +195,7 @@ namespace PayloadInstaller
                 _log = new StreamWriter(LogFile, true, Encoding.UTF8);
                 _log.AutoFlush = true;
                 LogLine("==================================================================");
-                LogLine("[LOG] Qualcomm USB Userspace Driver Installer  v__VERSION__");
+                LogLine("[LOG] __PRODUCT_NAME__ v__VERSION__");
                 LogLine("[LOG] Session started : " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
                 LogLine("[LOG] Log file        : " + LogFile);
                 LogLine("==================================================================");
@@ -375,10 +375,7 @@ namespace PayloadInstaller
 
         static int Uninstall()
         {
-            // Step 1: remove legacy packages installed via qpm-cli / qsc-cli.
-            RemoveLegacyPackages();
-
-            // Step 2: uninstall the current driver and wipe the install directory.
+            // Step 1: uninstall the current driver and wipe the install directory.
             int result = RemoveCurrentInstallation();
 
             if (result == 0)
@@ -473,7 +470,7 @@ namespace PayloadInstaller
             Console.WriteLine("================================================");
             Console.WriteLine();
 
-                        // Parse arguments
+            // Parse arguments
             string mode = "install"; // default (no args)
             if (args.Length > 0)
             {
@@ -587,7 +584,7 @@ $cscArgs = @(
     "/target:exe",
     "/out:$outputExe",
     "/win32manifest:$manifestFile",
-        "/resource:$PayloadFullPath,$($Script:PayloadName)",
+    "/resource:$PayloadFullPath,$($Script:PayloadName)",
     "/reference:System.IO.Compression.dll",
     "/reference:System.IO.Compression.FileSystem.dll",
     "/reference:System.dll",
