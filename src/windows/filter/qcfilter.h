@@ -14,10 +14,6 @@ GENERAL DESCRIPTION
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-#include <ntddk.h>
-#include <wdmsec.h>
-#include <initguid.h>
-
 //
 // GUID definition are required to be outside of header inclusion pragma to avoid
 // error during precompiled headers.
@@ -26,18 +22,10 @@ GENERAL DESCRIPTION
 DEFINE_GUID(QMI_DEVICE_INTERFACE_CLASS,
     0xb7d25408, 0xb34a, 0x4f67, 0xbf, 0x36, 0xf6, 0x18, 0x2c, 0xc0, 0xec, 0x48);
 
-
 #if !defined(_FILTER_H_)
 #define _FILTER_H_
 
-#ifndef  STATUS_CONTINUE_COMPLETION
-#define STATUS_CONTINUE_COMPLETION      STATUS_SUCCESS
-#endif
-
 #define POOL_TAG   'liFT'
-
-#define NTDEVICE_NAME_STRING        L"\\Device\\QcFilter"
-#define SYMBOLIC_NAME_STRING        L"\\DosDevices\\QcFilter"
 
 #define VEN_DEV_SERNUM              L"QCDeviceSerialNumber"
 #define VEN_DEV_MSM_SERNUM          L"QCDeviceMsmSerialNumber"
@@ -460,12 +448,6 @@ BOOLEAN USBPNP_ValidateConfigDescriptor
     PUSB_CONFIGURATION_DESCRIPTOR ConfigDesc
 );
 
-BOOLEAN USBPNP_ValidateDeviceDescriptor
-(
-    PDEVICE_EXTENSION      pDevExt,
-    PUSB_DEVICE_DESCRIPTOR DevDesc
-);
-
 NTSTATUS USBPNP_SelectAndAddInterfaces
 (
     IN PDEVICE_EXTENSION pDevExt,
@@ -486,14 +468,6 @@ NTSTATUS QCFilterCreateFriendlyName
 (
     PDEVICE_EXTENSION pDevExt,
     PDEVICE_OBJECT QCPhysicalDeviceObject
-);
-
-NTSTATUS QCFilterSetFriendlyName
-(
-    PDEVICE_EXTENSION pDevExt,
-    PDEVICE_OBJECT    QCPhysicalDeviceObject,
-    PUNICODE_STRING   FriendlyName,
-    PWCHAR            TargetDriverKey
 );
 
 #ifdef EVENT_TRACING
