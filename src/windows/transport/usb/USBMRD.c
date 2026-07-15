@@ -826,6 +826,25 @@ void USBMRD_L2MultiReadThread(PDEVICE_EXTENSION pDevExt)
                     NULL
                 )
 
+                // Acquire RemoveLock before calling IoCallDriver so that pDevExt
+                // cannot be freed by IoReleaseRemoveLockAndWait for the entire
+                // duration of this L2 IRP. A failed return value indicates that
+                // the device is in the process of being removed; therefore, the
+                // L2 thread should terminate.
+                ntStatus = IoAcquireRemoveLock(pDevExt->pRemoveLock, pIrp);
+                if (!NT_SUCCESS(ntStatus))
+                {
+                    QCUSB_DbgPrint
+                    (
+                        QCUSB_DBG_MASK_READ,
+                        QCUSB_DBG_LEVEL_CRITICAL,
+                        ("<%s> ML2: AcquireRemoveLock failed 0x%x, device removing\n",
+                        pDevExt->PortName, ntStatus)
+                    );
+                    pDevExt->bL2Stopped = TRUE;
+                    break;
+                }
+
                     pDevExt->pL2ReadBuffer[pDevExt->L2IrpEndIdx].State = L2BUF_STATE_PENDING;
 
                 //PendingQueue
@@ -1373,6 +1392,7 @@ wait_for_completion:
                                     IO_NO_INCREMENT,
                                     FALSE
                                 );
+                                IoReleaseRemoveLock(pDevExt->pRemoveLock, pIrp);
                                 goto wait_for_completion;
                             }
                             if (inDevState(DEVICE_STATE_PRESENT_AND_STARTED))
@@ -1400,6 +1420,7 @@ wait_for_completion:
                     if (pActiveL2Buf != NULL)
                     {
                         IoCancelIrp(pActiveL2Buf->Irp);
+                        IoReleaseRemoveLock(pDevExt->pRemoveLock, pIrp);
                         goto wait_for_completion;
                     }
                     else
@@ -1438,6 +1459,7 @@ wait_for_completion:
                     pDevExt->bL2Stopped = TRUE;
                 }
 
+                IoReleaseRemoveLock(pDevExt->pRemoveLock, pIrp);
                 break;
             }  // default
 
@@ -1467,11 +1489,16 @@ wait_for_completion:
         pDevExt->hRxLogFile = NULL;
     }
 
-    // Empty the L2 completion queue
+    // Drain the L2 completion queue and release any RemoveLocks that were
+    // acquired when each IRP was submitted but whose completions were never
+    // processed by the main loop.
     QcAcquireSpinLock(&pDevExt->L2Lock, &levelOrHandle);
     while (!IsListEmpty(&pDevExt->L2CompletionQueue))
     {
+        PUSBMRD_L2BUFFER pBuf;
         headOfList = RemoveHeadList(&pDevExt->L2CompletionQueue);
+        pBuf = CONTAINING_RECORD(headOfList, USBMRD_L2BUFFER, List);
+        IoReleaseRemoveLock(pDevExt->pRemoveLock, pBuf->Irp);
     }
     QcReleaseSpinLock(&pDevExt->L2Lock, levelOrHandle);
 
