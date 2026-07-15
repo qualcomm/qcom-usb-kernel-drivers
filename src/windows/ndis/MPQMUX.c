@@ -1731,6 +1731,17 @@ VOID MPQMI_ProcessInboundQWDSIndication
                                 NdisRegisterState.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
                                 NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_1;
                                 NdisRegisterState.Header.Size = sizeof(NDIS_WWAN_REGISTRATION_STATE);
+#if ( _WIN32_WINNT >= _WIN32_WINNT_WIN8 || NTDDI_VERSION >= NTDDI_WIN8 || NDIS_SUPPORT_NDIS630 )
+    NdisRegisterState.RegistrationState.WwanRegFlags = WWAN_REG_FLAGS_NONE;
+    if (pAdapter->DeviceClass == DEVICE_CLASS_GSM)
+        NdisRegisterState.RegistrationState.CurrentCellularClass = WwanCellularClassGsm;
+    else
+        NdisRegisterState.RegistrationState.CurrentCellularClass = WwanCellularClassCdma;
+#endif
+#if (NTDDI_VERSION >= NTDDI_WIN10_19H1 || NDIS_SUPPORT_NDIS684)
+    NdisRegisterState.RegistrationState.PreferredDataClasses = WWAN_DATA_CLASS_LTE;
+#endif
+
 
                                 NdisRegisterState.RegistrationState.RegisterState = WwanRegisterStateDeregistered;
                                 NdisRegisterState.RegistrationState.RegisterMode = pAdapter->RegisterMode;
@@ -17971,6 +17982,17 @@ ULONG MPQMUX_ProcessNasGetServingSystemResp
             NdisRegisterState.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
             NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_1;
             NdisRegisterState.Header.Size = sizeof(NDIS_WWAN_REGISTRATION_STATE);
+#if ( _WIN32_WINNT >= _WIN32_WINNT_WIN8 || NTDDI_VERSION >= NTDDI_WIN8 || NDIS_SUPPORT_NDIS630 )
+    NdisRegisterState.RegistrationState.WwanRegFlags = WWAN_REG_FLAGS_NONE;
+    if (pAdapter->DeviceClass == DEVICE_CLASS_GSM)
+        NdisRegisterState.RegistrationState.CurrentCellularClass = WwanCellularClassGsm;
+    else
+        NdisRegisterState.RegistrationState.CurrentCellularClass = WwanCellularClassCdma;
+#endif
+#if (NTDDI_VERSION >= NTDDI_WIN10_19H1 || NDIS_SUPPORT_NDIS684)
+    NdisRegisterState.RegistrationState.PreferredDataClasses = WWAN_DATA_CLASS_LTE;
+#endif
+
 
 
             ParseNasGetServingSystem
@@ -18310,6 +18332,17 @@ ULONG MPQMUX_ProcessNasServingSystemInd
     NdisRegisterState.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
     NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_1;
     NdisRegisterState.Header.Size = sizeof(NDIS_WWAN_REGISTRATION_STATE);
+#if ( _WIN32_WINNT >= _WIN32_WINNT_WIN8 || NTDDI_VERSION >= NTDDI_WIN8 || NDIS_SUPPORT_NDIS630 )
+    NdisRegisterState.RegistrationState.WwanRegFlags = WWAN_REG_FLAGS_NONE;
+    if (pAdapter->DeviceClass == DEVICE_CLASS_GSM)
+        NdisRegisterState.RegistrationState.CurrentCellularClass = WwanCellularClassGsm;
+    else
+        NdisRegisterState.RegistrationState.CurrentCellularClass = WwanCellularClassCdma;
+#endif
+#if (NTDDI_VERSION >= NTDDI_WIN10_19H1 || NDIS_SUPPORT_NDIS684)
+    NdisRegisterState.RegistrationState.PreferredDataClasses = WWAN_DATA_CLASS_LTE;
+#endif
+
 
     if (pAdapter->DeviceClass == DEVICE_CLASS_CDMA)
     {
@@ -20383,6 +20416,17 @@ ULONG MPQMUX_ProcessNasGetSysInfoResp
             NdisRegisterState.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
             NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_1;
             NdisRegisterState.Header.Size = sizeof(NDIS_WWAN_REGISTRATION_STATE);
+#if ( _WIN32_WINNT >= _WIN32_WINNT_WIN8 || NTDDI_VERSION >= NTDDI_WIN8 || NDIS_SUPPORT_NDIS630 )
+    NdisRegisterState.RegistrationState.WwanRegFlags = WWAN_REG_FLAGS_NONE;
+    if (pAdapter->DeviceClass == DEVICE_CLASS_GSM)
+        NdisRegisterState.RegistrationState.CurrentCellularClass = WwanCellularClassGsm;
+    else
+        NdisRegisterState.RegistrationState.CurrentCellularClass = WwanCellularClassCdma;
+#endif
+#if (NTDDI_VERSION >= NTDDI_WIN10_19H1 || NDIS_SUPPORT_NDIS684)
+    NdisRegisterState.RegistrationState.PreferredDataClasses = WWAN_DATA_CLASS_LTE;
+#endif
+
 
 
             QCNET_DbgPrint
@@ -20729,6 +20773,17 @@ ULONG MPQMUX_ProcessNasSysInfoInd
     NdisRegisterState.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
     NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_1;
     NdisRegisterState.Header.Size = sizeof(NDIS_WWAN_REGISTRATION_STATE);
+#if ( _WIN32_WINNT >= _WIN32_WINNT_WIN8 || NTDDI_VERSION >= NTDDI_WIN8 || NDIS_SUPPORT_NDIS630 )
+    NdisRegisterState.RegistrationState.WwanRegFlags = WWAN_REG_FLAGS_NONE;
+    if (pAdapter->DeviceClass == DEVICE_CLASS_GSM)
+        NdisRegisterState.RegistrationState.CurrentCellularClass = WwanCellularClassGsm;
+    else
+        NdisRegisterState.RegistrationState.CurrentCellularClass = WwanCellularClassCdma;
+#endif
+#if (NTDDI_VERSION >= NTDDI_WIN10_19H1 || NDIS_SUPPORT_NDIS684)
+    NdisRegisterState.RegistrationState.PreferredDataClasses = WWAN_DATA_CLASS_LTE;
+#endif
+
 
     if (pAdapter->DeviceClass == DEVICE_CLASS_CDMA)
     {
