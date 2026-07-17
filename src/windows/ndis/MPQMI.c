@@ -1145,7 +1145,7 @@ ULONG MPQMI_OIDtoQMI
                 pOID->OIDRespLen = sizeof(NDIS_WWAN_REGISTRATION_STATE);
                 pNdisRegisterState = (PNDIS_WWAN_REGISTRATION_STATE)pOID->pOIDResp;
                 pNdisRegisterState->Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
-                pNdisRegisterState->Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_1;
+                pNdisRegisterState->Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_2;
                 pNdisRegisterState->Header.Size = sizeof(NDIS_WWAN_REGISTRATION_STATE);
 
                 pOID->IndicationType = NDIS_STATUS_WWAN_REGISTER_STATE;
