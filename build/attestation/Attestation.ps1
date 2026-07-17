@@ -24,7 +24,7 @@ param(
   [string] $ProductName,
 
   [Parameter(Mandatory = $true, Position = 1)]
-  [ValidateSet("WINDOWS_v100_X64_RS3_FULL", "WINDOWS_v100_X64_RS4_FULL")]
+  [ValidateSet("WINDOWS_v100_X64_RS3_FULL", "WINDOWS_v100_X64_RS4_FULL", "WINDOWS_v100_ARM64_RS4_FULL")]
   [string[]] $Signatures,
 
   [Parameter(Mandatory = $true, Position = 2)]
@@ -96,14 +96,14 @@ $json = $CreateProductForAttestationJson | ConvertFrom-Json
 $json.createProduct.productName = "$ProductName"
 $json.createProduct.announcementDate = (Get-Date).AddDays(7).ToString("s")
 $json.createProduct.requestedSignatures = $Signatures
-$json | ConvertTo-Json | Out-File -Encoding ASCII -FilePath "CreateAttest.json"
+$json | ConvertTo-Json | Out-File -Encoding ASCII -FilePath (Join-Path $PSScriptRoot "CreateAttest.json")
 Write-Output "    * Submit"
 $output = & $SCDM -create CreateAttest.json
 
 if (-not ([string]$output -match "--- Product: (\d+)")) {
   Write-Output "Did not find product ID"
   Write-Output $output
-  return -1
+  exit 1
 }
 $SDCM_PID = $Matches[1]
 Write-Output "    * PID: $SDCM_PID"
@@ -112,14 +112,14 @@ Write-Output "> Create Submission"
 Write-Output "    * Create JSON"
 $json = $CreateSubmissionForAttestationJson | ConvertFrom-Json
 $json.createSubmission.name = "$ProductName"
-$json | ConvertTo-Json | Out-File -Encoding ASCII -FilePath "CreateSubmissionAttest.json"
+$json | ConvertTo-Json | Out-File -Encoding ASCII -FilePath (Join-Path $PSScriptRoot "CreateSubmissionAttest.json")
 Write-Output "    * Submit"
 $output = & $SCDM -create CreateSubmissionAttest.json -productid $SDCM_PID
 
 if (-not ([string]$output -match "---- Submission: (\d+)")) {
   Write-Output "Did not find submission ID"
   Write-Output $output
-  return -1
+  exit 1
 }
 $SDCM_SID = $Matches[1]
 Write-Output "    * SID: $SDCM_SID"
@@ -137,8 +137,8 @@ Write-Output "    * SID: $SDCM_SID"
 & $SCDM -wait -productid $SDCM_PID -submissionid $SDCM_SID
 
 Write-Output "> Download File"
-& $SCDM -productid $SDCM_PID -submissionid $SDCM_SID -download $InputPath`.signed`.zip
+& $SCDM -productid $SDCM_PID -submissionid $SDCM_SID -download "${InputPath}.signed.zip"
 
 Write-Output "> Done"
-Write-Output "    * Output: $InputPath`.signed`.zip"
+Write-Output "    * Output: ${InputPath}.signed.zip"
 

@@ -7,9 +7,10 @@ set "SCRIPT_DIR=%~dp0"
 set "HEADER_FILE=%SCRIPT_DIR%..\..\src\windows\qcversion.h"
 set "MACRO_NAME=QCOM_USB_DRIVERS_PRODUCT_VERSION"
 set "ATTEST_SCRIPT=%SCRIPT_DIR%Attestation.ps1"
+set "CAB_PATH=%SCRIPT_DIR%..\target\drivers.cab"
 set "VERSION="
 
-for /f "tokens=3" %%V in ('findstr /r /c:"#define %MACRO_NAME%" "%HEADER_FILE%"') do (
+for /f "tokens=3" %%V in ('findstr /r /c:"#define %MACRO_NAME% " "%HEADER_FILE%"') do (
     set "VERSION=%%V"
 )
 
