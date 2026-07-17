@@ -47,11 +47,106 @@ trap {
 ###################################################################################################
 $global:ErrorActionPreference = "stop"
 Set-StrictMode -Version Latest
-$SCDM = Join-Path $PSScriptRoot "./sdcm.exe"
+
+$Script:SDCMZipUrl     = "https://github.com/microsoft/SDCM/archive/refs/tags/1.2025.326.1.zip"
+$Script:SDCMZipVersion = "1.2025.326.1"
+$Script:SDCMExtractDir = Join-Path $PSScriptRoot "sdcm-src"
+$Script:SDCMSlnPath    = Join-Path $Script:SDCMExtractDir "SDCM-$($Script:SDCMZipVersion)\SurfaceDevCenterManager.sln"
+$Script:SDCMReleaseDir = Join-Path $Script:SDCMExtractDir "SDCM-$($Script:SDCMZipVersion)\SurfaceDevCenterManager\bin\Release"
+$Script:VSWhereExe     = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+
+# sdcm.exe lives in its own build output directory alongside all its dependency DLLs
+$SCDM = Join-Path $Script:SDCMReleaseDir "sdcm.exe"
 
 ###################################################################################################
 # Functions
 ###################################################################################################
+
+# Downloads, builds and sets up sdcm.exe in its build output directory.
+function Get-SDCM {
+    # Already built - skip
+    if (Test-Path $SCDM) {
+        $firstLine = Get-Content $SCDM -TotalCount 1 -Encoding UTF8 -ErrorAction SilentlyContinue
+        if ($firstLine -notmatch "git-lfs") {
+            Write-Output "[SDCM] sdcm.exe already built at: $SCDM"
+            return
+        }
+    }
+
+    # --- Step 1: Download zip ---
+    $zipPath = Join-Path $PSScriptRoot "sdcm-src.zip"
+    Write-Output "[SDCM] Downloading SDCM $($Script:SDCMZipVersion)..."
+    Invoke-WebRequest -Uri $Script:SDCMZipUrl -OutFile $zipPath -UseBasicParsing
+    Write-Output "[SDCM] Download complete: $zipPath"
+
+    # --- Step 2: Extract zip ---
+    if (Test-Path $Script:SDCMExtractDir) {
+        Remove-Item $Script:SDCMExtractDir -Recurse -Force
+    }
+    Write-Output "[SDCM] Extracting to $($Script:SDCMExtractDir)..."
+    Expand-Archive -Path $zipPath -DestinationPath $Script:SDCMExtractDir -Force
+    Remove-Item $zipPath -Force
+    Write-Output "[SDCM] Extraction complete."
+
+    # --- Step 3: Locate MSBuild via vswhere ---
+    Write-Output "[SDCM] Locating MSBuild..."
+    $msbuild = $null
+
+    if (Test-Path $Script:VSWhereExe) {
+        $vsPath = & $Script:VSWhereExe -latest -products * -requires Microsoft.Component.MSBuild -property installationPath 2>$null
+        if ($vsPath) {
+            $candidate = Join-Path $vsPath "MSBuild\Current\Bin\MSBuild.exe"
+            if (Test-Path $candidate) { $msbuild = $candidate }
+        }
+    }
+
+    if (-not $msbuild) {
+        $msbuildCmd = Get-Command "msbuild.exe" -ErrorAction SilentlyContinue
+        if ($msbuildCmd) { $msbuild = $msbuildCmd.Source }
+    }
+
+    if (-not $msbuild) {
+        Write-Output "[ERROR] MSBuild.exe not found. Please install Visual Studio with C++ build tools."
+        exit 1
+    }
+    Write-Output "[SDCM] Using MSBuild: $msbuild"
+
+    # --- Step 4: Restore NuGet packages ---
+    Write-Output "[SDCM] Restoring NuGet packages..."
+    & $msbuild $Script:SDCMSlnPath /t:Restore /p:Configuration=Release /nologo /verbosity:minimal 2>&1 | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        Write-Output "[ERROR] NuGet restore failed (exit code: $LASTEXITCODE)."
+        exit 1
+    }
+    Write-Output "[SDCM] NuGet restore complete."
+
+    # --- Step 5: Build the solution ---
+    Write-Output "[SDCM] Building $($Script:SDCMSlnPath)..."
+    & $msbuild $Script:SDCMSlnPath /t:Rebuild /p:Configuration=Release /p:Platform=AnyCPU /nologo /verbosity:minimal 2>&1 | Out-Host
+    if ($LASTEXITCODE -ne 0) {
+        Write-Output "[ERROR] MSBuild failed (exit code: $LASTEXITCODE)."
+        exit 1
+    }
+
+    if (-not (Test-Path $SCDM)) {
+        Write-Output "[ERROR] sdcm.exe not found after build at: $SCDM"
+        exit 1
+    }
+
+    # --- Step 6: Copy authconfig.json into bin\Release\ so sdcm.exe can find it ---
+    $authSrc = Join-Path $PSScriptRoot "authconfig.json"
+    $authDst = Join-Path $Script:SDCMReleaseDir "authconfig.json"
+    if (Test-Path $authSrc) {
+        Copy-Item $authSrc $authDst -Force
+        Write-Output "[SDCM] authconfig.json copied to: $authDst"
+    } else {
+        Write-Output "[ERROR] authconfig.json not found at: $authSrc"
+        exit 1
+    }
+
+    Write-Output "[SDCM] Build complete. sdcm.exe ready at: $SCDM"
+}
+
 $CreateSubmissionForAttestationJson = @"
 {
   "createType": "submission",
@@ -86,6 +181,8 @@ $CreateProductForAttestationJson = @"
 # Main
 ###################################################################################################
 
+Get-SDCM
+
 Write-Output "Attestation Submission"
 Write-Output ""
 
@@ -96,9 +193,9 @@ $json = $CreateProductForAttestationJson | ConvertFrom-Json
 $json.createProduct.productName = "$ProductName"
 $json.createProduct.announcementDate = (Get-Date).AddDays(7).ToString("s")
 $json.createProduct.requestedSignatures = $Signatures
-$json | ConvertTo-Json | Out-File -Encoding ASCII -FilePath (Join-Path $PSScriptRoot "CreateAttest.json")
-Write-Output "    * Submit"
-$output = & $SCDM -create CreateAttest.json
+$json | ConvertTo-Json | Out-File -Encoding ASCII -FilePath (Join-Path $Script:SDCMReleaseDir "CreateAttest.json")
+    Write-Output "    * Submit"
+    $output = & $SCDM -create (Join-Path $Script:SDCMReleaseDir "CreateAttest.json")
 
 if (-not ([string]$output -match "--- Product: (\d+)")) {
   Write-Output "Did not find product ID"
@@ -112,9 +209,9 @@ Write-Output "> Create Submission"
 Write-Output "    * Create JSON"
 $json = $CreateSubmissionForAttestationJson | ConvertFrom-Json
 $json.createSubmission.name = "$ProductName"
-$json | ConvertTo-Json | Out-File -Encoding ASCII -FilePath (Join-Path $PSScriptRoot "CreateSubmissionAttest.json")
-Write-Output "    * Submit"
-$output = & $SCDM -create CreateSubmissionAttest.json -productid $SDCM_PID
+$json | ConvertTo-Json | Out-File -Encoding ASCII -FilePath (Join-Path $Script:SDCMReleaseDir "CreateSubmissionAttest.json")
+    Write-Output "    * Submit"
+    $output = & $SCDM -create (Join-Path $Script:SDCMReleaseDir "CreateSubmissionAttest.json") -productid $SDCM_PID
 
 if (-not ([string]$output -match "---- Submission: (\d+)")) {
   Write-Output "Did not find submission ID"

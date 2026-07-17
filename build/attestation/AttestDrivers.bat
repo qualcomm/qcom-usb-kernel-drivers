@@ -25,7 +25,7 @@ if not exist "!ATTEST_SCRIPT!" (
     exit /b 1
 )
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "!ATTEST_SCRIPT!" -ProductName "QCOM_USB_KERNEL_DRIVERS_!VERSION!" -Signatures "WINDOWS_v100_X64_RS4_FULL" -InputPath "!CAB_PATH!"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "!ATTEST_SCRIPT!" -ProductName "QUD_!VERSION!_EXT" -Signatures "WINDOWS_v100_X64_RS4_FULL" -InputPath "!CAB_PATH!"
 if !ERRORLEVEL! neq 0 (
     echo [ERROR] Attestation signing failed.
     exit /b !ERRORLEVEL!
