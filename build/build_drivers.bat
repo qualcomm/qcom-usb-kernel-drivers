@@ -13,9 +13,9 @@ if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%\sign.ps1" -InputFrom "%BUILD_ROOT%"
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
 
-
 call "%SCRIPT_DIR%attestation\AttestDrivers.bat"
 if %ERRORLEVEL% neq 0 exit /b %ERRORLEVEL%
+
 
 echo [DONE] Output: %BUILD_ROOT%
 

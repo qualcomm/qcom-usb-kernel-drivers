@@ -22,9 +22,113 @@ $Script:PayloadItems = @(
     @{ Path = "tools";   Arch = $null; Promote = @("qdclr.exe", "qdinstall.exe") }
 )
 
+# Files that must be signed before the installer can be built.
+# Paths are relative to $Script:OutputRoot.
+$Script:RequiredSignedFiles = @(
+    # CAB
+    "drivers.cab"
+    # Catalog files
+    "drivers\qcadb.cat"
+    "drivers\qcfilter.cat"
+    "drivers\qcwwan.cat"
+    "drivers\qcwdfserial.cat"
+    "drivers\qdbusb.cat"
+    # Filter driver
+    "drivers\filter\amd64\qcusbfilter.sys"
+    "drivers\filter\arm64\qcusbfilter.sys"
+    "drivers\filter\x86\qcusbfilter.sys"
+    # NDIS driver
+    "drivers\ndis\amd64\qcusbwwan.sys"
+    "drivers\ndis\arm64\qcusbwwan.sys"
+    "drivers\ndis\x86\qcusbwwan.sys"
+    # QDSS driver
+    "drivers\qdss\amd64\qdbusb.sys"
+    "drivers\qdss\arm64\qdbusb.sys"
+    "drivers\qdss\x86\qdbusb.sys"
+    # WDF Serial driver
+    "drivers\wdfserial\amd64\qcwdfserial.sys"
+    "drivers\wdfserial\arm64\qcwdfserial.sys"
+    "drivers\wdfserial\x86\qcwdfserial.sys"
+)
+
 # ==============================================================================
 # Functions
 # ==============================================================================
+
+# Locates signtool.exe from WDK or PATH.
+function Find-SignTool {
+    $cmd = Get-Command "signtool.exe" -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+
+    $regPath = "HKLM:\SOFTWARE\Microsoft\Windows Kits\Installed Roots"
+    $kitRoot = (Get-ItemProperty -Path $regPath -Name "KitsRoot10" -ErrorAction SilentlyContinue).KitsRoot10
+    if ($kitRoot) {
+        $versions = Get-ChildItem -Path (Join-Path $kitRoot "bin") -Directory |
+            Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+            Sort-Object { [Version]$_.Name } -Descending
+        foreach ($ver in $versions) {
+            $candidate = Join-Path $ver.FullName "x64\signtool.exe"
+            if (Test-Path $candidate) { return $candidate }
+        }
+    }
+    return $null
+}
+
+# Verifies all required files are signed. Errors out listing every unsigned file.
+function Assert-DriversSigned {
+    Write-Host "========================================"
+    Write-Host " Verifying Driver Signatures"
+    Write-Host "========================================`n"
+
+    $signtool = Find-SignTool
+    if (-not $signtool) {
+        Write-Host "[ERROR] signtool.exe not found. Please install the Windows Driver Kit (WDK)." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "[INFO] Using signtool: $signtool`n"
+
+    $unsigned = @()
+    $missing  = @()
+
+    foreach ($rel in $Script:RequiredSignedFiles) {
+        $fullPath = Join-Path $Script:OutputRoot $rel
+
+        if (-not (Test-Path $fullPath)) {
+            $missing += $rel
+            continue
+        }
+
+        # signtool verify /pa = verify against default auth policy (works for both EV and attested)
+        $result = & $signtool verify /pa /q $fullPath 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            $unsigned += $rel
+            Write-Host "[UNSIGNED] $rel" -ForegroundColor Red
+        } else {
+            Write-Host "[SIGNED]   $rel" -ForegroundColor Green
+        }
+    }
+
+    Write-Host ""
+
+    if ($missing.Count -gt 0) {
+        Write-Host "[ERROR] The following required files are missing:" -ForegroundColor Red
+        $missing | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
+        Write-Host ""
+    }
+
+    if ($unsigned.Count -gt 0) {
+        Write-Host "[ERROR] The following files are not signed:" -ForegroundColor Red
+        $unsigned | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
+        Write-Host ""
+    }
+
+    if ($missing.Count -gt 0 -or $unsigned.Count -gt 0) {
+        Write-Host "[ERROR] Signature verification failed. Run sign.ps1 and AttestDrivers.bat before building the installer." -ForegroundColor Red
+        exit 1
+    }
+
+    Write-Host "[OK] All required files are signed.`n" -ForegroundColor Green
+}
 
 # Assembles a payload zip from target/drivers and target/tools.
 function New-Payload {
@@ -99,6 +203,9 @@ function New-Payload {
 # ==============================================================================
 # Main Logic
 # ==============================================================================
+
+# --- Verify all drivers and CAB are signed ---
+Assert-DriversSigned
 
 # --- Build payload ---
 $PayloadFullPath = (Resolve-Path (New-Payload)).Path
