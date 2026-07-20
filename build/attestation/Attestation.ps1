@@ -23,20 +23,7 @@ param(
   [Parameter(Mandatory = $true, Position = 0)]
   [string] $ProductName,
 
-  [Parameter(Mandatory = $true, Position = 1)]
-    [ValidateSet(
-    "WINDOWS_v100_X64_RS3_FULL",
-    "WINDOWS_v100_X64_RS4_FULL",
-    "WINDOWS_v100_X64_CO_FULL",
-    "WINDOWS_v100_X64_NI_FULL",
-    "WINDOWS_v100_X64_GE_FULL",
-    "WINDOWS_v100_X64_SV3_FULL",
-    "WINDOWS_v100_ARM64_RS4_FULL",
-    "WINDOWS_v100_ARM64_CO_FULL",
-    "WINDOWS_v100_ARM64_NI_FULL",
-    "WINDOWS_v100_ARM64_GE_FULL",
-    "WINDOWS_v100_ARM64_SV3_FULL"
-  )]
+    [Parameter(Mandatory = $true, Position = 1)]
   [string[]] $Signatures,
 
   [Parameter(Mandatory = $true, Position = 2)]
@@ -59,6 +46,32 @@ trap {
 ###################################################################################################
 $global:ErrorActionPreference = "stop"
 Set-StrictMode -Version Latest
+
+# Accepted signature values
+$Script:ValidSignatures = @(
+    "WINDOWS_v100_X64_RS3_FULL",
+    "WINDOWS_v100_X64_RS4_FULL",
+    "WINDOWS_v100_X64_CO_FULL",
+    "WINDOWS_v100_X64_NI_FULL",
+    "WINDOWS_v100_X64_GE_FULL",
+    "WINDOWS_v100_X64_SV3_FULL",
+    "WINDOWS_v100_ARM64_RS4_FULL",
+    "WINDOWS_v100_ARM64_CO_FULL",
+    "WINDOWS_v100_ARM64_NI_FULL",
+    "WINDOWS_v100_ARM64_GE_FULL",
+    "WINDOWS_v100_ARM64_SV3_FULL"
+)
+
+# Signatures may arrive as a single comma-separated string from bat files - split and trim
+$Signatures = $Signatures | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+
+foreach ($sig in $Signatures) {
+    if ($sig -notin $Script:ValidSignatures) {
+        Write-Output "[ERROR] Invalid signature value: '$sig'"
+        Write-Output "        Valid values: $($Script:ValidSignatures -join ', ')"
+        exit 1
+    }
+}
 
 $Script:SDCMZipUrl     = "https://github.com/microsoft/SDCM/archive/refs/tags/1.2025.326.1.zip"
 $Script:SDCMZipVersion = "1.2025.326.1"
