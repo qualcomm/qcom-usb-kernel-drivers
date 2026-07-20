@@ -130,17 +130,6 @@ function Sign-EvServer {
     }
 }
 
-# Signs a single file using attestation signing (future implementation).
-function Sign-Attestation {
-    param(
-        [Parameter(Mandatory)][string]$File
-    )
-
-    Write-Host "[ATTESTATION] Signing: $(Split-Path $File -Leaf)"
-    Write-Host "[WARN] Attestation signing is not yet implemented." -ForegroundColor Yellow
-    return $true
-}
-
 # ==============================================================================
 # CAB Packaging
 # ==============================================================================
