@@ -4,7 +4,8 @@
 param(
     [string]$OutputName = "installer.exe",
     [ValidateSet("x64", "x86", "arm64")]
-    [string]$Arch = "x64"   # default value (adjust if needed)
+    [string]$Arch = "x64",   # default value (adjust if needed)
+    [switch]$SkipSignCheck
 )
 
 # ==============================================================================
@@ -204,8 +205,12 @@ function New-Payload {
 # Main Logic
 # ==============================================================================
 
-# --- Verify all drivers and CAB are signed ---
-Assert-DriversSigned
+# --- Step 1: Verify all drivers and CAB are signed ---
+if ($SkipSignCheck) {
+    Write-Host "[INFO] --no_sign_required: skipping Microsoft attestation signature check." -ForegroundColor Yellow
+} else {
+    Assert-DriversSigned
+}
 
 # --- Build payload ---
 $PayloadFullPath = (Resolve-Path (New-Payload)).Path

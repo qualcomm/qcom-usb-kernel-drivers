@@ -25,7 +25,9 @@ if not exist "!ATTEST_SCRIPT!" (
     exit /b 1
 )
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "!ATTEST_SCRIPT!" -ProductName "QUD_!VERSION!_EXT" -Signatures "WINDOWS_v100_X64_RS4_FULL" -InputPath "!CAB_PATH!"
+set "SIGNATURES=WINDOWS_v100_X64_RS4_FULL,WINDOWS_v100_X64_CO_FULL,WINDOWS_v100_X64_NI_FULL,WINDOWS_v100_X64_GE_FULL,WINDOWS_v100_X64_SV3_FULL,WINDOWS_v100_ARM64_RS4_FULL,WINDOWS_v100_ARM64_CO_FULL,WINDOWS_v100_ARM64_NI_FULL,WINDOWS_v100_ARM64_GE_FULL,WINDOWS_v100_ARM64_SV3_FULL"
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "!ATTEST_SCRIPT!" -ProductName "QUD_!VERSION!_EXT" -Signatures !SIGNATURES! -InputPath "!CAB_PATH!"
 if !ERRORLEVEL! neq 0 (
     echo [ERROR] Attestation signing failed.
     exit /b !ERRORLEVEL!

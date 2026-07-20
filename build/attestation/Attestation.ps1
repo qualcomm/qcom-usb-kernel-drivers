@@ -24,7 +24,19 @@ param(
   [string] $ProductName,
 
   [Parameter(Mandatory = $true, Position = 1)]
-  [ValidateSet("WINDOWS_v100_X64_RS3_FULL", "WINDOWS_v100_X64_RS4_FULL", "WINDOWS_v100_ARM64_RS4_FULL")]
+    [ValidateSet(
+    "WINDOWS_v100_X64_RS3_FULL",
+    "WINDOWS_v100_X64_RS4_FULL",
+    "WINDOWS_v100_X64_CO_FULL",
+    "WINDOWS_v100_X64_NI_FULL",
+    "WINDOWS_v100_X64_GE_FULL",
+    "WINDOWS_v100_X64_SV3_FULL",
+    "WINDOWS_v100_ARM64_RS4_FULL",
+    "WINDOWS_v100_ARM64_CO_FULL",
+    "WINDOWS_v100_ARM64_NI_FULL",
+    "WINDOWS_v100_ARM64_GE_FULL",
+    "WINDOWS_v100_ARM64_SV3_FULL"
+  )]
   [string[]] $Signatures,
 
   [Parameter(Mandatory = $true, Position = 2)]
@@ -147,6 +159,52 @@ function Get-SDCM {
     Write-Output "[SDCM] Build complete. sdcm.exe ready at: $SCDM"
 }
 
+# Extracts attested .sys and .cat files from the signed ZIP back into the drivers directory.
+function Expand-SignedDrivers {
+    param(
+        [Parameter(Mandatory)][string]$SignedZip,
+        [Parameter(Mandatory)][string]$DriversDir
+    )
+
+    Write-Output "> Extracting signed drivers"
+
+    if (-not (Test-Path $SignedZip)) {
+        Write-Output "[ERROR] Signed ZIP not found: $SignedZip"
+        exit 1
+    }
+
+    # Extract to a temp directory first
+    $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString("N"))
+    Write-Output "    * Extracting: $SignedZip"
+    Expand-Archive -Path $SignedZip -DestinationPath $tempDir -Force
+
+    # Find all .sys and .cat files recursively in the extracted content
+    $signedFiles = Get-ChildItem -Path $tempDir -Recurse -File |
+        Where-Object { $_.Extension -in ".sys", ".cat" }
+
+    if ($signedFiles.Count -eq 0) {
+        Write-Output "[ERROR] No .sys or .cat files found in signed ZIP."
+        Remove-Item $tempDir -Recurse -Force
+        exit 1
+    }
+
+    $copied = 0
+    foreach ($file in $signedFiles) {
+        # Find the matching destination file in DriversDir by name
+        $destinations = Get-ChildItem -Path $DriversDir -Recurse -File -Filter $file.Name
+        foreach ($dest in $destinations) {
+            Copy-Item $file.FullName $dest.FullName -Force
+            Write-Output "    * [ATTESTED] $($dest.FullName.Replace($DriversDir, '').TrimStart('\'))"
+            $copied++
+        }
+    }
+
+    Remove-Item $tempDir -Recurse -Force
+
+    Write-Output "    * $copied file(s) replaced with attested versions."
+    Write-Output "[OK] Signed drivers extracted to: $DriversDir"
+}
+
 $CreateSubmissionForAttestationJson = @"
 {
   "createType": "submission",
@@ -236,6 +294,11 @@ Write-Output "    * SID: $SDCM_SID"
 Write-Output "> Download File"
 & $SCDM -productid $SDCM_PID -submissionid $SDCM_SID -download "${InputPath}.signed.zip"
 
+# Extract attested files back into the drivers directory
+$driversDir = Join-Path (Split-Path $InputPath -Parent) "drivers"
+Expand-SignedDrivers -SignedZip "${InputPath}.signed.zip" -DriversDir $driversDir
+
 Write-Output "> Done"
-Write-Output "    * Output: ${InputPath}.signed.zip"
+Write-Output "    * Attested drivers: $driversDir"
+Write-Output "    * Signed ZIP      : ${InputPath}.signed.zip"
 

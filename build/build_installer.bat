@@ -5,6 +5,11 @@
 setlocal enabledelayedexpansion
 
 set "SCRIPT_DIR=%~dp0"
+set "NO_SIGN=0"
+
+for %%A in (%*) do (
+    if /i "%%A"=="--no_sign_required" set "NO_SIGN=1"
+)
 
 for %%A in (x86 x64 arm64) do (
     REM Build tools for this architecture
@@ -12,7 +17,11 @@ for %%A in (x86 x64 arm64) do (
     if !ERRORLEVEL! neq 0 exit /b !ERRORLEVEL!
 
     REM Build installer with arch-specific output name and architecture
-    powershell -ExecutionPolicy Bypass -File "%SCRIPT_DIR%build-installer.ps1" -OutputName "qcom_usb_kernel_drivers_%%A.exe" -Arch %%A
+    if "!NO_SIGN!"=="1" (
+        powershell -ExecutionPolicy Bypass -File "%SCRIPT_DIR%build-installer.ps1" -OutputName "qcom_usb_kernel_drivers_%%A.exe" -Arch %%A -SkipSignCheck
+    ) else (
+        powershell -ExecutionPolicy Bypass -File "%SCRIPT_DIR%build-installer.ps1" -OutputName "qcom_usb_kernel_drivers_%%A.exe" -Arch %%A
+    )
     if !ERRORLEVEL! neq 0 exit /b !ERRORLEVEL!
 
     REM Sign the installer
