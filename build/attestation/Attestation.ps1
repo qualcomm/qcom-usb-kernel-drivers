@@ -54,12 +54,10 @@ $Script:ValidSignatures = @(
     "WINDOWS_v100_X64_CO_FULL",
     "WINDOWS_v100_X64_NI_FULL",
     "WINDOWS_v100_X64_GE_FULL",
-    "WINDOWS_v100_X64_SV3_FULL",
     "WINDOWS_v100_ARM64_RS4_FULL",
     "WINDOWS_v100_ARM64_CO_FULL",
     "WINDOWS_v100_ARM64_NI_FULL",
-    "WINDOWS_v100_ARM64_GE_FULL",
-    "WINDOWS_v100_ARM64_SV3_FULL"
+    "WINDOWS_v100_ARM64_GE_FULL"
 )
 
 # Signatures may arrive as a single comma-separated string from bat files - split and trim
