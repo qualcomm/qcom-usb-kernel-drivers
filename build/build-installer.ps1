@@ -23,33 +23,15 @@ $Script:PayloadItems = @(
     @{ Path = "tools";   Arch = $null; Promote = @("qdclr.exe", "qdinstall.exe") }
 )
 
-# Files that must be signed before the installer can be built.
+# Only .cat files must be Microsoft-attested signed before the installer can be built.
+# .sys files and .cab are signed by QCOM EV signing and are not checked here.
 # Paths are relative to $Script:OutputRoot.
 $Script:RequiredSignedFiles = @(
-    # CAB
-    "drivers.cab"
-    # Catalog files
     "drivers\qcadb.cat"
     "drivers\qcfilter.cat"
     "drivers\qcwwan.cat"
     "drivers\qcwdfserial.cat"
     "drivers\qdbusb.cat"
-    # Filter driver
-    "drivers\filter\amd64\qcusbfilter.sys"
-    "drivers\filter\arm64\qcusbfilter.sys"
-    "drivers\filter\x86\qcusbfilter.sys"
-    # NDIS driver
-    "drivers\ndis\amd64\qcusbwwan.sys"
-    "drivers\ndis\arm64\qcusbwwan.sys"
-    "drivers\ndis\x86\qcusbwwan.sys"
-    # QDSS driver
-    "drivers\qdss\amd64\qdbusb.sys"
-    "drivers\qdss\arm64\qdbusb.sys"
-    "drivers\qdss\x86\qdbusb.sys"
-    # WDF Serial driver
-    "drivers\wdfserial\amd64\qcwdfserial.sys"
-    "drivers\wdfserial\arm64\qcwdfserial.sys"
-    "drivers\wdfserial\x86\qcwdfserial.sys"
 )
 
 # ==============================================================================
@@ -123,8 +105,8 @@ function Assert-DriversSigned {
         Write-Host ""
     }
 
-    if ($missing.Count -gt 0 -or $unsigned.Count -gt 0) {
-        Write-Host "[ERROR] Signature verification failed. Run sign.ps1 and AttestDrivers.bat before building the installer." -ForegroundColor Red
+        if ($missing.Count -gt 0 -or $unsigned.Count -gt 0) {
+        Write-Host "[ERROR] Catalog signature verification failed. Run AttestDrivers.bat to get Microsoft-attested .cat files before building the installer." -ForegroundColor Red
         exit 1
     }
 
