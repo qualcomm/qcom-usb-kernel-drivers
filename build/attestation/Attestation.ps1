@@ -9,9 +9,6 @@
 .PARAMETER ProductName
     Product Name to use for the driver, visible in Hardware Dev Center
 
-.PARAMETER Signatures
-    OS Version and Architecture to submit the driver for
-
 .PARAMETER InputPath
     Path to the EV-signed cab file needed for an Attestation-signed driver
     See steps here:
@@ -23,10 +20,7 @@ param(
   [Parameter(Mandatory = $true, Position = 0)]
   [string] $ProductName,
 
-    [Parameter(Mandatory = $true, Position = 1)]
-  [string[]] $Signatures,
-
-  [Parameter(Mandatory = $true, Position = 2)]
+  [Parameter(Mandatory = $true, Position = 1)]
   [ValidateScript( { Test-Path -Path $_ -PathType Leaf })]
   [string] $InputPath
 )
@@ -47,7 +41,7 @@ trap {
 $global:ErrorActionPreference = "stop"
 Set-StrictMode -Version Latest
 
-# Accepted signature values
+# All OS signatures to submit for attestation
 $Script:ValidSignatures = @(
     "WINDOWS_v100_X64_RS3_FULL",
     "WINDOWS_v100_X64_RS4_FULL",
@@ -57,19 +51,12 @@ $Script:ValidSignatures = @(
     "WINDOWS_v100_ARM64_RS4_FULL",
     "WINDOWS_v100_ARM64_CO_FULL",
     "WINDOWS_v100_ARM64_NI_FULL",
-    "WINDOWS_v100_ARM64_GE_FULL"
+    "WINDOWS_v100_ARM64_GE_FULL",
+    "WINDOWS_v100_ARM64_26H1_FULL",
+    "WINDOWS_v100_X64_26H1_FULL",
+    "WINDOWS_v100_ARM64_25H2_FULL",
+    "WINDOWS_v100_X64_25H2_FULL",
 )
-
-# Signatures may arrive as a single comma-separated string from bat files - split and trim
-$Signatures = $Signatures | ForEach-Object { $_ -split "," } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
-
-foreach ($sig in $Signatures) {
-    if ($sig -notin $Script:ValidSignatures) {
-        Write-Output "[ERROR] Invalid signature value: '$sig'"
-        Write-Output "        Valid values: $($Script:ValidSignatures -join ', ')"
-        exit 1
-    }
-}
 
 $Script:SDCMZipUrl     = "https://github.com/microsoft/SDCM/archive/refs/tags/1.2025.326.1.zip"
 $Script:SDCMZipVersion = "1.2025.326.1"
@@ -261,7 +248,7 @@ Write-Output "    * Create JSON"
 $json = $CreateProductForAttestationJson | ConvertFrom-Json
 $json.createProduct.productName = "$ProductName"
 $json.createProduct.announcementDate = (Get-Date).AddDays(7).ToString("s")
-$json.createProduct.requestedSignatures = $Signatures
+$json.createProduct.requestedSignatures = $Script:ValidSignatures
 $json | ConvertTo-Json | Out-File -Encoding ASCII -FilePath (Join-Path $Script:SDCMReleaseDir "CreateAttest.json")
     Write-Output "    * Submit"
     $output = & $SCDM -create (Join-Path $Script:SDCMReleaseDir "CreateAttest.json")
