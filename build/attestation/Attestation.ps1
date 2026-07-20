@@ -55,7 +55,7 @@ $Script:ValidSignatures = @(
     "WINDOWS_v100_ARM64_26H1_FULL",
     "WINDOWS_v100_X64_26H1_FULL",
     "WINDOWS_v100_ARM64_25H2_FULL",
-    "WINDOWS_v100_X64_25H2_FULL",
+    "WINDOWS_v100_X64_25H2_FULL"
 )
 
 $Script:SDCMZipUrl     = "https://github.com/microsoft/SDCM/archive/refs/tags/1.2025.326.1.zip"
