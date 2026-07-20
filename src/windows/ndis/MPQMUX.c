@@ -1731,7 +1731,7 @@ VOID MPQMI_ProcessInboundQWDSIndication
                                 NdisRegisterState.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
                                 #if (NTDDI_VERSION >= NTDDI_WIN10_19H1)
 
-                                NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_3;
+                                NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_4;
 
                                 #elif (_WIN32_WINNT >= _WIN32_WINNT_WIN8 || NTDDI_VERSION >= NTDDI_WIN8)
 
@@ -17990,7 +17990,7 @@ ULONG MPQMUX_ProcessNasGetServingSystemResp
             NdisRegisterState.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
             #if (NTDDI_VERSION >= NTDDI_WIN10_19H1)
 
-            NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_3;
+            NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_4;
 
             #elif (_WIN32_WINNT >= _WIN32_WINNT_WIN8 || NTDDI_VERSION >= NTDDI_WIN8)
 
@@ -18347,7 +18347,7 @@ ULONG MPQMUX_ProcessNasServingSystemInd
     NdisRegisterState.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
     #if (NTDDI_VERSION >= NTDDI_WIN10_19H1)
 
-    NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_3;
+    NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_4;
 
     #elif (_WIN32_WINNT >= _WIN32_WINNT_WIN8 || NTDDI_VERSION >= NTDDI_WIN8)
 
@@ -20439,7 +20439,7 @@ ULONG MPQMUX_ProcessNasGetSysInfoResp
             NdisRegisterState.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
             #if (NTDDI_VERSION >= NTDDI_WIN10_19H1)
 
-            NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_3;
+            NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_4;
 
             #elif (_WIN32_WINNT >= _WIN32_WINNT_WIN8 || NTDDI_VERSION >= NTDDI_WIN8)
 
@@ -20804,7 +20804,7 @@ ULONG MPQMUX_ProcessNasSysInfoInd
     NdisRegisterState.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
     #if (NTDDI_VERSION >= NTDDI_WIN10_19H1)
 
-    NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_3;
+    NdisRegisterState.Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_4;
 
     #elif (_WIN32_WINNT >= _WIN32_WINNT_WIN8 || NTDDI_VERSION >= NTDDI_WIN8)
 

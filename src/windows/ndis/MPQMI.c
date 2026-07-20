@@ -1147,7 +1147,7 @@ ULONG MPQMI_OIDtoQMI
                 pNdisRegisterState->Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
                 #if (NTDDI_VERSION >= NTDDI_WIN10_19H1)
 
-                pNdisRegisterState->Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_3;
+                pNdisRegisterState->Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_4;
 
                 #elif (_WIN32_WINNT >= _WIN32_WINNT_WIN8 || NTDDI_VERSION >= NTDDI_WIN8)
 
