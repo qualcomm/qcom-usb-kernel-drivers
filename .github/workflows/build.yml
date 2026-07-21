@@ -1,0 +1,175 @@
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+# SPDX-License-Identifier: BSD-3-Clause
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  # ============================================================
+  # Linux: build kernel modules
+  # ============================================================
+  build-linux:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kernel headers and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            linux-headers-$(uname -r) \
+            kmod
+
+      - name: Build kernel modules
+        working-directory: src/linux
+        run: make
+
+      - name: Verify build outputs
+        working-directory: src/linux
+        run: |
+          echo "=== Built kernel modules ==="
+          find . -name "*.ko" | sort
+          test -f InfParser/qtiDevInf.ko  || (echo "ERROR: qtiDevInf.ko not found"  && exit 1)
+          test -f qcom_usb/qcom_usb.ko    || (echo "ERROR: qcom_usb.ko not found"    && exit 1)
+          test -f qcom_usbnet/qcom_usbnet.ko || (echo "ERROR: qcom_usbnet.ko not found" && exit 1)
+
+      - name: Upload Linux build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-kernel-modules-${{ matrix.os }}
+          path: |
+            src/linux/**/*.ko
+          retention-days: 7
+
+  # ============================================================
+  # Linux: build .deb package (ubuntu-22.04 only)
+  # ============================================================
+  build-deb:
+    runs-on: ubuntu-22.04
+    needs: build-linux
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dpkg tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg
+
+      - name: Build .deb package
+        working-directory: src/linux
+        run: bash build-deb.sh
+
+      - name: Verify .deb package
+        working-directory: src/linux
+        run: |
+          DEB=$(find build -name "*.deb" | head -n 1)
+          echo "Package: $DEB"
+          test -n "$DEB" || (echo "ERROR: No .deb file produced" && exit 1)
+          dpkg-deb -I "$DEB"
+          dpkg-deb -c "$DEB"
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-deb-package
+          path: src/linux/build/*.deb
+          retention-days: 7
+
+  # ============================================================
+  # Windows: build drivers (x86, x64, arm64)
+  # ============================================================
+  build-windows-drivers:
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install WDK
+        shell: pwsh
+        run: |
+          $wdkUrl = "https://go.microsoft.com/fwlink/?linkid=2307338"
+          $wdkInstaller = "$env:TEMP\wdksetup.exe"
+          Write-Host "Downloading WDK..."
+          Invoke-WebRequest -Uri $wdkUrl -OutFile $wdkInstaller -UseBasicParsing
+          Write-Host "Installing WDK silently..."
+          Start-Process -FilePath $wdkInstaller -ArgumentList "/quiet /norestart" -Wait
+          Write-Host "WDK installation complete."
+
+      - name: Build Windows drivers (x86, x64, arm64)
+        shell: pwsh
+        working-directory: build
+        run: |
+          powershell -ExecutionPolicy Bypass -File "build_drivers.ps1" -OutputTo "$env:GITHUB_WORKSPACE\build\target"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify driver build outputs
+        shell: pwsh
+        run: |
+          $driversDir = "build\target\drivers"
+          Write-Host "=== Driver build outputs ==="
+          Get-ChildItem -Path $driversDir -Recurse -File | Select-Object FullName | Format-Table -AutoSize
+          $sysFiles = Get-ChildItem -Path $driversDir -Recurse -Filter "*.sys"
+          if ($sysFiles.Count -eq 0) {
+            Write-Host "ERROR: No .sys files found in $driversDir" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "Found $($sysFiles.Count) .sys file(s)." -ForegroundColor Green
+
+      - name: Upload Windows driver artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-drivers
+          path: build/target/drivers/
+          retention-days: 7
+
+  # ============================================================
+  # Windows: build tools (x86, x64, arm64)
+  # ============================================================
+  build-windows-tools:
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Windows tools for all architectures
+        shell: cmd
+        working-directory: build
+        run: |
+          for %%A in (x86 x64 arm64) do (
+            powershell -ExecutionPolicy Bypass -File "build_tools.ps1" -Platform %%A -OutputTo "%GITHUB_WORKSPACE%\build\target"
+            if errorlevel 1 exit /b 1
+          )
+
+      - name: Verify tools build outputs
+        shell: pwsh
+        run: |
+          $toolsDir = "build\target\tools"
+          Write-Host "=== Tools build outputs ==="
+          Get-ChildItem -Path $toolsDir -Recurse -File | Select-Object FullName | Format-Table -AutoSize
+          $exeFiles = Get-ChildItem -Path $toolsDir -Recurse -Filter "*.exe"
+          if ($exeFiles.Count -eq 0) {
+            Write-Host "ERROR: No .exe files found in $toolsDir" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "Found $($exeFiles.Count) .exe file(s)." -ForegroundColor Green
+
+      - name: Upload Windows tools artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-tools
+          path: build/target/tools/
+          retention-days: 7
+
