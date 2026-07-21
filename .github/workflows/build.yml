@@ -29,15 +29,26 @@ jobs:
 
       - name: Locate dependency Module.symvers files
         run: |
-          # usbnet and usbserial are built as loadable modules on the Azure runner
-          # kernel — their exported symbols are NOT in the kernel's Module.symvers.
-          # We must supply them via KBUILD_EXTRA_SYMBOLS so modpost can resolve them.
+          # usbnet and usbserial may be loadable modules OR built into the kernel.
+          # Strategy (in priority order):
+          #   1. Mine the kernel build-tree Module.symvers (covers both cases when present)
+          #   2. Extract from .ko files (module case)
+          #   3. Synthesize from /proc/kallsyms (built-in case — CRC placeholder 0x00000000)
+          # The result is passed via KBUILD_EXTRA_SYMBOLS so modpost can resolve them.
           set -euo pipefail
           KREL=$(uname -r)
           SYMVERS_OUT=/tmp/deps.symvers
           mkdir -p /tmp
+          > "$SYMVERS_OUT"   # start fresh
 
-          # Helper: decompress a .ko.zst / .ko.xz into a plain .ko in /tmp
+          # ── Step 1: mine the kernel build-tree Module.symvers ──────────────────
+          SYS_SYMVERS=/lib/modules/$KREL/build/Module.symvers
+          if [ -f "$SYS_SYMVERS" ]; then
+            echo "Mining system Module.symvers for usbnet/usbserial symbols..."
+            grep -P '\t(usbnet_|usb_serial_)' "$SYS_SYMVERS" >> "$SYMVERS_OUT" || true
+          fi
+
+          # ── Step 2: extract from .ko files (module case) ───────────────────────
           decompress_ko() {
             local src="$1"
             local base
@@ -52,41 +63,51 @@ jobs:
             echo "$dst"
           }
 
-          # Helper: extract versioned symbol table from a .ko using modprobe
-          # Format expected by KBUILD_EXTRA_SYMBOLS / Module.symvers:
-          #   0x<crc>\t<symbol>\t<module_path>\tEXPORT_SYMBOL[_GPL]
           ko_to_symvers() {
             local ko="$1"
             local modname
             modname=$(basename "$ko" .ko)
-            # modprobe --dump-modversions prints: 0x<crc>  <symbol>
             modprobe --dump-modversions "$ko" 2>/dev/null | \
               awk -v mod="$modname" '{printf "%s\t%s\t%s\tEXPORT_SYMBOL\n", $1, $2, mod}'
           }
 
-          > "$SYMVERS_OUT"   # start fresh
-
           for MODNAME in usbnet usbserial; do
-            KO_PATH=$(find /lib/modules/$KREL -name "${MODNAME}.ko*" | head -n1)
-            if [ -z "$KO_PATH" ]; then
-              echo "WARNING: ${MODNAME}.ko not found under /lib/modules/$KREL" >&2
-              continue
+            KO_PATH=$(find /lib/modules/$KREL -name "${MODNAME}.ko*" 2>/dev/null | head -n1)
+            if [ -n "$KO_PATH" ]; then
+              echo "Found module: $KO_PATH"
+              PLAIN_KO=$(decompress_ko "$KO_PATH")
+              ko_to_symvers "$PLAIN_KO" >> "$SYMVERS_OUT"
             fi
-            echo "Found: $KO_PATH"
-            PLAIN_KO=$(decompress_ko "$KO_PATH")
-            ko_to_symvers "$PLAIN_KO" >> "$SYMVERS_OUT"
           done
 
-          # Fallback: if the kernel build dir has a Module.symvers, mine it too
-          SYS_SYMVERS=/lib/modules/$KREL/build/Module.symvers
-          if [ -f "$SYS_SYMVERS" ]; then
-            echo "Also mining system Module.symvers for usbnet/usbserial symbols"
-            grep -E '\busbnet_|\busb_serial_|\busbserial\b' "$SYS_SYMVERS" >> "$SYMVERS_OUT" || true
+          # ── Step 3: synthesize from /proc/kallsyms (built-in fallback) ─────────
+          # When usbnet/usbserial are compiled into the kernel there are no .ko files
+          # and Module.symvers may not list them.  /proc/kallsyms always contains
+          # every exported symbol.  modpost only needs the name to be present
+          # (CRC checking is skipped when CONFIG_MODVERSIONS is off, common on CI
+          # kernels); we use a placeholder CRC of 0x00000000.
+          NEEDED_SYMS="usbnet_probe usbnet_disconnect usbnet_suspend usbnet_resume \
+                       usbnet_start_xmit usbnet_change_mtu usbnet_skb_return \
+                       usbnet_link_change usb_serial_generic_open usb_serial_suspend \
+                       usb_serial_resume"
+
+          if [ -r /proc/kallsyms ]; then
+            for SYM in $NEEDED_SYMS; do
+              # Skip if already present from steps 1/2
+              if grep -qP "\t${SYM}\t" "$SYMVERS_OUT" 2>/dev/null; then
+                continue
+              fi
+              # Check the symbol is actually exported by the running kernel
+              if grep -qE " [TtRr] ${SYM}$" /proc/kallsyms 2>/dev/null; then
+                echo "Synthesizing from kallsyms: $SYM"
+                printf '0x00000000\t%s\tvmlinux\tEXPORT_SYMBOL\n' "$SYM" >> "$SYMVERS_OUT"
+              fi
+            done
           fi
 
           LINES=$(wc -l < "$SYMVERS_OUT")
           echo "--- $SYMVERS_OUT ($LINES entries) ---"
-          head -20 "$SYMVERS_OUT" || true
+          cat "$SYMVERS_OUT" || true
 
           if [ "$LINES" -eq 0 ]; then
             echo "WARNING: No dependency symbols found; build may fail with undefined symbol errors."
@@ -170,7 +191,7 @@ jobs:
       - name: Install WDK
         shell: pwsh
         run: |
-          $wdkUrl = "https://go.microsoft.com/fwlink/?linkid=2307338"
+          $wdkUrl = "https://go.microsoft.com/fwlink/?linkid=2330411"
           $wdkInstaller = "$env:TEMP\wdksetup.exe"
 
           Write-Host "Downloading WDK via curl (follows redirects)..."
