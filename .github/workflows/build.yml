@@ -29,45 +29,75 @@ jobs:
 
       - name: Locate dependency Module.symvers files
         run: |
-          # usbnet and usbserial are built as modules on the Azure runner kernel.
-          # modpost needs their Module.symvers to resolve exported symbols.
-          # Extract them from the installed kernel modules package.
+          # usbnet and usbserial are built as loadable modules on the Azure runner
+          # kernel — their exported symbols are NOT in the kernel's Module.symvers.
+          # We must supply them via KBUILD_EXTRA_SYMBOLS so modpost can resolve them.
+          set -euo pipefail
           KREL=$(uname -r)
-          USBNET_KO=$(find /lib/modules/$KREL -name 'usbnet.ko*' | head -n1)
-          USBSERIAL_KO=$(find /lib/modules/$KREL -name 'usbserial.ko*' | head -n1)
-          echo "usbnet.ko    : $USBNET_KO"
-          echo "usbserial.ko : $USBSERIAL_KO"
-          # Decompress if needed (.ko.zst or .ko.xz)
-          for KO in "$USBNET_KO" "$USBSERIAL_KO"; do
-            case "$KO" in
-              *.zst) sudo zstd -d "$KO" --output-dir-flat "$(dirname $KO)" ;;
-              *.xz)  sudo xz -dk "$KO" ;;
+          SYMVERS_OUT=/tmp/deps.symvers
+          mkdir -p /tmp
+
+          # Helper: decompress a .ko.zst / .ko.xz into a plain .ko in /tmp
+          decompress_ko() {
+            local src="$1"
+            local base
+            base=$(basename "$src")
+            base=${base%.zst}; base=${base%.xz}
+            local dst="/tmp/$base"
+            case "$src" in
+              *.zst) zstd -d --force -o "$dst" "$src" ;;
+              *.xz)  xz -dk --stdout "$src" > "$dst" ;;
+              *)     cp -f "$src" "$dst" ;;
             esac
+            echo "$dst"
+          }
+
+          # Helper: extract versioned symbol table from a .ko using modprobe
+          # Format expected by KBUILD_EXTRA_SYMBOLS / Module.symvers:
+          #   0x<crc>\t<symbol>\t<module_path>\tEXPORT_SYMBOL[_GPL]
+          ko_to_symvers() {
+            local ko="$1"
+            local modname
+            modname=$(basename "$ko" .ko)
+            # modprobe --dump-modversions prints: 0x<crc>  <symbol>
+            modprobe --dump-modversions "$ko" 2>/dev/null | \
+              awk -v mod="$modname" '{printf "%s\t%s\t%s\tEXPORT_SYMBOL\n", $1, $2, mod}'
+          }
+
+          > "$SYMVERS_OUT"   # start fresh
+
+          for MODNAME in usbnet usbserial; do
+            KO_PATH=$(find /lib/modules/$KREL -name "${MODNAME}.ko*" | head -n1)
+            if [ -z "$KO_PATH" ]; then
+              echo "WARNING: ${MODNAME}.ko not found under /lib/modules/$KREL" >&2
+              continue
+            fi
+            echo "Found: $KO_PATH"
+            PLAIN_KO=$(decompress_ko "$KO_PATH")
+            ko_to_symvers "$PLAIN_KO" >> "$SYMVERS_OUT"
           done
-          # Extract the EXPORT_SYMBOL table from each .ko into a symvers fragment
-          mkdir -p /tmp/symvers
-          for KO in "$USBNET_KO" "$USBSERIAL_KO"; do
-            PLAIN=${KO%.zst}; PLAIN=${PLAIN%.xz}
-            [ -f "$PLAIN" ] || PLAIN=$KO
-            modname=$(basename $PLAIN .ko)
-            /usr/src/linux-headers-$KREL/scripts/mod/modpost -S /tmp/symvers/$modname.symvers $PLAIN 2>/dev/null || true
-          done
-          # Fallback: use Module.symvers from the running kernel build if present
+
+          # Fallback: if the kernel build dir has a Module.symvers, mine it too
           SYS_SYMVERS=/lib/modules/$KREL/build/Module.symvers
           if [ -f "$SYS_SYMVERS" ]; then
-            echo "Using system Module.symvers: $SYS_SYMVERS"
-            grep -E 'usbnet|usbserial|usb_serial' "$SYS_SYMVERS" > /tmp/symvers/deps.symvers || true
+            echo "Also mining system Module.symvers for usbnet/usbserial symbols"
+            grep -E '\busbnet_|\busb_serial_|\busbserial\b' "$SYS_SYMVERS" >> "$SYMVERS_OUT" || true
           fi
-          # Merge all fragments and expose path for the build step
-          cat /tmp/symvers/*.symvers 2>/dev/null | sort -u > /tmp/symvers/combined.symvers || true
-          echo "EXTRA_SYMVERS=/tmp/symvers/combined.symvers" >> $GITHUB_ENV
-          echo "--- combined.symvers preview ---"
-          head -20 /tmp/symvers/combined.symvers || echo "(empty)"
+
+          LINES=$(wc -l < "$SYMVERS_OUT")
+          echo "--- $SYMVERS_OUT ($LINES entries) ---"
+          head -20 "$SYMVERS_OUT" || true
+
+          if [ "$LINES" -eq 0 ]; then
+            echo "WARNING: No dependency symbols found; build may fail with undefined symbol errors."
+          fi
+
+          echo "EXTRA_SYMVERS=$SYMVERS_OUT" >> "$GITHUB_ENV"
 
       - name: Build kernel modules
         working-directory: src/linux
         run: |
-          if [ -s "$EXTRA_SYMVERS" ]; then
+          if [ -s "${EXTRA_SYMVERS:-}" ]; then
             make KBUILD_EXTRA_SYMBOLS="$EXTRA_SYMVERS"
           else
             make
