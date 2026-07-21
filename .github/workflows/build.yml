@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-3-Clause
 name: Build
 
-on: [push, pull_request]
+on: [pull_request]
 
 jobs:
   # ============================================================
@@ -24,11 +24,54 @@ jobs:
           sudo apt-get install -y \
             build-essential \
             linux-headers-$(uname -r) \
+            linux-modules-$(uname -r) \
             kmod
+
+      - name: Locate dependency Module.symvers files
+        run: |
+          # usbnet and usbserial are built as modules on the Azure runner kernel.
+          # modpost needs their Module.symvers to resolve exported symbols.
+          # Extract them from the installed kernel modules package.
+          KREL=$(uname -r)
+          USBNET_KO=$(find /lib/modules/$KREL -name 'usbnet.ko*' | head -n1)
+          USBSERIAL_KO=$(find /lib/modules/$KREL -name 'usbserial.ko*' | head -n1)
+          echo "usbnet.ko    : $USBNET_KO"
+          echo "usbserial.ko : $USBSERIAL_KO"
+          # Decompress if needed (.ko.zst or .ko.xz)
+          for KO in "$USBNET_KO" "$USBSERIAL_KO"; do
+            case "$KO" in
+              *.zst) sudo zstd -d "$KO" --output-dir-flat "$(dirname $KO)" ;;
+              *.xz)  sudo xz -dk "$KO" ;;
+            esac
+          done
+          # Extract the EXPORT_SYMBOL table from each .ko into a symvers fragment
+          mkdir -p /tmp/symvers
+          for KO in "$USBNET_KO" "$USBSERIAL_KO"; do
+            PLAIN=${KO%.zst}; PLAIN=${PLAIN%.xz}
+            [ -f "$PLAIN" ] || PLAIN=$KO
+            modname=$(basename $PLAIN .ko)
+            /usr/src/linux-headers-$KREL/scripts/mod/modpost -S /tmp/symvers/$modname.symvers $PLAIN 2>/dev/null || true
+          done
+          # Fallback: use Module.symvers from the running kernel build if present
+          SYS_SYMVERS=/lib/modules/$KREL/build/Module.symvers
+          if [ -f "$SYS_SYMVERS" ]; then
+            echo "Using system Module.symvers: $SYS_SYMVERS"
+            grep -E 'usbnet|usbserial|usb_serial' "$SYS_SYMVERS" > /tmp/symvers/deps.symvers || true
+          fi
+          # Merge all fragments and expose path for the build step
+          cat /tmp/symvers/*.symvers 2>/dev/null | sort -u > /tmp/symvers/combined.symvers || true
+          echo "EXTRA_SYMVERS=/tmp/symvers/combined.symvers" >> $GITHUB_ENV
+          echo "--- combined.symvers preview ---"
+          head -20 /tmp/symvers/combined.symvers || echo "(empty)"
 
       - name: Build kernel modules
         working-directory: src/linux
-        run: make
+        run: |
+          if [ -s "$EXTRA_SYMVERS" ]; then
+            make KBUILD_EXTRA_SYMBOLS="$EXTRA_SYMVERS"
+          else
+            make
+          fi
 
       - name: Verify build outputs
         working-directory: src/linux
