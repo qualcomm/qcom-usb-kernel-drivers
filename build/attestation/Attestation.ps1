@@ -154,7 +154,23 @@ function Get-SDCM {
     Write-Output "[SDCM] Build complete. sdcm.exe ready at: $SCDM"
 }
 
-# Extracts attested .sys and .cat files from the signed ZIP back into the drivers directory.
+# Extracts attested .sys and .cat files from the signed ZIP back into the drivers
+# directory, preserving the exact same relative-path structure that was packed into
+# the CAB by Make-Cabinet in sign.ps1.
+#
+# The CAB (and therefore the signed ZIP Microsoft returns) stores files with paths
+# rooted at the *parent* of DriversDir, e.g.:
+#
+#   drivers\qcadb.cat                   <- flat .cat files
+#   drivers\filter\amd64\qcusbfilter.sys
+#   drivers\filter\arm64\qcusbfilter.sys
+#   drivers\ndis\amd64\qcusbnet.sys
+#   ...
+#
+# We locate the "drivers" subtree inside the extracted ZIP, then replay every
+# .sys / .cat file back to the identical relative path under $DriversDir.
+# Files that exist in the ZIP but have no matching pre-existing destination are
+# reported as errors so nothing is silently dropped.
 function Expand-SignedDrivers {
     param(
         [Parameter(Mandatory)][string]$SignedZip,
@@ -168,35 +184,85 @@ function Expand-SignedDrivers {
         exit 1
     }
 
-    # Extract to a temp directory first
+    # Resolve DriversDir to an absolute path so substring operations are reliable.
+    $DriversDir = (Resolve-Path $DriversDir).Path
+
+    # Extract the signed ZIP to a temp directory.
     $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString("N"))
-    Write-Output "    * Extracting: $SignedZip"
+    Write-Output "    * Extracting: $SignedZip -> $tempDir"
     Expand-Archive -Path $SignedZip -DestinationPath $tempDir -Force
 
-    # Find all .sys and .cat files recursively in the extracted content
-    $signedFiles = Get-ChildItem -Path $tempDir -Recurse -File |
+    # -----------------------------------------------------------------------
+    # Locate the root inside the ZIP that corresponds to DriversDir.
+    #
+    # Make-Cabinet sets .Set SourceDir=<DriversDir> and
+    # .Set DestinationDir=drivers\... so every file in the CAB (and the
+    # returned signed ZIP) lives under a "drivers" folder at the ZIP root.
+    # We find that anchor folder by looking for the leaf name of DriversDir.
+    # -----------------------------------------------------------------------
+    $driversDirName = Split-Path $DriversDir -Leaf   # e.g. "drivers"
+
+    # Walk up from any .cat/.sys file to find the folder whose name matches.
+    $anchorDir = Get-ChildItem -Path $tempDir -Recurse -Directory |
+        Where-Object { $_.Name -eq $driversDirName } |
+        Select-Object -First 1
+
+    if (-not $anchorDir) {
+        # Fallback: treat the ZIP root itself as the anchor if no sub-folder
+        # matches (some portal versions flatten the output).
+        Write-Output "    * [WARN] No '$driversDirName' sub-folder found in ZIP; using ZIP root as anchor."
+        $anchorDir = Get-Item $tempDir
+    }
+
+    $anchorPath = $anchorDir.FullName   # absolute path inside tempDir
+
+    # -----------------------------------------------------------------------
+    # Collect every .sys and .cat file under the anchor and copy each one to
+    # the identical relative path under $DriversDir.
+    # -----------------------------------------------------------------------
+    $signedFiles = Get-ChildItem -Path $anchorPath -Recurse -File |
         Where-Object { $_.Extension -in ".sys", ".cat" }
 
     if ($signedFiles.Count -eq 0) {
-        Write-Output "[ERROR] No .sys or .cat files found in signed ZIP."
+        Write-Output "[ERROR] No .sys or .cat files found in signed ZIP under '$($anchorDir.Name)'."
         Remove-Item $tempDir -Recurse -Force
         exit 1
     }
 
-    $copied = 0
+    $copied  = 0
+    $missing = 0
+
     foreach ($file in $signedFiles) {
-        # Find the matching destination file in DriversDir by name
-        $destinations = Get-ChildItem -Path $DriversDir -Recurse -File -Filter $file.Name
-        foreach ($dest in $destinations) {
-            Copy-Item $file.FullName $dest.FullName -Force
-            Write-Output "    * [ATTESTED] $($dest.FullName.Replace($DriversDir, '').TrimStart('\'))"
-            $copied++
+        # Compute the path of this file relative to the anchor folder.
+        # e.g. anchorPath = ...\tempXYZ\drivers
+        #      file.FullName = ...\tempXYZ\drivers\filter\amd64\qcusbfilter.sys
+        #      relPath       = filter\amd64\qcusbfilter.sys
+        $relPath = $file.FullName.Substring($anchorPath.Length).TrimStart('\', '/')
+
+        # Map to the exact same relative path under the real DriversDir.
+        $destPath = Join-Path $DriversDir $relPath
+
+        if (-not (Test-Path $destPath)) {
+            Write-Output "    * [ERROR] Pre-attestation file not found for: $relPath"
+            $missing++
+            continue
         }
+
+        Copy-Item $file.FullName $destPath -Force
+        Write-Output "    * [ATTESTED] $relPath"
+        $copied++
     }
 
     Remove-Item $tempDir -Recurse -Force
 
+    Write-Output ""
     Write-Output "    * $copied file(s) replaced with attested versions."
+
+    if ($missing -gt 0) {
+        Write-Output "[ERROR] $missing attested file(s) had no matching pre-attestation destination."
+        exit 1
+    }
+
     Write-Output "[OK] Signed drivers extracted to: $DriversDir"
 }
 
@@ -289,9 +355,12 @@ Write-Output "    * SID: $SDCM_SID"
 Write-Output "> Download File"
 & $SCDM -productid $SDCM_PID -submissionid $SDCM_SID -download "${InputPath}.signed.zip"
 
-# Extract attested files back into the drivers directory
-$driversDir = Join-Path (Split-Path $InputPath -Parent) "drivers"
-Expand-SignedDrivers -SignedZip "${InputPath}.signed.zip" -DriversDir $driversDir
+# Extract attested files back into the drivers directory.
+# Resolve $InputPath first so Split-Path works correctly even when the
+# caller passes a relative path that contains ".." segments.
+$resolvedInputPath = (Resolve-Path $InputPath).Path
+$driversDir = Join-Path (Split-Path $resolvedInputPath -Parent) "drivers"
+Expand-SignedDrivers -SignedZip "${resolvedInputPath}.signed.zip" -DriversDir $driversDir
 
 Write-Output "> Done"
 Write-Output "    * Attested drivers: $driversDir"
