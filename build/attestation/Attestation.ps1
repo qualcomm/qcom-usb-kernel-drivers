@@ -202,9 +202,20 @@ function Expand-SignedDrivers {
     # -----------------------------------------------------------------------
     $driversDirName = Split-Path $DriversDir -Leaf   # e.g. "drivers"
 
-    # Walk up from any .cat/.sys file to find the folder whose name matches.
+        # The Microsoft portal wraps the signed content in an extra folder named
+    # after the drivers directory, producing a layout like:
+    #
+    #   drivers\          <- outer wrapper added by the portal
+    #     drivers\        <- inner folder from the CAB's DestinationDir
+    #       qcadb.cat
+    #       filter\amd64\qcusbfilter.sys
+    #
+    # We need the INNERMOST (deepest) folder named "drivers" as the anchor,
+    # not the outermost one, so we sort by FullName length descending and
+    # take the last (deepest) match.
     $anchorDir = Get-ChildItem -Path $tempDir -Recurse -Directory |
         Where-Object { $_.Name -eq $driversDirName } |
+        Sort-Object { $_.FullName.Length } -Descending |
         Select-Object -First 1
 
     if (-not $anchorDir) {
