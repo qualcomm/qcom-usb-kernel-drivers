@@ -20,7 +20,6 @@ $Script:DriversDir = "drivers"
 # Build configuration defaults
 $Script:BuildConfiguration = "Release"
 $Script:BuildPlatforms = @(
-    @{ Platform = "x86";   OutDir = "Win32"; CopyDir = "x86";   OSList = "10_X86" }
     @{ Platform = "x64";   OutDir = "x64";   CopyDir = "amd64"; OSList = "10_X64" }
     @{ Platform = "ARM64"; OutDir = "arm64"; CopyDir = "arm64"; OSList = "10_RS4_ARM64,10_RS5_ARM64,10_19H1_ARM64,10_VB_ARM64" }
 )

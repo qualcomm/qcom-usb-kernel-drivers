@@ -309,7 +309,13 @@ jobs:
       - name: Install WDK
         shell: pwsh
         run: |
-          $wdkUrl = "https://go.microsoft.com/fwlink/?linkid=2330411"
+          # Pinned to WDK 10.0.26100.6584 (Windows 11 25H2), the latest WDK
+          # supported with Visual Studio 2022, which is what the windows-2022
+          # runner provides. Using a direct linkid instead of the latest-WDK
+          # redirect prevents silent breakage when Microsoft ships a new WDK.
+          # To upgrade: verify the new WDK + VS2022 combination builds cleanly,
+          # then update this linkid and the comment above.
+          $wdkUrl = "https://go.microsoft.com/fwlink/?linkid=2335869"
           $wdkInstaller = "$env:TEMP\wdksetup.exe"
 
           Write-Host "Downloading WDK via curl (follows redirects)..."
