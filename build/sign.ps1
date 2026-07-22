@@ -4,7 +4,6 @@
 #Requires -Version 5.0
 
 param(
-    [switch]$Whql,
     [string]$InputFrom
 )
 
@@ -29,9 +28,6 @@ $Script:EvSignServerCommand = "SIGN_FILES"   # "SIGN_FILES" (SHA256) or "SIGN_FI
 $Script:EvSignTimeoutMs     = 60000          # TCP read timeout in milliseconds (1 minute)
 $Script:EvSignBufferSize    = 1024           # TCP receive buffer size in bytes
 $Script:EvSignEncoding      = [System.Text.Encoding]::ASCII
-
-# --- Attestation signing ---
-# $Script:AttestationApiUrl = ""
 
 # --- CAB packaging ---
 $Script:DdfFileName = "makecab.ddf"
@@ -128,17 +124,6 @@ function Sign-EvServer {
     finally {
         if ($tcpClient) { $tcpClient.Dispose() }
     }
-}
-
-# Signs a single file using attestation signing (future implementation).
-function Sign-Attestation {
-    param(
-        [Parameter(Mandatory)][string]$File
-    )
-
-    Write-Host "[ATTESTATION] Signing: $(Split-Path $File -Leaf)"
-    Write-Host "[WARN] Attestation signing is not yet implemented." -ForegroundColor Yellow
-    return $true
 }
 
 # ==============================================================================
@@ -242,27 +227,17 @@ function Main {
     }
     $inputPath = (Resolve-Path $inputPath).Path
 
-    # --- Single file mode ---
+        # --- Single file mode ---
     if (Test-Path $inputPath -PathType Leaf) {
         $ext = [IO.Path]::GetExtension($inputPath).ToLower()
         Write-Host "[INFO] Sign file: $inputPath"
+        Write-Host "[INFO] Sign method: EV`n"
 
-        if ($Whql) {
-            Write-Host "[INFO] Sign method: Attestation`n"
-            if ($ext -ne ".cab") {
-                Write-Host "[ERROR] Attestation signing requires .cab file, got: $ext" -ForegroundColor Red
-                exit 1
-            }
-            $signOk = Sign-Attestation -File $inputPath
+        if ($ext -notin $Script:SignableExtensions) {
+            Write-Host "[ERROR] Unsupported file type: $ext" -ForegroundColor Red
+            exit 1
         }
-        else {
-            Write-Host "[INFO] Sign method: EV`n"
-            if ($ext -notin $Script:SignableExtensions) {
-                Write-Host "[ERROR] Unsupported file type: $ext" -ForegroundColor Red
-                exit 1
-            }
-            $signOk = Sign-EvServer -File $inputPath
-        }
+        $signOk = Sign-EvServer -File $inputPath
 
         Write-Host ""
         if (-not $signOk) {
@@ -311,20 +286,11 @@ function Main {
     }
     Write-Host ""
 
-    if (-not (Sign-EvServer -File $cabPath)) {
+        if (-not (Sign-EvServer -File $cabPath)) {
         Write-Host "[ERROR] EV signing failed." -ForegroundColor Red
         exit 1
     }
     Write-Host ""
-
-    if ($Whql) {
-        Write-Host "[INFO] Starting attestation signing...`n" -ForegroundColor Cyan
-        if (-not (Sign-Attestation -File $cabPath)) {
-            Write-Host "[ERROR] Attestation signing failed." -ForegroundColor Red
-            exit 1
-        }
-        Write-Host ""
-    }
 
     Write-Host "[OK] All files signed successfully." -ForegroundColor Green
     exit 0

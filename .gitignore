@@ -38,3 +38,6 @@ RCa*
 *.pdb
 build/target/
 src/linux/build
+
+# Attestation secrets
+build/attestation/authconfig.json

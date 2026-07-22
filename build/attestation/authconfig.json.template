@@ -1,0 +1,10 @@
+[
+  {
+    "tenantId": "<your-tenant-id>",
+    "clientId": "<your-client-id>",
+    "scope":  "https://manage.devcenter.microsoft.com/.default",
+    "key": "<your-client-secret>",
+    "url": "https://manage.devcenter.microsoft.com",
+    "urlPrefix": "v2.0/my"
+  }
+]
