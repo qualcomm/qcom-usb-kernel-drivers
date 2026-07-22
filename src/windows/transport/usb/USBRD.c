@@ -1176,6 +1176,25 @@ void QCUSB_ReadThread(PDEVICE_EXTENSION pDevExt)
                     NULL
                 )
                     QCPWR_CancelIdleTimer(pDevExt, QCUSB_BUSY_WT, TRUE, 20);  // RX in progress, set busy and cancel idle IRP
+
+                // Acquire RemoveLock before calling IoCallDriver so that pDevExt
+                // cannot be freed by IoReleaseRemoveLockAndWait for the entire
+                // duration of this L2 IRP. A failed return value indicates that
+                // the device is in the process of being removed; therefore, the
+                // L2 thread should terminate.
+                ntStatus = IoAcquireRemoveLock(pDevExt->pRemoveLock, pIrp);
+                if (!NT_SUCCESS(ntStatus))
+                {
+                    QCUSB_DbgPrint
+                    (
+                        QCUSB_DBG_MASK_READ,
+                        QCUSB_DBG_LEVEL_CRITICAL,
+                        ("<%s> L2: AcquireRemoveLock failed 0x%x, device is being removed\n",
+                        pDevExt->PortName, ntStatus)
+                    );
+                    pDevExt->bL2Stopped = TRUE;
+                    goto wait_for_completion;
+                }
                 pDevExt->bL2ReadActive = TRUE;
                 ntStatus = IoCallDriver(pDevExt->StackDeviceObject, pIrp);
                 if (ntStatus != STATUS_PENDING)
@@ -1382,6 +1401,7 @@ wait_for_completion:
                                     IO_NO_INCREMENT,
                                     FALSE
                                 );
+                                IoReleaseRemoveLock(pDevExt->pRemoveLock, pIrp);
                                 goto wait_for_completion;
                             }
                         }
@@ -1395,6 +1415,7 @@ wait_for_completion:
                         FALSE
                     );
 
+                    IoReleaseRemoveLock(pDevExt->pRemoveLock, pIrp);
                     continue;
                 }
 
@@ -1411,6 +1432,7 @@ wait_for_completion:
                     pDevExt->bL2Stopped = TRUE;
                 }
 
+                IoReleaseRemoveLock(pDevExt->pRemoveLock, pIrp);
                 break;
             }
 
