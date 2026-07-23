@@ -81,8 +81,8 @@ function Assert-DriversSigned {
             continue
         }
 
-        # signtool verify /pa = verify against default auth policy (works for both EV and attested)
-        $result = & $signtool verify /pa /q $fullPath 2>&1
+        # signtool verify /kp = verify against kernel-mode driver signing policy (WHQL only)
+        $result = & $signtool verify /kp /q $fullPath 2>&1
         if ($LASTEXITCODE -ne 0) {
             $unsigned += $rel
             Write-Host "[UNSIGNED] $rel" -ForegroundColor Red
@@ -96,17 +96,14 @@ function Assert-DriversSigned {
     if ($missing.Count -gt 0) {
         Write-Host "[ERROR] The following required files are missing:" -ForegroundColor Red
         $missing | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
-        Write-Host ""
+        Write-Host "[ERROR] Catalog file integrity verification failed. Please try rebuilding the drivers. `n" -ForegroundColor Red
+        exit 1
     }
 
     if ($unsigned.Count -gt 0) {
         Write-Host "[ERROR] The following files are not signed:" -ForegroundColor Red
         $unsigned | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
-        Write-Host ""
-    }
-
-        if ($missing.Count -gt 0 -or $unsigned.Count -gt 0) {
-        Write-Host "[ERROR] Catalog signature verification failed. Run AttestDrivers.bat to get Microsoft-attested .cat files before building the installer." -ForegroundColor Red
+        Write-Host "[ERROR] WHQL signature verification failed. Please run AttestDrivers.bat to get WHQL sign for all .cat files before building the installer. `n" -ForegroundColor Red
         exit 1
     }
 
