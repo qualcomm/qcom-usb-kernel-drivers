@@ -227,7 +227,7 @@ function Main {
     }
     $inputPath = (Resolve-Path $inputPath).Path
 
-        # --- Single file mode ---
+    # --- Single file mode ---
     if (Test-Path $inputPath -PathType Leaf) {
         $ext = [IO.Path]::GetExtension($inputPath).ToLower()
         Write-Host "[INFO] Sign file: $inputPath"
