@@ -36,8 +36,11 @@ RCa*
 *.ddf
 *.sys
 *.pdb
+*.zip
+*.cab
 build/target/
 src/linux/build
 
 # Attestation secrets
 build/attestation/authconfig.json
+build/attestation/sdcm-src

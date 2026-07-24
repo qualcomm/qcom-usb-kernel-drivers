@@ -16,7 +16,7 @@ $Script:DefaultInputRoot = "target"
 $Script:InputSubDir = "drivers"
 
 # Whether to recurse into subdirectories when scanning for signable files
-$Script:Recurse = $false
+$Script:Recurse = $true
 
 # Supported file extensions for signing
 $Script:SignableExtensions = @(".cat", ".exe", ".sys", ".cab")
@@ -134,7 +134,7 @@ function Sign-EvServer {
 # Returns the CAB file path on success, or $false on failure.
 function Make-Cabinet {
     param(
-        [Parameter(Mandatory)][string]$SourceDir,   # e.g. target\Drivers\Windows10
+        [Parameter(Mandatory)][string]$SourceDir,   # e.g. target\drivers
         [Parameter(Mandatory)][string]$OutputDir    # e.g. target
     )
 
@@ -227,7 +227,7 @@ function Main {
     }
     $inputPath = (Resolve-Path $inputPath).Path
 
-        # --- Single file mode ---
+    # --- Single file mode ---
     if (Test-Path $inputPath -PathType Leaf) {
         $ext = [IO.Path]::GetExtension($inputPath).ToLower()
         Write-Host "[INFO] Sign file: $inputPath"
@@ -249,24 +249,25 @@ function Main {
     }
 
     # --- Batch mode (directory) ---
-    $outputDir = $inputPath
-    $driverDir = Join-Path $inputPath $Script:InputSubDir
+    if (-not $InputFrom) {
+        # sign target\drivers, then package into CAB
+        $outputDir = $inputPath                                # target
+        $inputPath = Join-Path $inputPath $Script:InputSubDir  # target\drivers
+    }
 
-    Write-Host "[INFO] Batch mode"
-
-    if (-not (Test-Path $driverDir)) {
-        Write-Host "[ERROR] Driver directory not found: $driverDir" -ForegroundColor Red
+    if (-not (Test-Path $inputPath)) {
+        Write-Host "[ERROR] Driver directory not found: $inputPath" -ForegroundColor Red
         exit 1
     }
 
-    $files = @(Get-ChildItem $driverDir -Recurse:$Script:Recurse -File |
+    $files = @(Get-ChildItem $inputPath -Recurse:$Script:Recurse -File |
         Where-Object { $_.Extension.ToLower() -in $Script:SignableExtensions })
 
     if ($files.Count -eq 0) {
         Write-Host "[WARN] No signable files found." -ForegroundColor Yellow
         exit 0
     }
-    Write-Host "[INFO] $($files.Count) file(s) found in $driverDir"
+    Write-Host "[INFO] $($files.Count) file(s) found in $inputPath"
     Write-Host ""
 
     Write-Host "[INFO] Starting EV signing...`n" -ForegroundColor Cyan
@@ -278,19 +279,22 @@ function Main {
         Write-Host ""
     }
 
-    Write-Host "[INFO] Creating CAB from $driverDir`n" -ForegroundColor Cyan
-    $cabPath = Make-Cabinet -SourceDir $driverDir -OutputDir $outputDir
-    if (-not $cabPath) {
-        Write-Host "[ERROR] CAB creation failed." -ForegroundColor Red
-        exit 1
-    }
-    Write-Host ""
+    # Generates DDF/CAB for the default mode
+    if (-not $InputFrom) {
+        Write-Host "[INFO] Creating CAB from $inputPath`n" -ForegroundColor Cyan
+        $cabPath = Make-Cabinet -SourceDir $inputPath -OutputDir $outputDir
+        if (-not $cabPath) {
+            Write-Host "[ERROR] CAB creation failed." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host ""
 
         if (-not (Sign-EvServer -File $cabPath)) {
-        Write-Host "[ERROR] EV signing failed." -ForegroundColor Red
-        exit 1
+            Write-Host "[ERROR] EV signing failed." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host ""
     }
-    Write-Host ""
 
     Write-Host "[OK] All files signed successfully." -ForegroundColor Green
     exit 0
