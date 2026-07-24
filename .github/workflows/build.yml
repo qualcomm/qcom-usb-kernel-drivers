@@ -1,0 +1,412 @@
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+# SPDX-License-Identifier: BSD-3-Clause
+name: Build
+
+on: [pull_request]
+
+jobs:
+  # ============================================================
+  # Linux: build kernel modules
+  # ============================================================
+  build-linux:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install kernel headers and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            linux-headers-$(uname -r) \
+            linux-modules-$(uname -r) \
+            kmod
+
+      - name: Locate dependency Module.symvers files
+        run: |
+          # usbnet and usbserial may be loadable modules OR built into the kernel.
+          # Strategy (in priority order):
+          #   1. Mine the kernel build-tree Module.symvers (covers both cases when present)
+          #   2. Extract exported symbols + real CRCs from .ko ELF files (module case)
+          #   3. Synthesize from /proc/kallsyms (built-in / last-resort fallback)
+          # The result is passed via KBUILD_EXTRA_SYMBOLS so modpost can resolve them.
+          set -euo pipefail
+          KREL=$(uname -r)
+          SYMVERS_OUT=/tmp/deps.symvers
+          mkdir -p /tmp
+          > "$SYMVERS_OUT"   # start fresh
+
+          # ── Step 1: check if the kernel build-tree Module.symvers already covers ──
+          # the needed symbols.  If it does, modpost will load them automatically
+          # and we must NOT pass them again via KBUILD_EXTRA_SYMBOLS (that would
+          # cause "exported twice" errors).  We only need KBUILD_EXTRA_SYMBOLS when
+          # the build-tree Module.symvers is absent or missing the required symbols.
+          NEEDED_SYMS_CHECK="usbnet_probe usbnet_disconnect usbnet_suspend usbnet_resume \
+                             usbnet_start_xmit usbnet_change_mtu usbnet_skb_return \
+                             usbnet_link_change usb_serial_generic_open usb_serial_suspend \
+                             usb_serial_resume"
+          SYS_SYMVERS=/lib/modules/$KREL/build/Module.symvers
+          NEED_EXTRA=false
+          if [ -f "$SYS_SYMVERS" ]; then
+            echo "Checking system Module.symvers for required symbols..."
+            for SYM in $NEEDED_SYMS_CHECK; do
+              if ! grep -qP "\t${SYM}\t" "$SYS_SYMVERS" 2>/dev/null; then
+                echo "  Missing in build-tree Module.symvers: $SYM"
+                NEED_EXTRA=true
+              fi
+            done
+            if [ "$NEED_EXTRA" = "false" ]; then
+              echo "All required symbols found in build-tree Module.symvers — skipping KBUILD_EXTRA_SYMBOLS."
+              echo "EXTRA_SYMVERS=" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          else
+            echo "No build-tree Module.symvers found — will build KBUILD_EXTRA_SYMBOLS."
+            NEED_EXTRA=true
+          fi
+
+          # ── Step 2: extract exported symbols + CRCs from .ko ELF files ─────────
+          # modprobe --dump-modversions lists *imported* symbols, not exported ones.
+          # We instead parse the ELF __ksymtab/__kcrctab sections directly with nm
+          # and objdump, which gives us the real CRC values required when the kernel
+          # is built with CONFIG_MODVERSIONS=y.
+          decompress_ko() {
+            local src="$1"
+            local base
+            base=$(basename "$src")
+            base=${base%.zst}; base=${base%.xz}
+            local dst="/tmp/$base"
+            case "$src" in
+              *.zst) zstd -d --force -o "$dst" "$src" ;;
+              *.xz)  xz -dk --stdout "$src" > "$dst" ;;
+              *)     cp -f "$src" "$dst" ;;
+            esac
+            echo "$dst"
+          }
+
+          # Extract exported symbols with real CRCs from a plain (uncompressed) .ko.
+          # Writes Module.symvers-format lines to stdout.
+          # Uses readelf to correctly map __ksymtab_ and __crc_ symbols to their
+          # respective ELF sections (__ksymtab vs __ksymtab_gpl, __kcrctab vs
+          # __kcrctab_gpl), avoiding offset collisions that occur when using nm alone.
+          ko_exported_symvers() {
+            local ko="$1"
+            local modname
+            modname=$(basename "$ko" .ko)
+            python3 - "$ko" "$modname" <<'PYEOF'
+          import subprocess, struct, sys, re
+
+          ko_path = sys.argv[1]
+          modname = sys.argv[2]
+
+          # ── Step 1: section index -> name mapping ──
+          readelf_S = subprocess.run(
+              ['readelf', '-S', '--wide', ko_path], capture_output=True, text=True
+          ).stdout
+          section_idx_to_name = {}
+          for line in readelf_S.splitlines():
+              m = re.match(r'\s*\[\s*(\d+)\]\s+(\S+)', line)
+              if m:
+                  section_idx_to_name[int(m.group(1))] = m.group(2)
+
+          # ── Step 2: parse __ksymtab_ and __crc_ symbols with section indices ──
+          readelf_s = subprocess.run(
+              ['readelf', '-s', '--wide', ko_path], capture_output=True, text=True
+          ).stdout
+          exported = {}    # sym_name -> export_type
+          crc_entries = {} # sym_name -> (section_name, offset)
+
+          for line in readelf_s.splitlines():
+              m = re.match(
+                  r'\s*\d+:\s+([0-9a-fA-F]+)\s+\d+\s+\S+\s+\S+\s+\S+\s+(\d+)\s+(\S+)', line
+              )
+              if not m:
+                  continue
+              offset   = int(m.group(1), 16)
+              sec_idx  = int(m.group(2))
+              sym_name = m.group(3)
+              sec_name = section_idx_to_name.get(sec_idx, '')
+
+              if sym_name.startswith('__ksymtab_'):
+                  real_sym = sym_name[len('__ksymtab_'):]
+                  if sec_name == '__ksymtab_gpl':
+                      exported[real_sym] = 'EXPORT_SYMBOL_GPL'
+                  elif sec_name == '__ksymtab':
+                      exported.setdefault(real_sym, 'EXPORT_SYMBOL')
+              elif sym_name.startswith('__crc_'):
+                  real_sym = sym_name[len('__crc_'):]
+                  if sec_name in ('__kcrctab_gpl', '__kcrctab'):
+                      crc_entries[real_sym] = (sec_name, offset)
+
+          if not exported:
+              sys.exit(0)
+
+          # ── Step 3: read section data and extract CRC values ──
+          def parse_objdump_hex(section_name, ko):
+              """Return bytearray of section contents from objdump -s output."""
+              out = subprocess.run(
+                  ['objdump', '-s', '-j', section_name, ko],
+                  capture_output=True, text=True
+              ).stdout
+              data = bytearray()
+              for line in out.splitlines():
+                  parts = line.strip().split()
+                  if not parts:
+                      continue
+                  try:
+                      int(parts[0], 16)
+                  except ValueError:
+                      continue
+                  for h in parts[1:]:
+                      if re.fullmatch(r'[0-9a-fA-F]{8}', h):
+                          data.extend(bytes.fromhex(h))
+                      else:
+                          break
+              return data
+
+          section_data = {}
+          crcs = {}
+          for sym, (sec_name, offset) in crc_entries.items():
+              if sym not in exported:
+                  continue
+              if sec_name not in section_data:
+                  section_data[sec_name] = parse_objdump_hex(sec_name, ko_path)
+              data = section_data[sec_name]
+              if offset + 4 <= len(data):
+                  crc = struct.unpack_from('<I', data, offset)[0]
+                  crcs[sym] = crc
+
+          for sym, etype in sorted(exported.items()):
+              crc = crcs.get(sym, 0x00000000)
+              print(f'0x{crc:08x}\t{sym}\t{modname}\t{etype}')
+          PYEOF
+          }
+
+          for MODNAME in usbnet usbserial; do
+            KO_PATH=$(find /lib/modules/$KREL -name "${MODNAME}.ko*" 2>/dev/null | head -n1)
+            if [ -n "$KO_PATH" ]; then
+              echo "Found module: $KO_PATH"
+              PLAIN_KO=$(decompress_ko "$KO_PATH")
+              # Only add symbols not already covered by Step 1
+              while IFS= read -r line; do
+                SYM=$(echo "$line" | awk '{print $2}')
+                if [ -n "$SYM" ] && ! grep -qP "\t${SYM}\t" "$SYMVERS_OUT" 2>/dev/null; then
+                  echo "$line" >> "$SYMVERS_OUT"
+                fi
+              done < <(ko_exported_symvers "$PLAIN_KO" 2>/dev/null || true)
+            fi
+          done
+
+          # ── Step 3: synthesize from /proc/kallsyms (built-in / last-resort) ────
+          # When usbnet/usbserial are compiled into the kernel there are no .ko files.
+          # /proc/kallsyms lists every exported symbol as __ksymtab_<sym> entries.
+          # We use a placeholder CRC of 0x00000000; modpost emits a version-mismatch
+          # warning but does NOT fail the build — acceptable for CI validation.
+          if [ -r /proc/kallsyms ]; then
+            for SYM in $NEEDED_SYMS_CHECK; do
+              # Skip if already present from steps 1/2
+              if grep -qP "\t${SYM}\t" "$SYMVERS_OUT" 2>/dev/null; then
+                continue
+              fi
+              # __ksymtab_<sym> in kallsyms means the symbol is exported.
+              # The symbol line may have a trailing [module] suffix so we do NOT
+              # anchor with $ — match the symbol name as a whole word instead.
+              if grep -qE "__ksymtab_${SYM}([[:space:]]|$)" /proc/kallsyms 2>/dev/null; then
+                echo "Synthesizing from kallsyms: $SYM"
+                printf '0x00000000\t%s\tvmlinux\tEXPORT_SYMBOL\n' "$SYM" >> "$SYMVERS_OUT"
+              fi
+            done
+          fi
+
+          LINES=$(wc -l < "$SYMVERS_OUT")
+          echo "--- $SYMVERS_OUT ($LINES entries) ---"
+          cat "$SYMVERS_OUT" || true
+
+          if [ "$LINES" -eq 0 ]; then
+            echo "WARNING: No dependency symbols found; build may fail with undefined symbol errors."
+          fi
+
+          echo "EXTRA_SYMVERS=$SYMVERS_OUT" >> "$GITHUB_ENV"
+
+      - name: Build kernel modules
+        working-directory: src/linux
+        run: |
+          if [ -s "${EXTRA_SYMVERS:-}" ]; then
+            make KBUILD_EXTRA_SYMBOLS="$EXTRA_SYMVERS"
+          else
+            make
+          fi
+
+      - name: Verify build outputs
+        working-directory: src/linux
+        run: |
+          echo "=== Built kernel modules ==="
+          find . -name "*.ko" | sort
+          test -f InfParser/qtiDevInf.ko  || (echo "ERROR: qtiDevInf.ko not found"  && exit 1)
+          test -f qcom_usb/qcom_usb.ko    || (echo "ERROR: qcom_usb.ko not found"    && exit 1)
+          test -f qcom_usbnet/qcom_usbnet.ko || (echo "ERROR: qcom_usbnet.ko not found" && exit 1)
+
+      - name: Upload Linux build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-kernel-modules-${{ matrix.os }}
+          path: |
+            src/linux/**/*.ko
+          retention-days: 7
+
+  # ============================================================
+  # Linux: build .deb package (ubuntu-22.04 only)
+  # ============================================================
+  build-deb:
+    runs-on: ubuntu-22.04
+    needs: build-linux
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dpkg tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg
+
+      - name: Build .deb package
+        working-directory: src/linux
+        run: bash build-deb.sh
+
+      - name: Verify .deb package
+        working-directory: src/linux
+        run: |
+          DEB=$(find build -name "*.deb" | head -n 1)
+          echo "Package: $DEB"
+          test -n "$DEB" || (echo "ERROR: No .deb file produced" && exit 1)
+          dpkg-deb -I "$DEB"
+          dpkg-deb -c "$DEB"
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-deb-package
+          path: src/linux/build/*.deb
+          retention-days: 7
+
+  # ============================================================
+  # Windows: build drivers (x86, x64, arm64)
+  # ============================================================
+  build-windows-drivers:
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install WDK
+        shell: pwsh
+        run: |
+          # Pinned to WDK 10.0.26100.6584 (Windows 11 25H2), the latest WDK
+          # supported with Visual Studio 2022, which is what the windows-2022
+          # runner provides. Using a direct linkid instead of the latest-WDK
+          # redirect prevents silent breakage when Microsoft ships a new WDK.
+          # To upgrade: verify the new WDK + VS2022 combination builds cleanly,
+          # then update this linkid and the comment above.
+          $wdkUrl = "https://go.microsoft.com/fwlink/?linkid=2335869"
+          $wdkInstaller = "$env:TEMP\wdksetup.exe"
+
+          Write-Host "Downloading WDK via curl (follows redirects)..."
+          & curl.exe -L --retry 3 --retry-delay 5 -o $wdkInstaller $wdkUrl
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "ERROR: curl download failed with exit code $LASTEXITCODE" -ForegroundColor Red
+            exit $LASTEXITCODE
+          }
+
+          $fileSize = (Get-Item $wdkInstaller).Length
+          Write-Host "Downloaded installer size: $fileSize bytes"
+          if ($fileSize -lt 1MB) {
+            Write-Host "ERROR: Downloaded file is too small ($fileSize bytes) -- likely corrupted or a redirect page." -ForegroundColor Red
+            exit 1
+          }
+
+          Write-Host "Installing WDK silently..."
+          $proc = Start-Process -FilePath $wdkInstaller `
+                                -ArgumentList "/quiet /norestart" `
+                                -PassThru -Wait
+          if ($proc.ExitCode -ne 0) {
+            Write-Host "ERROR: WDK installer exited with code $($proc.ExitCode)" -ForegroundColor Red
+            exit $proc.ExitCode
+          }
+          Write-Host "WDK installation complete."
+
+      - name: Build Windows drivers (x86, x64, arm64)
+        shell: pwsh
+        working-directory: build
+        run: |
+          powershell -ExecutionPolicy Bypass -File "build_drivers.ps1" -OutputTo "$env:GITHUB_WORKSPACE\build\target"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify driver build outputs
+        shell: pwsh
+        run: |
+          $driversDir = "build\target\drivers"
+          Write-Host "=== Driver build outputs ==="
+          Get-ChildItem -Path $driversDir -Recurse -File | Select-Object FullName | Format-Table -AutoSize
+          $sysFiles = Get-ChildItem -Path $driversDir -Recurse -Filter "*.sys"
+          if ($sysFiles.Count -eq 0) {
+            Write-Host "ERROR: No .sys files found in $driversDir" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "Found $($sysFiles.Count) .sys file(s)." -ForegroundColor Green
+
+      - name: Upload Windows driver artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-drivers
+          path: build/target/drivers/
+          retention-days: 7
+
+  # ============================================================
+  # Windows: build tools (x86, x64, arm64)
+  # ============================================================
+  build-windows-tools:
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Windows tools for all architectures
+        shell: cmd
+        working-directory: build
+        run: |
+          for %%A in (x86 x64 arm64) do (
+            powershell -ExecutionPolicy Bypass -File "build_tools.ps1" -Platform %%A -OutputTo "%GITHUB_WORKSPACE%\build\target"
+            if errorlevel 1 exit /b 1
+          )
+
+      - name: Verify tools build outputs
+        shell: pwsh
+        run: |
+          $toolsDir = "build\target\tools"
+          Write-Host "=== Tools build outputs ==="
+          Get-ChildItem -Path $toolsDir -Recurse -File | Select-Object FullName | Format-Table -AutoSize
+          $exeFiles = Get-ChildItem -Path $toolsDir -Recurse -Filter "*.exe"
+          if ($exeFiles.Count -eq 0) {
+            Write-Host "ERROR: No .exe files found in $toolsDir" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "Found $($exeFiles.Count) .exe file(s)." -ForegroundColor Green
+
+      - name: Upload Windows tools artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-tools
+          path: build/target/tools/
+          retention-days: 7
+

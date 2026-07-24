@@ -13,6 +13,16 @@ GENERAL DESCRIPTION
 #define INFDEV_H
 
 #include <stdlib.h>
+
+// Workaround for a bug in Windows SDK 10.0.26100.0 where winnt.h references
+// _CountOneBits64, an intrinsic that is not available in the ARM64 MSVC
+// compiler. Defining it as __popcnt64 (the correct ARM64 equivalent) before
+// windows.h is included prevents the C3861 "identifier not found" error.
+#if defined(_M_ARM64) && !defined(_CountOneBits64)
+#include <intrin.h>
+#define _CountOneBits64 __popcnt64
+#endif
+
 #include <windows.h>
 #include <cfgmgr32.h>
 #include <setupapi.h>
