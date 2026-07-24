@@ -1145,7 +1145,19 @@ ULONG MPQMI_OIDtoQMI
                 pOID->OIDRespLen = sizeof(NDIS_WWAN_REGISTRATION_STATE);
                 pNdisRegisterState = (PNDIS_WWAN_REGISTRATION_STATE)pOID->pOIDResp;
                 pNdisRegisterState->Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
+                #if (NTDDI_VERSION >= NTDDI_WIN10_19H1)
+
+                pNdisRegisterState->Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_4;
+
+                #elif (_WIN32_WINNT >= _WIN32_WINNT_WIN8 || NTDDI_VERSION >= NTDDI_WIN8)
+
+                pNdisRegisterState->Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_2;
+
+                #else
+
                 pNdisRegisterState->Header.Revision = NDIS_WWAN_REGISTRATION_STATE_REVISION_1;
+
+                #endif
                 pNdisRegisterState->Header.Size = sizeof(NDIS_WWAN_REGISTRATION_STATE);
 
                 pOID->IndicationType = NDIS_STATUS_WWAN_REGISTER_STATE;
