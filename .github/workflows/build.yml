@@ -403,9 +403,55 @@ jobs:
           }
           Write-Host "Found $($exeFiles.Count) .exe file(s)." -ForegroundColor Green
 
-      - name: Upload Windows tools artifacts
+                  - name: Upload Windows tools artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-tools
           path: build/target/tools/
+          retention-days: 7
+
+  # ============================================================
+  # Windows: build installers (x86, x64, arm64)
+  # ============================================================
+  build-windows-installer:
+    runs-on: windows-2022
+    needs: build-windows-drivers
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Download Windows driver artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-drivers
+          path: build/target/drivers
+
+      - name: Build Windows installers (x86, x64, arm64) — skip signing
+        shell: cmd
+        working-directory: build
+        run: |
+          call build_installer.bat --no_sign_required
+          if errorlevel 1 exit /b 1
+
+      - name: Verify installer outputs
+        shell: pwsh
+        run: |
+          $targetDir = "build\target"
+          Write-Host "=== Installer build outputs ==="
+          Get-ChildItem -Path $targetDir -Filter "*.exe" | Select-Object FullName | Format-Table -AutoSize
+          $exeFiles = Get-ChildItem -Path $targetDir -Filter "qcom_usb_kernel_drivers_*.exe"
+          if ($exeFiles.Count -eq 0) {
+            Write-Host "ERROR: No installer .exe files found in $targetDir" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "Found $($exeFiles.Count) installer(s)." -ForegroundColor Green
+
+      - name: Upload Windows installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installers
+          path: build/target/qcom_usb_kernel_drivers_*.exe
           retention-days: 7
