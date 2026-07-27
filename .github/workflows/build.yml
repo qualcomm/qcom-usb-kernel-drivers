@@ -2,7 +2,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 name: Build
 
-on: [pull_request]
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   # ============================================================
@@ -403,7 +405,7 @@ jobs:
           }
           Write-Host "Found $($exeFiles.Count) .exe file(s)." -ForegroundColor Green
 
-                  - name: Upload Windows tools artifacts
+                        - name: Upload Windows tools artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-tools
