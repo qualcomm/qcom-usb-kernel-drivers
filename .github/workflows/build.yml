@@ -27,62 +27,52 @@ jobs:
             build-essential \
             linux-headers-$(uname -r) \
             linux-modules-$(uname -r) \
-            kmod
+            linux-modules-extra-$(uname -r) \
+            kmod \
+            binutils \
+            python3
 
       - name: Locate dependency Module.symvers files
         run: |
           # usbnet and usbserial may be loadable modules OR built into the kernel.
           # Strategy (in priority order):
-          #   1. Mine the kernel build-tree Module.symvers (covers both cases when present)
-          #   2. Extract exported symbols + real CRCs from .ko ELF files (module case)
-          #   3. Synthesize from /proc/kallsyms (built-in / last-resort fallback)
-          # The result is passed via KBUILD_EXTRA_SYMBOLS so modpost can resolve them.
+          #   1. Use the kernel build-tree Module.symvers if it already covers all
+          #      required symbols — modpost picks it up automatically, no extra flags.
+          #   2. Extract exported symbols + real CRCs from .ko ELF files.
+          #      linux-modules-extra-$(uname -r) is installed above so the .ko files
+          #      are always present on the runner even when the symbols are also
+          #      built into the kernel image.
+          #   3. Synthesize 0x00000000 CRC stubs from /proc/kallsyms as a last resort
+          #      (modpost warns but does not fail — acceptable for CI).
           set -euo pipefail
           KREL=$(uname -r)
           SYMVERS_OUT=/tmp/deps.symvers
-          mkdir -p /tmp
-          > "$SYMVERS_OUT"   # start fresh
+          > "$SYMVERS_OUT"
 
-          # ── Step 1: check if the kernel build-tree Module.symvers already covers ──
-          # the needed symbols.  If it does, modpost will load them automatically
-          # and we must NOT pass them again via KBUILD_EXTRA_SYMBOLS (that would
-          # cause "exported twice" errors).  We only need KBUILD_EXTRA_SYMBOLS when
-          # the build-tree Module.symvers is absent or missing the required symbols.
-          NEEDED_SYMS_CHECK="usbnet_probe usbnet_disconnect usbnet_suspend usbnet_resume \
-                             usbnet_start_xmit usbnet_change_mtu usbnet_skb_return \
-                             usbnet_link_change usb_serial_generic_open usb_serial_suspend \
-                             usb_serial_resume"
+          NEEDED_SYMS="usbnet_probe usbnet_disconnect usbnet_suspend usbnet_resume \
+                       usbnet_start_xmit usbnet_change_mtu usbnet_skb_return \
+                       usbnet_link_change usb_serial_generic_open usb_serial_suspend \
+                       usb_serial_resume"
+
+          # ── Step 1: kernel build-tree Module.symvers ──────────────────────────
           SYS_SYMVERS=/lib/modules/$KREL/build/Module.symvers
-          NEED_EXTRA=false
           if [ -f "$SYS_SYMVERS" ]; then
-            echo "Checking system Module.symvers for required symbols..."
-            for SYM in $NEEDED_SYMS_CHECK; do
-              if ! grep -qP "\t${SYM}\t" "$SYS_SYMVERS" 2>/dev/null; then
-                echo "  Missing in build-tree Module.symvers: $SYM"
-                NEED_EXTRA=true
-              fi
+            MISSING=false
+            for SYM in $NEEDED_SYMS; do
+              grep -qP "\t${SYM}\t" "$SYS_SYMVERS" 2>/dev/null || { MISSING=true; break; }
             done
-            if [ "$NEED_EXTRA" = "false" ]; then
-              echo "All required symbols found in build-tree Module.symvers — skipping KBUILD_EXTRA_SYMBOLS."
+            if [ "$MISSING" = "false" ]; then
+              echo "All required symbols present in build-tree Module.symvers — no KBUILD_EXTRA_SYMBOLS needed."
               echo "EXTRA_SYMVERS=" >> "$GITHUB_ENV"
               exit 0
             fi
-          else
-            echo "No build-tree Module.symvers found — will build KBUILD_EXTRA_SYMBOLS."
-            NEED_EXTRA=true
+            echo "Some symbols missing from build-tree Module.symvers — building supplemental symvers."
           fi
 
-          # ── Step 2: extract exported symbols + CRCs from .ko ELF files ─────────
-          # modprobe --dump-modversions lists *imported* symbols, not exported ones.
-          # We instead parse the ELF __ksymtab/__kcrctab sections directly with nm
-          # and objdump, which gives us the real CRC values required when the kernel
-          # is built with CONFIG_MODVERSIONS=y.
+          # ── Step 2: extract from .ko ELF files ───────────────────────────────
           decompress_ko() {
-            local src="$1"
-            local base
-            base=$(basename "$src")
-            base=${base%.zst}; base=${base%.xz}
-            local dst="/tmp/$base"
+            local src="$1" dst
+            dst="/tmp/$(basename "${src%.zst}" .xz)"
             case "$src" in
               *.zst) zstd -d --force -o "$dst" "$src" ;;
               *.xz)  xz -dk --stdout "$src" > "$dst" ;;
@@ -91,70 +81,45 @@ jobs:
             echo "$dst"
           }
 
-          # Extract exported symbols with real CRCs from a plain (uncompressed) .ko.
-          # Writes Module.symvers-format lines to stdout.
-          # Uses readelf to correctly map __ksymtab_ and __crc_ symbols to their
-          # respective ELF sections (__ksymtab vs __ksymtab_gpl, __kcrctab vs
-          # __kcrctab_gpl), avoiding offset collisions that occur when using nm alone.
           ko_exported_symvers() {
-            local ko="$1"
-            local modname
+            local ko="$1" modname
             modname=$(basename "$ko" .ko)
             python3 - "$ko" "$modname" <<'PYEOF'
           import subprocess, struct, sys, re
+          ko_path, modname = sys.argv[1], sys.argv[2]
 
-          ko_path = sys.argv[1]
-          modname = sys.argv[2]
-
-          # ── Step 1: section index -> name mapping ──
-          readelf_S = subprocess.run(
-              ['readelf', '-S', '--wide', ko_path], capture_output=True, text=True
-          ).stdout
-          section_idx_to_name = {}
+          readelf_S = subprocess.run(['readelf', '-S', '--wide', ko_path],
+                                     capture_output=True, text=True).stdout
+          sec_names = {}
           for line in readelf_S.splitlines():
               m = re.match(r'\s*\[\s*(\d+)\]\s+(\S+)', line)
               if m:
-                  section_idx_to_name[int(m.group(1))] = m.group(2)
+                  sec_names[int(m.group(1))] = m.group(2)
 
-          # ── Step 2: parse __ksymtab_ and __crc_ symbols with section indices ──
-          readelf_s = subprocess.run(
-              ['readelf', '-s', '--wide', ko_path], capture_output=True, text=True
-          ).stdout
-          exported = {}    # sym_name -> export_type
-          crc_entries = {} # sym_name -> (section_name, offset)
-
+          readelf_s = subprocess.run(['readelf', '-s', '--wide', ko_path],
+                                     capture_output=True, text=True).stdout
+          exported, crc_entries = {}, {}
           for line in readelf_s.splitlines():
-              m = re.match(
-                  r'\s*\d+:\s+([0-9a-fA-F]+)\s+\d+\s+\S+\s+\S+\s+\S+\s+(\d+)\s+(\S+)', line
-              )
+              m = re.match(r'\s*\d+:\s+([0-9a-fA-F]+)\s+\d+\s+\S+\s+\S+\s+\S+\s+(\d+)\s+(\S+)', line)
               if not m:
                   continue
-              offset   = int(m.group(1), 16)
-              sec_idx  = int(m.group(2))
-              sym_name = m.group(3)
-              sec_name = section_idx_to_name.get(sec_idx, '')
-
-              if sym_name.startswith('__ksymtab_'):
-                  real_sym = sym_name[len('__ksymtab_'):]
-                  if sec_name == '__ksymtab_gpl':
-                      exported[real_sym] = 'EXPORT_SYMBOL_GPL'
-                  elif sec_name == '__ksymtab':
-                      exported.setdefault(real_sym, 'EXPORT_SYMBOL')
-              elif sym_name.startswith('__crc_'):
-                  real_sym = sym_name[len('__crc_'):]
-                  if sec_name in ('__kcrctab_gpl', '__kcrctab'):
-                      crc_entries[real_sym] = (sec_name, offset)
+              offset, sec_idx, sym = int(m.group(1), 16), int(m.group(2)), m.group(3)
+              sec = sec_names.get(sec_idx, '')
+              if sym.startswith('__ksymtab_'):
+                  real = sym[len('__ksymtab_'):]
+                  if sec == '__ksymtab_gpl':
+                      exported[real] = 'EXPORT_SYMBOL_GPL'
+                  elif sec == '__ksymtab':
+                      exported.setdefault(real, 'EXPORT_SYMBOL')
+              elif sym.startswith('__crc_') and sec in ('__kcrctab_gpl', '__kcrctab'):
+                  crc_entries[sym[len('__crc_'):]] = (sec, offset)
 
           if not exported:
               sys.exit(0)
 
-          # ── Step 3: read section data and extract CRC values ──
-          def parse_objdump_hex(section_name, ko):
-              """Return bytearray of section contents from objdump -s output."""
-              out = subprocess.run(
-                  ['objdump', '-s', '-j', section_name, ko],
-                  capture_output=True, text=True
-              ).stdout
+          def section_bytes(sec_name):
+              out = subprocess.run(['objdump', '-s', '-j', sec_name, ko_path],
+                                   capture_output=True, text=True).stdout
               data = bytearray()
               for line in out.splitlines():
                   parts = line.strip().split()
@@ -171,55 +136,40 @@ jobs:
                           break
               return data
 
-          section_data = {}
-          crcs = {}
-          for sym, (sec_name, offset) in crc_entries.items():
+          sec_data, crcs = {}, {}
+          for sym, (sec, off) in crc_entries.items():
               if sym not in exported:
                   continue
-              if sec_name not in section_data:
-                  section_data[sec_name] = parse_objdump_hex(sec_name, ko_path)
-              data = section_data[sec_name]
-              if offset + 4 <= len(data):
-                  crc = struct.unpack_from('<I', data, offset)[0]
-                  crcs[sym] = crc
+              if sec not in sec_data:
+                  sec_data[sec] = section_bytes(sec)
+              if off + 4 <= len(sec_data[sec]):
+                  crcs[sym] = struct.unpack_from('<I', sec_data[sec], off)[0]
 
           for sym, etype in sorted(exported.items()):
-              crc = crcs.get(sym, 0x00000000)
-              print(f'0x{crc:08x}\t{sym}\t{modname}\t{etype}')
+              print(f'0x{crcs.get(sym, 0):08x}\t{sym}\t{modname}\t{etype}')
           PYEOF
           }
 
           for MODNAME in usbnet usbserial; do
             KO_PATH=$(find /lib/modules/$KREL -name "${MODNAME}.ko*" 2>/dev/null | head -n1)
             if [ -n "$KO_PATH" ]; then
-              echo "Found module: $KO_PATH"
+              echo "Extracting symvers from: $KO_PATH"
               PLAIN_KO=$(decompress_ko "$KO_PATH")
-              # Only add symbols not already covered by Step 1
               while IFS= read -r line; do
-                SYM=$(echo "$line" | awk '{print $2}')
-                if [ -n "$SYM" ] && ! grep -qP "\t${SYM}\t" "$SYMVERS_OUT" 2>/dev/null; then
-                  echo "$line" >> "$SYMVERS_OUT"
-                fi
+                SYM=$(awk '{print $2}' <<< "$line")
+                grep -qP "\t${SYM}\t" "$SYMVERS_OUT" 2>/dev/null || echo "$line" >> "$SYMVERS_OUT"
               done < <(ko_exported_symvers "$PLAIN_KO" 2>/dev/null || true)
+            else
+              echo "WARNING: ${MODNAME}.ko not found under /lib/modules/$KREL"
             fi
           done
 
-          # ── Step 3: synthesize from /proc/kallsyms (built-in / last-resort) ────
-          # When usbnet/usbserial are compiled into the kernel there are no .ko files.
-          # /proc/kallsyms lists every exported symbol as __ksymtab_<sym> entries.
-          # We use a placeholder CRC of 0x00000000; modpost emits a version-mismatch
-          # warning but does NOT fail the build — acceptable for CI validation.
+          # ── Step 3: /proc/kallsyms stub fallback ─────────────────────────────
           if [ -r /proc/kallsyms ]; then
-            for SYM in $NEEDED_SYMS_CHECK; do
-              # Skip if already present from steps 1/2
-              if grep -qP "\t${SYM}\t" "$SYMVERS_OUT" 2>/dev/null; then
-                continue
-              fi
-              # __ksymtab_<sym> in kallsyms means the symbol is exported.
-              # The symbol line may have a trailing [module] suffix so we do NOT
-              # anchor with $ — match the symbol name as a whole word instead.
+            for SYM in $NEEDED_SYMS; do
+              grep -qP "\t${SYM}\t" "$SYMVERS_OUT" 2>/dev/null && continue
               if grep -qE "__ksymtab_${SYM}([[:space:]]|$)" /proc/kallsyms 2>/dev/null; then
-                echo "Synthesizing from kallsyms: $SYM"
+                echo "Stub from kallsyms: $SYM"
                 printf '0x00000000\t%s\tvmlinux\tEXPORT_SYMBOL\n' "$SYM" >> "$SYMVERS_OUT"
               fi
             done
@@ -228,10 +178,7 @@ jobs:
           LINES=$(wc -l < "$SYMVERS_OUT")
           echo "--- $SYMVERS_OUT ($LINES entries) ---"
           cat "$SYMVERS_OUT" || true
-
-          if [ "$LINES" -eq 0 ]; then
-            echo "WARNING: No dependency symbols found; build may fail with undefined symbol errors."
-          fi
+          [ "$LINES" -gt 0 ] || echo "WARNING: symvers file is empty — build may fail."
 
           echo "EXTRA_SYMVERS=$SYMVERS_OUT" >> "$GITHUB_ENV"
 
