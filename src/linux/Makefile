@@ -18,7 +18,7 @@ SECUREBOOT := $(shell mokutil --sb-state)
 DEST_SIGN_PATH=/opt/qcom/QUD/sign
 
 build: clean
-	$(MAKE) -C $(KDIR) M=$(PWD) modules
+	$(MAKE) -C $(KDIR) M=$(PWD) $(if $(KBUILD_EXTRA_SYMBOLS),KBUILD_EXTRA_SYMBOLS=$(KBUILD_EXTRA_SYMBOLS),) modules
 ifeq ($(SECUREBOOT),SecureBoot enabled)
 	$(KHEADERS)/scripts/sign-file sha256 $(DEST_SIGN_PATH)/Signkey.priv $(DEST_SIGN_PATH)/Signkey_pub.der ./InfParser/qtiDevInf.ko
 # 	$(KHEADERS)/scripts/sign-file sha256 $(DEST_SIGN_PATH)/Signkey.priv $(DEST_SIGN_PATH)/Signkey_pub.der ./qcom_serial/qcom_serial.ko
