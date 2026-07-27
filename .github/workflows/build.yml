@@ -372,47 +372,6 @@ jobs:
           retention-days: 7
 
   # ============================================================
-  # Windows: build tools (x86, x64, arm64)
-  # ============================================================
-  build-windows-tools:
-    runs-on: windows-2022
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Build Windows tools for all architectures
-        shell: cmd
-        working-directory: build
-        run: |
-          for %%A in (x86 x64 arm64) do (
-            powershell -ExecutionPolicy Bypass -File "build_tools.ps1" -Platform %%A -OutputTo "%GITHUB_WORKSPACE%\build\target"
-            if errorlevel 1 exit /b 1
-          )
-
-      - name: Verify tools build outputs
-        shell: pwsh
-        run: |
-          $toolsDir = "build\target\tools"
-          Write-Host "=== Tools build outputs ==="
-          Get-ChildItem -Path $toolsDir -Recurse -File | Select-Object FullName | Format-Table -AutoSize
-          $exeFiles = Get-ChildItem -Path $toolsDir -Recurse -Filter "*.exe"
-          if ($exeFiles.Count -eq 0) {
-            Write-Host "ERROR: No .exe files found in $toolsDir" -ForegroundColor Red
-            exit 1
-          }
-          Write-Host "Found $($exeFiles.Count) .exe file(s)." -ForegroundColor Green
-
-      - name: Upload Windows tools artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-tools
-          path: build/target/tools/
-          retention-days: 7
-
-  # ============================================================
   # Windows: build installers (x86, x64, arm64)
   # ============================================================
   build-windows-installer:
