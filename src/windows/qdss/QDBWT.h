@@ -16,13 +16,6 @@ GENERAL DESCRIPTION
 
 EVT_WDF_IO_QUEUE_IO_WRITE QDBWT_IoWrite;
 
-VOID QDBWT_WriteUSB
-(
-    IN WDFQUEUE         Queue,
-    IN WDFREQUEST       Request,
-    IN ULONG            Length
-);
-
 EVT_WDF_REQUEST_COMPLETION_ROUTINE QDBWT_WriteUSBCompletion;
 
 #endif // QDBWT_H

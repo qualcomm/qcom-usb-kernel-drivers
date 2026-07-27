@@ -38,10 +38,10 @@ GENERAL DESCRIPTION
         WPP_DEFINE_BIT(WPP_DRV_MASK_PIRP)                 \
         WPP_DEFINE_BIT(WPP_DRV_MASK_PROTOCOL)             \
         WPP_DEFINE_BIT(WPP_DRV_MASK_MCONTROL)             \
-        WPP_DEFINE_BIT(WPP_DRV_MASK_QOS)	              \
-        WPP_DEFINE_BIT(WPP_DRV_MASK_DATA_QOS)		      \
-        WPP_DEFINE_BIT(WPP_DRV_MASK_DATA_WT)		      \
-        WPP_DEFINE_BIT(WPP_DRV_MASK_DATA_RD)		      \
+        WPP_DEFINE_BIT(WPP_DRV_MASK_QOS)                  \
+        WPP_DEFINE_BIT(WPP_DRV_MASK_DATA_QOS)             \
+        WPP_DEFINE_BIT(WPP_DRV_MASK_DATA_WT)              \
+        WPP_DEFINE_BIT(WPP_DRV_MASK_DATA_RD)              \
         WPP_DEFINE_BIT(WPP_DRV_MASK_FILTER)               \
         WPP_DEFINE_BIT(WPP_DRV_MASK_UNUSED1)              \
         WPP_DEFINE_BIT(WPP_DRV_MASK_UNUSED2)              \

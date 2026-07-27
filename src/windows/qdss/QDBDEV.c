@@ -15,6 +15,7 @@ GENERAL DESCRIPTION
 #include "QDBRD.h"
 
 #ifdef EVENT_TRACING
+#include "QDBWPP.h"
 #include "QDBDEV.tmh"
 #endif
 
@@ -77,8 +78,6 @@ VOID QDBDEV_EvtDeviceFileCreate
     }
     else
     {
-        pFileContext->DeviceContext = pDevContext;
-
         RtlInitUnicodeString(&ucTraceFile, QDSS_TRACE_FILE);
         RtlInitUnicodeString(&ucDebugFile, QDSS_DEBUG_FILE);
         RtlInitUnicodeString(&ucDplFile, QDSS_DPL_FILE);
@@ -86,7 +85,6 @@ VOID QDBDEV_EvtDeviceFileCreate
         if (RtlCompareUnicodeString(&ucTraceFile, fileName, TRUE) == 0)
         {
             pFileContext->Type = QDB_FILE_TYPE_TRACE;
-            pFileContext->TraceIN = pDevContext->TraceIN;
             ntStatus = STATUS_SUCCESS;
             QDB_DbgPrint
             (
@@ -98,8 +96,6 @@ VOID QDBDEV_EvtDeviceFileCreate
         else if (RtlCompareUnicodeString(&ucDebugFile, fileName, TRUE) == 0)
         {
             pFileContext->Type = QDB_FILE_TYPE_DEBUG;
-            pFileContext->DebugIN = pDevContext->DebugIN;
-            pFileContext->DebugOUT = pDevContext->DebugOUT;
             ntStatus = STATUS_SUCCESS;
             QDB_DbgPrint
             (
@@ -111,7 +107,6 @@ VOID QDBDEV_EvtDeviceFileCreate
         else if (RtlCompareUnicodeString(&ucDplFile, fileName, TRUE) == 0)
         {
             pFileContext->Type = QDB_FILE_TYPE_DPL;
-            pFileContext->TraceIN = pDevContext->TraceIN;
             ntStatus = STATUS_SUCCESS;
             QDB_DbgPrint
             (
@@ -130,9 +125,9 @@ VOID QDBDEV_EvtDeviceFileCreate
                 ("<%s> QDBDEV_EvtDeviceFileCreate: unrecognized channel name\n", pDevContext->PortName)
             );
         }
-
     }
 
+    QDBRD_StopDraining(pDevContext);
     WdfRequestComplete(Request, ntStatus);
 
     QDB_DbgPrint
@@ -142,57 +137,13 @@ VOID QDBDEV_EvtDeviceFileCreate
         ("<%s> <--QDBDEV_EvtDeviceFileCreate: FileObject 0x%p ST 0x%X\n",
         pDevContext->PortName, FileObject, ntStatus)
     );
-
-    return;
-}  // QDBDEV_EvtDeviceFileCreate
-
-/****************************************************************************
- *
- * function: QDBDEV_EvtDeviceFileClose
- *
- * purpose:  WDF file-close callback. Resumes DPL pipe draining after the
- *           application closes the file handle.
- *
- * arguments:FileObject = WDF file object being closed
- *
- * returns:  VOID
- *
- ****************************************************************************/
-VOID QDBDEV_EvtDeviceFileClose(WDFFILEOBJECT FileObject)
-{
-    PDEVICE_CONTEXT pDevContext;
-    PFILE_CONTEXT   pFileContext;
-    PUNICODE_STRING fileName;
-
-    pFileContext = QdbFileGetContext(FileObject);
-    pDevContext = pFileContext->DeviceContext;
-    fileName = WdfFileObjectGetFileName(FileObject);
-
-    QDB_DbgPrint
-    (
-        (QDB_DBG_MASK_READ | QDB_DBG_MASK_WRITE),
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->QDBDEV_EvtDeviceFileClose <%wZ> FileObject 0x%p\n",
-        pDevContext->PortName, fileName, FileObject)
-    );
-
-    QDBRD_PipeDrainStart(pDevContext);
-
-    QDB_DbgPrint
-    (
-        (QDB_DBG_MASK_READ | QDB_DBG_MASK_WRITE),
-        QDB_DBG_LEVEL_TRACE,
-        ("<%s> <--QDBDEV_EvtDeviceFileClose <%wZ> FileObject 0x%p\n",
-        pDevContext->PortName, fileName, FileObject)
-    );
-    return;
-}  // QDBDEV_EvtDeviceFileClose
+}
 
 /****************************************************************************
  *
  * function: QDBDEV_EvtDeviceFileCleanup
  *
- * purpose:  WDF file-cleanup callback. Resumes DPL pipe draining after
+ * purpose:  WDF file-cleanup callback. Resumes TraceIN pipe draining after
  *           the last handle to the file object is closed.
  *
  * arguments:FileObject = WDF file object being cleaned up
@@ -207,7 +158,7 @@ VOID QDBDEV_EvtDeviceFileCleanup(WDFFILEOBJECT FileObject)
     PUNICODE_STRING fileName;
 
     pFileContext = QdbFileGetContext(FileObject);
-    pDevContext = pFileContext->DeviceContext;
+    pDevContext = QdbDeviceGetContext(WdfFileObjectGetDevice(FileObject));
     fileName = WdfFileObjectGetFileName(FileObject);
 
     QDB_DbgPrint
@@ -218,7 +169,7 @@ VOID QDBDEV_EvtDeviceFileCleanup(WDFFILEOBJECT FileObject)
         pDevContext->PortName, fileName, FileObject)
     );
 
-    QDBRD_PipeDrainStart(pDevContext);
+    QDBRD_StartDraining(pDevContext);
 
     QDB_DbgPrint
     (
@@ -227,5 +178,4 @@ VOID QDBDEV_EvtDeviceFileCleanup(WDFFILEOBJECT FileObject)
         ("<%s> <--QDBDEV_EvtDeviceFileCleanup <%wZ> FileObject 0x%p\n",
         pDevContext->PortName, fileName, FileObject)
     );
-    return;
-}  // QDBDEV_EvtDeviceFileCleanup
+}
