@@ -15,7 +15,7 @@ jobs:
   # ============================================================
   # Linux: build kernel modules
   # ============================================================
-  build-linux:
+    build-linux:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -24,6 +24,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Install kernel headers and build tools
         run: |
@@ -64,12 +66,14 @@ jobs:
   # ============================================================
   # Linux: build .deb package (ubuntu-22.04 only)
   # ============================================================
-  build-deb:
+    build-deb:
     runs-on: ubuntu-22.04
     needs: build-linux
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Install dpkg tools
         run: |
@@ -99,11 +103,13 @@ jobs:
   # ============================================================
   # Windows: build drivers (x86, x64, arm64)
   # ============================================================
-  build-windows-drivers:
+    build-windows-drivers:
     runs-on: windows-2022
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce  # v2
@@ -174,12 +180,14 @@ jobs:
   # ============================================================
   # Windows: build installers (x86, x64, arm64)
   # ============================================================
-  build-windows-installer:
+    build-windows-installer:
     runs-on: windows-2022
     needs: build-windows-drivers
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce  # v2
