@@ -6,6 +6,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+# Least-privilege permissions: jobs only need to read the repository contents
+# (for actions/checkout). All other permissions are explicitly denied.
+permissions:
+  contents: read
+
 jobs:
   # ============================================================
   # Linux: build kernel modules
@@ -18,7 +23,7 @@ jobs:
         os: [ubuntu-22.04, ubuntu-latest]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Install kernel headers and build tools
         run: |
@@ -49,7 +54,7 @@ jobs:
           test -f qcom_usbnet/qcom_usbnet.ko || (echo "ERROR: qcom_usbnet.ko not found" && exit 1)
 
       - name: Upload Linux build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: linux-kernel-modules-${{ matrix.os }}
           path: |
@@ -64,7 +69,7 @@ jobs:
     needs: build-linux
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Install dpkg tools
         run: |
@@ -85,7 +90,7 @@ jobs:
           dpkg-deb -c "$DEB"
 
       - name: Upload .deb artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: linux-deb-package
           path: src/linux/build/*.deb
@@ -98,10 +103,10 @@ jobs:
     runs-on: windows-2022
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce  # v2
 
       - name: Install WDK
         shell: pwsh
@@ -160,7 +165,7 @@ jobs:
           Write-Host "Found $($sysFiles.Count) .sys file(s)." -ForegroundColor Green
 
       - name: Upload Windows driver artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: windows-drivers
           path: build/target/drivers/
@@ -174,23 +179,23 @@ jobs:
     needs: build-windows-drivers
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@v2
+        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce  # v2
 
       - name: Download Windows driver artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: windows-drivers
           path: build/target/drivers
 
       - name: Build Windows installers (x86, x64, arm64) — skip signing
-        shell: cmd
+        shell: pwsh
         working-directory: build
         run: |
-          call build_installer.bat --no_sign_required
-          if errorlevel 1 exit /b 1
+          & cmd.exe /c "build_installer.bat --no_sign_required"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Verify installer outputs
         shell: pwsh
@@ -206,7 +211,7 @@ jobs:
           Write-Host "Found $($exeFiles.Count) installer(s)." -ForegroundColor Green
 
       - name: Upload Windows installer artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: windows-installers
           path: build/target/qcom_usb_kernel_drivers_*.exe
