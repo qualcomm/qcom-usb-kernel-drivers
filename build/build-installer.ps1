@@ -529,7 +529,7 @@ namespace PayloadInstaller
                 LogLine("[STEP] Invoking qdinstall.exe -i");
                 int result = RunCommand(QdinstallExe, "-i -p \"" + InstallPath + "\"");
 
-                if (result == 0)
+                                if (result == 0)
                 {
                     Print("\nInstall completed successfully.");
                     LogLine("[INFO] Installation finished successfully");
@@ -608,6 +608,8 @@ namespace PayloadInstaller
             LogLine("[STEP] Session ended : " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "  exit=" + exitCode);
             CloseLog();
             Console.WriteLine("\nPlease find the installation logs at: " + LogFile);
+            Console.WriteLine("\nPress any key to exit...");
+            Console.ReadKey(true);
             return exitCode;
         }
     }
