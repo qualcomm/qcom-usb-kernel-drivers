@@ -571,7 +571,7 @@ namespace PayloadInstaller
                 LogLine("[STEP] Invoking qdinstall.exe -i");
                 int result = RunCommand(QdinstallExe, "-i -p \"" + InstallPath + "\"");
 
-                if (result == 0)
+                                if (result == 0)
                 {
                     Print("\nInstall completed successfully.");
                     LogLine("[INFO] Installation finished successfully");
