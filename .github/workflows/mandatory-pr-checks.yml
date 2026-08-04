@@ -1,0 +1,228 @@
+name: Mandatory PR Checks
+
+# Runs all mandatory quality gates on every PR targeting `develop`.
+# These checks must pass before a PR is eligible for human review.
+# Configure these as required status checks in the branch protection settings.
+
+on:
+  pull_request:
+    branches:
+      - develop
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+
+permissions:
+  pull-requests: write
+  contents: read
+  statuses: write
+
+jobs:
+  # ── 1. Detect prohibited file changes ─────────────────────────────────────
+  check-prohibited-files:
+    name: Check for Prohibited File Changes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes to protected files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          PROHIBITED_PATTERNS=(
+            "^LICENSE"
+            "^\.github/workflows/"
+            "^SECURITY\.md"
+          )
+
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          VIOLATIONS=0
+          for pattern in "${PROHIBITED_PATTERNS[@]}"; do
+            MATCHES=$(echo "$CHANGED_FILES" | grep -E "$pattern" || true)
+            if [ -n "$MATCHES" ]; then
+              echo "::warning::The following protected file(s) were modified — a maintainer must review:"
+              echo "$MATCHES" | while read -r f; do echo "  • $f"; done
+              VIOLATIONS=$((VIOLATIONS + 1))
+            fi
+          done
+
+          if [ "$VIOLATIONS" -gt 0 ]; then
+            echo "::error::This PR modifies one or more protected files. Maintainer approval is required."
+            exit 1
+          fi
+          echo "✅ No prohibited file changes detected — OK"
+
+  # ── 2. Detect merge commits in the PR ─────────────────────────────────────
+  check-no-merge-commits:
+    name: No Merge Commits
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reject merge commits in PR branch
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          MERGE_COMMITS=$(git log --merges --oneline "$BASE_SHA".."$HEAD_SHA")
+          if [ -n "$MERGE_COMMITS" ]; then
+            echo "::error::This PR contains merge commits. Please rebase your branch instead:"
+            echo "  git fetch upstream develop"
+            echo "  git rebase upstream/develop"
+            echo "$MERGE_COMMITS"
+            exit 1
+          fi
+          echo "✅ No merge commits found — OK"
+
+  # ── 3. Validate commit message format ─────────────────────────────────────
+  check-commit-messages:
+    name: Validate Commit Messages
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check each commit follows Conventional Commits
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9_\-]+\))?: .{1,100}'
+          INVALID=0
+          while IFS= read -r commit; do
+            SUBJECT=$(git log --format="%s" -n 1 "$commit")
+            if ! echo "$SUBJECT" | grep -qE "$PATTERN"; then
+              echo "::error::Commit $commit has an invalid message: \"$SUBJECT\""
+              echo "::error::Expected: <type>(scope): <description>"
+              INVALID=$((INVALID + 1))
+            fi
+          done < <(git rev-list "$BASE_SHA".."$HEAD_SHA")
+
+          if [ "$INVALID" -gt 0 ]; then
+            echo "::error::$INVALID commit message(s) do not follow Conventional Commits."
+            echo "::error::Valid types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+            exit 1
+          fi
+          echo "✅ All commit messages are valid — OK"
+
+  # ── 4. Check PR size (lines changed) ──────────────────────────────────────
+  check-pr-size:
+    name: Check PR Size
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Warn on large PRs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          MAX_LINES=1500
+          CHANGED=$(git diff --stat "$BASE_SHA" "$HEAD_SHA" | tail -1)
+          INSERTIONS=$(git diff --numstat "$BASE_SHA" "$HEAD_SHA" | awk '{sum += $1} END {print sum+0}')
+          DELETIONS=$(git diff --numstat "$BASE_SHA" "$HEAD_SHA" | awk '{sum += $2} END {print sum+0}')
+          TOTAL=$((INSERTIONS + DELETIONS))
+
+          echo "Lines added   : $INSERTIONS"
+          echo "Lines removed : $DELETIONS"
+          echo "Total changes : $TOTAL"
+
+          if [ "$TOTAL" -gt "$MAX_LINES" ]; then
+            echo "::warning::This PR changes $TOTAL lines (threshold: $MAX_LINES)."
+            echo "::warning::Consider splitting it into smaller, focused PRs for easier review."
+          else
+            echo "✅ PR size is within the recommended limit — OK"
+          fi
+
+  # ── 5. Detect leftover conflict markers ───────────────────────────────────
+  check-no-conflict-markers:
+    name: No Conflict Markers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Scan for unresolved conflict markers
+        run: |
+          MARKERS=$(grep -rn --include="*.c" --include="*.h" --include="*.sh" \
+            --include="*.md" --include="*.yml" --include="*.yaml" \
+            -E "^(<{7}|>{7}|={7}|\|{7}) " . || true)
+
+          if [ -n "$MARKERS" ]; then
+            echo "::error::Unresolved merge conflict markers found:"
+            echo "$MARKERS"
+            exit 1
+          fi
+          echo "✅ No conflict markers found — OK"
+
+  # ── 6. Validate SPDX license headers in source files ──────────────────────
+  check-license-headers:
+    name: Check SPDX License Headers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify SPDX header in new/modified source files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          MISSING=0
+          while IFS= read -r file; do
+            # Only check files that still exist (not deleted)
+            [ -f "$file" ] || continue
+            case "$file" in
+              *.c|*.h|*.sh)
+                if ! head -5 "$file" | grep -q "SPDX-License-Identifier"; then
+                  echo "::error::Missing SPDX-License-Identifier header in: $file"
+                  MISSING=$((MISSING + 1))
+                fi
+                ;;
+            esac
+          done < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "$HEAD_SHA")
+
+          if [ "$MISSING" -gt 0 ]; then
+            echo "::error::$MISSING file(s) are missing SPDX license headers."
+            echo "::error::Add the following near the top of each file:"
+            echo "::error::  // SPDX-License-Identifier: BSD-3-Clause"
+            exit 1
+          fi
+          echo "✅ All new/modified source files have SPDX headers — OK"
+
+  # ── 7. Summary gate ───────────────────────────────────────────────────────
+  mandatory-checks-gate:
+    name: All Mandatory PR Checks Passed
+    runs-on: ubuntu-latest
+    needs:
+      - check-prohibited-files
+      - check-no-merge-commits
+      - check-commit-messages
+      - check-pr-size
+      - check-no-conflict-markers
+      - check-license-headers
+    steps:
+      - name: All checks passed
+        run: |
+          echo "✅ All mandatory PR checks passed. Ready for maintainer review."

@@ -1,0 +1,68 @@
+name: Block PRs Targeting Main
+
+# Automatically closes any pull request that targets the `main` branch
+# and posts a clear comment explaining the correct contribution workflow.
+# All contributions must go through `develop` via a personal fork.
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  close-pr-targeting-main:
+    name: Close PR Targeting Main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post explanation comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: [
+                "##  Direct PRs to `main` Are Not Accepted",
+                "",
+                "Thank you for your contribution! However, this pull request targets the `main` branch directly, which is not permitted.",
+                "",
+                "### Why?",
+                "`main` is a protected, release-only branch. All contributions must flow through `develop` first so they can be reviewed, tested, and staged before a release.",
+                "",
+                "### What to do instead",
+                "",
+                "1. **Fork** the repository if you haven't already:",
+                "   ```",
+                "   https://github.com/${{ github.repository }}/fork",
+                "   ```",
+                "2. **Create a new branch** from `develop` in your fork:",
+                "   ```bash",
+                "   git checkout -b fix/your-description develop",
+                "   ```",
+                "3. **Push** your changes to your fork and **open a new PR** targeting `develop`.",
+                "",
+                "Please see [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) for the full contribution guide.",
+                "",
+                "This PR will now be closed automatically. Feel free to re-open a correctly targeted PR — we look forward to your contribution! 🙌"
+              ].join("\n")
+            });
+
+      - name: Close the pull request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              state: "closed"
+            });
+            core.notice(`PR #${context.issue.number} targeting main has been automatically closed.`);
