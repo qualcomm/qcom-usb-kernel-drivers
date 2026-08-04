@@ -16,7 +16,6 @@ on:
       - edited
 
 permissions:
-  pull-requests: write
   contents: read
 
 jobs:

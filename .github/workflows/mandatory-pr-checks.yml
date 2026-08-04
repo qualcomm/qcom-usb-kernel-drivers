@@ -15,9 +15,7 @@ on:
       - edited
 
 permissions:
-  pull-requests: write
   contents: read
-  statuses: write
 
 jobs:
   # ── 1. Detect prohibited file changes ─────────────────────────────────────
@@ -26,9 +24,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Detect changes to protected files
         env:
@@ -67,9 +66,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Reject merge commits in PR branch
         env:
@@ -92,9 +92,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Warn on large PRs
         env:
@@ -124,9 +125,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
 
       - name: Scan for unresolved conflict markers
         run: |
