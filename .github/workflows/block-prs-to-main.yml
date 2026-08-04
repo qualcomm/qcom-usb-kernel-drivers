@@ -5,7 +5,7 @@ name: Block PRs Targeting Main
 # All contributions must go through `develop` via a personal fork.
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
     types:
