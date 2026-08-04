@@ -1,0 +1,88 @@
+name: Block PRs Targeting Main — Respond
+
+# STEP 2 of 2 — runs in the base repo's privileged context via workflow_run.
+# Reads the PR number saved by block-prs-to-main.yml, posts a comment,
+# and closes the PR. workflow_run always uses the base repo's token so
+# write permissions work correctly even for fork-originated PRs.
+# No fork code is checked out or executed here, so pull_request_target
+# risks do not apply.
+
+on:
+  workflow_run:
+    workflows:
+      - "Block PRs Targeting Main — Detect"
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  close-pr-targeting-main:
+    name: Comment and Close PR Targeting Main
+    runs-on: ubuntu-latest
+    # Only act when the detector workflow succeeded (i.e. a real PR to main was opened).
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Download PR number artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          name: pr-number
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Read PR number
+        id: pr
+        run: echo "number=$(cat pr_number.txt)" >> "$GITHUB_OUTPUT"
+
+      - name: Post explanation comment
+        continue-on-error: true
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const prNumber = parseInt("${{ steps.pr.outputs.number }}", 10);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              issue_number: prNumber,
+              body: [
+                "## Direct PRs to `main` Are Not Accepted",
+                "",
+                "Thank you for your contribution! However, this pull request targets the `main` branch directly, which is not permitted.",
+                "",
+                "### Why?",
+                "`main` is a protected, release-only branch. All contributions must flow through `develop` first so they can be reviewed, tested, and staged before a release.",
+                "",
+                "### What to do instead",
+                "",
+                "1. **Fork** the repository if you haven't already:",
+                "   ```",
+                `   https://github.com/${context.repo.owner}/${context.repo.repo}/fork`,
+                "   ```",
+                "2. **Create a new branch** from `develop` in your fork:",
+                "   ```bash",
+                "   git checkout -b fix/your-description develop",
+                "   ```",
+                "3. **Push** your changes to your fork and **open a new PR** targeting `develop`.",
+                "",
+                "Please see [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) for the full contribution guide.",
+                "",
+                "This PR will now be closed automatically. Feel free to re-open a correctly targeted PR — we look forward to your contribution! 🙌"
+              ].join("\n")
+            });
+
+      - name: Close the pull request
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const prNumber = parseInt("${{ steps.pr.outputs.number }}", 10);
+            await github.rest.pulls.update({
+              owner:       context.repo.owner,
+              repo:        context.repo.repo,
+              pull_number: prNumber,
+              state:       "closed"
+            });
+            core.notice(`PR #${prNumber} targeting main has been automatically closed.`);
