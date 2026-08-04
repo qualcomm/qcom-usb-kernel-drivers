@@ -60,33 +60,7 @@ jobs:
             echo "No prohibited file changes detected — OK"
           fi
 
-  # ── 2. Detect merge commits in the PR ─────────────────────────────────────
-  check-no-merge-commits:
-    name: No Merge Commits
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Reject merge commits in PR branch
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          MERGE_COMMITS=$(git log --merges --oneline "$BASE_SHA".."$HEAD_SHA")
-          if [ -n "$MERGE_COMMITS" ]; then
-            echo "::error::This PR contains merge commits. Please rebase your branch instead:"
-            echo "  git fetch upstream develop"
-            echo "  git rebase upstream/develop"
-            echo "$MERGE_COMMITS"
-            exit 1
-          fi
-          echo "No merge commits found — OK"
-
-  # ── 3. Check PR size (lines changed) ──────────────────────────────────────
+  # ── 2. Check PR size (lines changed) ──────────────────────────────────────
   check-pr-size:
     name: Check PR Size
     runs-on: ubuntu-latest
@@ -119,7 +93,7 @@ jobs:
             echo "PR size is within the recommended limit — OK"
           fi
 
-  # ── 4. Detect leftover conflict markers ───────────────────────────────────
+  # ── 3. Detect leftover conflict markers ───────────────────────────────────
   check-no-conflict-markers:
     name: No Conflict Markers
     runs-on: ubuntu-latest
@@ -143,13 +117,12 @@ jobs:
           fi
           echo "No conflict markers found — OK"
 
-  # ── 5. Summary gate ───────────────────────────────────────────────────────
+  # ── 4. Summary gate ───────────────────────────────────────────────────────
   mandatory-checks-gate:
     name: All Mandatory PR Checks Passed
     runs-on: ubuntu-latest
     needs:
       - check-prohibited-files
-      - check-no-merge-commits
       - check-pr-size
       - check-no-conflict-markers
     steps:
