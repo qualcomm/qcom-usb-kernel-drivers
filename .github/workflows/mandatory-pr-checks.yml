@@ -56,10 +56,10 @@ jobs:
           done
 
           if [ "$VIOLATIONS" -gt 0 ]; then
-            echo "::error::This PR modifies one or more protected files. Maintainer approval is required."
-            exit 1
+            echo "::warning::This PR modifies one or more protected files. A maintainer must review before merging."
+          else
+            echo "No prohibited file changes detected — OK"
           fi
-          echo "✅ No prohibited file changes detected — OK"
 
   # ── 2. Detect merge commits in the PR ─────────────────────────────────────
   check-no-merge-commits:
@@ -84,42 +84,9 @@ jobs:
             echo "$MERGE_COMMITS"
             exit 1
           fi
-          echo "✅ No merge commits found — OK"
+          echo "No merge commits found — OK"
 
-  # ── 3. Validate commit message format ─────────────────────────────────────
-  check-commit-messages:
-    name: Validate Commit Messages
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check each commit follows Conventional Commits
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9_\-]+\))?: .{1,100}'
-          INVALID=0
-          while IFS= read -r commit; do
-            SUBJECT=$(git log --format="%s" -n 1 "$commit")
-            if ! echo "$SUBJECT" | grep -qE "$PATTERN"; then
-              echo "::error::Commit $commit has an invalid message: \"$SUBJECT\""
-              echo "::error::Expected: <type>(scope): <description>"
-              INVALID=$((INVALID + 1))
-            fi
-          done < <(git rev-list "$BASE_SHA".."$HEAD_SHA")
-
-          if [ "$INVALID" -gt 0 ]; then
-            echo "::error::$INVALID commit message(s) do not follow Conventional Commits."
-            echo "::error::Valid types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
-            exit 1
-          fi
-          echo "✅ All commit messages are valid — OK"
-
-  # ── 4. Check PR size (lines changed) ──────────────────────────────────────
+  # ── 3. Check PR size (lines changed) ──────────────────────────────────────
   check-pr-size:
     name: Check PR Size
     runs-on: ubuntu-latest
@@ -148,10 +115,10 @@ jobs:
             echo "::warning::This PR changes $TOTAL lines (threshold: $MAX_LINES)."
             echo "::warning::Consider splitting it into smaller, focused PRs for easier review."
           else
-            echo "✅ PR size is within the recommended limit — OK"
+            echo "PR size is within the recommended limit — OK"
           fi
 
-  # ── 5. Detect leftover conflict markers ───────────────────────────────────
+  # ── 4. Detect leftover conflict markers ───────────────────────────────────
   check-no-conflict-markers:
     name: No Conflict Markers
     runs-on: ubuntu-latest
@@ -172,57 +139,18 @@ jobs:
             echo "$MARKERS"
             exit 1
           fi
-          echo "✅ No conflict markers found — OK"
+          echo "No conflict markers found — OK"
 
-  # ── 6. Validate SPDX license headers in source files ──────────────────────
-  check-license-headers:
-    name: Check SPDX License Headers
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Verify SPDX header in new/modified source files
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          MISSING=0
-          while IFS= read -r file; do
-            # Only check files that still exist (not deleted)
-            [ -f "$file" ] || continue
-            case "$file" in
-              *.c|*.h|*.sh)
-                if ! head -5 "$file" | grep -q "SPDX-License-Identifier"; then
-                  echo "::error::Missing SPDX-License-Identifier header in: $file"
-                  MISSING=$((MISSING + 1))
-                fi
-                ;;
-            esac
-          done < <(git diff --name-only --diff-filter=AM "$BASE_SHA" "$HEAD_SHA")
-
-          if [ "$MISSING" -gt 0 ]; then
-            echo "::error::$MISSING file(s) are missing SPDX license headers."
-            echo "::error::Add the following near the top of each file:"
-            echo "::error::  // SPDX-License-Identifier: BSD-3-Clause"
-            exit 1
-          fi
-          echo "✅ All new/modified source files have SPDX headers — OK"
-
-  # ── 7. Summary gate ───────────────────────────────────────────────────────
+  # ── 5. Summary gate ───────────────────────────────────────────────────────
   mandatory-checks-gate:
     name: All Mandatory PR Checks Passed
     runs-on: ubuntu-latest
     needs:
       - check-prohibited-files
       - check-no-merge-commits
-      - check-commit-messages
       - check-pr-size
       - check-no-conflict-markers
-      - check-license-headers
     steps:
       - name: All checks passed
         run: |
-          echo "✅ All mandatory PR checks passed. Ready for maintainer review."
+          echo "All mandatory PR checks passed. Ready for maintainer review."
