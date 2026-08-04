@@ -1,33 +1,24 @@
-name: Block PRs Targeting Main — Detect
+name: Block PRs Targeting Main
 
-# STEP 1 of 2 — runs in the fork's unprivileged context.
-# Only saves the PR number to an artifact; performs no write operations.
-# The privileged close/comment logic lives in block-prs-to-main-respond.yml
-# which is triggered by workflow_run and always runs in the base repo context.
+# Fails immediately if a PR targets main directly.
+# All contributions must target develop instead.
 
 on:
   pull_request:
     branches:
       - main
-    types:
-      - opened
-      - reopened
 
-# Explicitly read-only — no write permissions needed here.
 permissions:
   contents: read
 
 jobs:
-  save-pr-number:
-    name: Save PR Number
+  block-pr-to-main:
+    name: Block PR Targeting Main
     runs-on: ubuntu-latest
     steps:
-      - name: Write PR number to file
-        run: echo "${{ github.event.number }}" > pr_number.txt
-
-      - name: Upload PR number artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
-        with:
-          name: pr-number
-          path: pr_number.txt
-          retention-days: 1
+      - name: Fail if PR targets main
+        run: |
+          echo "::error::PRs targeting main are not accepted."
+          echo "::error::Please target the develop branch instead."
+          echo "::error::See CONTRIBUTING.md for the contribution workflow."
+          exit 1
