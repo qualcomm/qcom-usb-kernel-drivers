@@ -1,0 +1,481 @@
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+# SPDX-License-Identifier: BSD-3-Clause
+name: PR Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+
+permissions:
+  contents: read
+
+jobs:
+
+  # ============================================================
+  # Block PRs targeting main
+  # ============================================================
+  block-pr-to-main:
+    name: Block PR Targeting Main
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'main'
+    steps:
+      - name: Fail if PR targets main
+        run: |
+          echo "::error::PRs targeting main are not accepted."
+          echo "::error::Please target the develop branch instead."
+          echo "::error::See CONTRIBUTING.md for the contribution workflow."
+          exit 1
+
+  # ============================================================
+  # Block PRs from upstream repository (non-fork)
+  # ============================================================
+  block-upstream-pr:
+    name: Block PR From Upstream Repository
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Detect and block upstream-origin PRs
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const pr          = context.payload.pull_request;
+            const headRepo    = pr.head.repo.full_name;
+            const baseRepo    = pr.base.repo.full_name;
+            const prNumber    = pr.number;
+            const contributor = pr.user.login;
+
+            console.log(`PR #${prNumber} — head: ${headRepo} → base: ${baseRepo}`);
+
+            if (headRepo !== baseRepo) {
+              console.log("PR originates from a fork — no action needed.");
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              issue_number: prNumber,
+              body: [
+                `## PRs From the Upstream Repository Are Not Accepted`,
+                ``,
+                `Hi @${contributor}, thank you for your interest in contributing!`,
+                ``,
+                `This pull request was opened from a branch inside the upstream repository (\`${baseRepo}\`) rather than from a personal fork. **All external contributions must come from a personal fork**.`,
+                ``,
+                `### How to contribute correctly`,
+                ``,
+                `1. **Fork** the repository: https://github.com/${baseRepo}/fork`,
+                `2. **Clone your fork**: \`git clone https://github.com/${contributor}/${context.repo.repo}.git\``,
+                `3. **Create a branch** from \`develop\`: \`git checkout -b fix/your-description develop\``,
+                `4. **Commit with DCO sign-off**: \`git commit -s -m "fix(module): describe your change"\``,
+                `5. **Push to your fork** and open a PR targeting \`develop\`.`,
+                ``,
+                `Please review [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) for the complete guide.`,
+                ``,
+                `This PR has been closed automatically. We look forward to your fork-based contribution! 🙌`
+              ].join("\n")
+            });
+
+            await github.rest.pulls.update({
+              owner:       context.repo.owner,
+              repo:        context.repo.repo,
+              pull_number: prNumber,
+              state:       "closed"
+            });
+
+            core.notice(`PR #${prNumber} from upstream branch has been automatically closed.`);
+
+  # ============================================================
+  # Verify PR originates from a personal fork
+  # ============================================================
+  verify-fork-origin:
+    name: Verify Fork Origin
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    steps:
+      - name: Check that PR comes from a fork
+        env:
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
+        run: |
+          echo "Head repository : $HEAD_REPO"
+          echo "Base repository : $BASE_REPO"
+          if [ "$HEAD_REPO" = "$BASE_REPO" ]; then
+            echo "::error::PRs must be submitted from a personal fork, not from a branch in the upstream repository."
+            echo "::error::Please fork the repository, push your changes there, and open a PR from your fork."
+            exit 1
+          fi
+          echo "PR originates from a fork — OK"
+
+  # ============================================================
+  # Validate PR title follows Conventional Commits
+  # ============================================================
+  validate-pr-title:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    steps:
+      - name: Check PR title format
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "PR Title: $PR_TITLE"
+          PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9_\-]+\))?: .{1,100}$'
+          if ! echo "$PR_TITLE" | grep -qE "$PATTERN"; then
+            echo "::error::PR title does not follow Conventional Commits format."
+            echo "::error::Expected: <type>(scope): <description>"
+            echo "::error::Valid types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+            echo "::error::Example: fix(qcom_usb): resolve null pointer dereference on disconnect"
+            exit 1
+          fi
+          echo "PR title format is valid — OK"
+
+  # ============================================================
+  # Validate PR description is not empty
+  # ============================================================
+  validate-pr-description:
+    name: Validate PR Description
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    steps:
+      - name: Check PR body is present
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if [ -z "$(echo "$PR_BODY" | tr -d '[:space:]')" ]; then
+            echo "::error::PR description is empty. Please describe what this PR changes and why."
+            exit 1
+          fi
+          WORD_COUNT=$(echo "$PR_BODY" | wc -w)
+          if [ "$WORD_COUNT" -lt 10 ]; then
+            echo "::error::PR description is too short ($WORD_COUNT words). Please provide a meaningful description."
+            exit 1
+          fi
+          echo "PR description is present — OK"
+
+  # ============================================================
+  # Validate source branch naming convention
+  # ============================================================
+  validate-branch-name:
+    name: Validate Branch Name
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    steps:
+      - name: Check branch naming convention
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          echo "Source branch: $BRANCH"
+          PATTERN='^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)\/[a-zA-Z0-9._\-]+$'
+          if ! echo "$BRANCH" | grep -qE "$PATTERN"; then
+            echo "::error::Branch name '$BRANCH' does not follow the required naming convention."
+            echo "::error::Expected format: <type>/<description>"
+            echo "::error::Valid types: feat, fix, docs, refactor, test, chore, ci, perf, build, revert"
+            echo "::error::Example: fix/qcom-usb-null-deref"
+            exit 1
+          fi
+          echo "Branch name is valid — OK"
+
+  # ============================================================
+  # Detect prohibited file changes
+  # ============================================================
+  check-prohibited-files:
+    name: Check for Prohibited File Changes
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detect changes to protected files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          PROHIBITED_PATTERNS=(
+            "^LICENSE"
+            "^\.github/workflows/"
+            "^SECURITY\.md"
+          )
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          VIOLATIONS=0
+          for pattern in "${PROHIBITED_PATTERNS[@]}"; do
+            MATCHES=$(echo "$CHANGED_FILES" | grep -E "$pattern" || true)
+            if [ -n "$MATCHES" ]; then
+              echo "::warning::The following protected file(s) were modified — a maintainer must review:"
+              echo "$MATCHES" | while read -r f; do echo "  • $f"; done
+              VIOLATIONS=$((VIOLATIONS + 1))
+            fi
+          done
+          if [ "$VIOLATIONS" -gt 0 ]; then
+            echo "::warning::This PR modifies one or more protected files. A maintainer must review before merging."
+          else
+            echo "No prohibited file changes detected — OK"
+          fi
+
+  # ============================================================
+  # Check PR size
+  # ============================================================
+  check-pr-size:
+    name: Check PR Size
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Warn on large PRs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          MAX_LINES=1500
+          INSERTIONS=$(git diff --numstat "$BASE_SHA" "$HEAD_SHA" | awk '{sum += $1} END {print sum+0}')
+          DELETIONS=$(git diff --numstat "$BASE_SHA" "$HEAD_SHA" | awk '{sum += $2} END {print sum+0}')
+          TOTAL=$((INSERTIONS + DELETIONS))
+          echo "Lines added   : $INSERTIONS"
+          echo "Lines removed : $DELETIONS"
+          echo "Total changes : $TOTAL"
+          if [ "$TOTAL" -gt "$MAX_LINES" ]; then
+            echo "::warning::This PR changes $TOTAL lines (threshold: $MAX_LINES)."
+            echo "::warning::Consider splitting it into smaller, focused PRs for easier review."
+          else
+            echo "PR size is within the recommended limit — OK"
+          fi
+
+  # ============================================================
+  # Detect leftover conflict markers
+  # ============================================================
+  check-no-conflict-markers:
+    name: No Conflict Markers
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Scan for unresolved conflict markers
+        run: |
+          MARKERS=$(grep -rn --include="*.c" --include="*.h" --include="*.sh" \
+            --include="*.md" --include="*.yml" --include="*.yaml" \
+            -E "^(<{7}|>{7}|={7}|\|{7}) " . || true)
+          if [ -n "$MARKERS" ]; then
+            echo "::error::Unresolved merge conflict markers found:"
+            echo "$MARKERS"
+            exit 1
+          fi
+          echo "No conflict markers found — OK"
+
+  # ============================================================
+  # Linux: build kernel modules
+  # ============================================================
+  build-linux:
+    name: Build Linux Kernel Modules (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install kernel headers and build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            linux-headers-$(uname -r) \
+            linux-modules-$(uname -r) \
+            kmod
+
+      - name: Build kernel modules
+        working-directory: src/linux
+        run: |
+          make KBUILD_MODPOST_WARN=1
+
+      - name: Verify build outputs
+        working-directory: src/linux
+        run: |
+          echo "=== Built kernel modules ==="
+          find . -name "*.ko" | sort
+          test -f InfParser/qtiDevInf.ko     || (echo "ERROR: qtiDevInf.ko not found"     && exit 1)
+          test -f qcom_usb/qcom_usb.ko       || (echo "ERROR: qcom_usb.ko not found"       && exit 1)
+          test -f qcom_usbnet/qcom_usbnet.ko || (echo "ERROR: qcom_usbnet.ko not found"    && exit 1)
+
+      - name: Upload Linux build artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: linux-kernel-modules-${{ matrix.os }}
+          path: src/linux/**/*.ko
+          retention-days: 7
+
+  # ============================================================
+  # Linux: build .deb package
+  # ============================================================
+  build-deb:
+    name: Build Linux .deb Package
+    runs-on: ubuntu-22.04
+    needs: build-linux
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Install dpkg tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg
+
+      - name: Build .deb package
+        working-directory: src/linux
+        run: bash build-deb.sh
+
+      - name: Verify .deb package
+        working-directory: src/linux
+        run: |
+          DEB=$(find build -name "*.deb" | head -n 1)
+          echo "Package: $DEB"
+          test -n "$DEB" || (echo "ERROR: No .deb file produced" && exit 1)
+          dpkg-deb -I "$DEB"
+          dpkg-deb -c "$DEB"
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: linux-deb-package
+          path: src/linux/build/*.deb
+          retention-days: 7
+
+  # ============================================================
+  # Windows: build drivers
+  # ============================================================
+  build-windows-drivers:
+    name: Build Windows Drivers
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce  # v2
+
+      - name: Install WDK
+        shell: pwsh
+        run: |
+          $wdkUrl = "https://go.microsoft.com/fwlink/?linkid=2335869"
+          $wdkInstaller = "$env:TEMP\wdksetup.exe"
+          Write-Host "Downloading WDK via curl (follows redirects)..."
+          & curl.exe -L --retry 3 --retry-delay 5 -o $wdkInstaller $wdkUrl
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $fileSize = (Get-Item $wdkInstaller).Length
+          Write-Host "Downloaded installer size: $fileSize bytes"
+          if ($fileSize -lt 1MB) {
+            Write-Host "ERROR: Downloaded file is too small ($fileSize bytes)" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "Installing WDK silently..."
+          $proc = Start-Process -FilePath $wdkInstaller -ArgumentList "/quiet /norestart" -PassThru -Wait
+          if ($proc.ExitCode -ne 0) {
+            Write-Host "ERROR: WDK installer exited with code $($proc.ExitCode)" -ForegroundColor Red
+            exit $proc.ExitCode
+          }
+          Write-Host "WDK installation complete."
+
+      - name: Build Windows drivers (x86, x64, arm64)
+        shell: pwsh
+        working-directory: build
+        run: |
+          powershell -ExecutionPolicy Bypass -File "build_drivers.ps1" -OutputTo "$env:GITHUB_WORKSPACE\build\target"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify driver build outputs
+        shell: pwsh
+        run: |
+          $driversDir = "build\target\drivers"
+          Write-Host "=== Driver build outputs ==="
+          Get-ChildItem -Path $driversDir -Recurse -File | Select-Object FullName | Format-Table -AutoSize
+          $sysFiles = Get-ChildItem -Path $driversDir -Recurse -Filter "*.sys"
+          if ($sysFiles.Count -eq 0) {
+            Write-Host "ERROR: No .sys files found in $driversDir" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "Found $($sysFiles.Count) .sys file(s)." -ForegroundColor Green
+
+      - name: Upload Windows driver artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: windows-drivers
+          path: build/target/drivers/
+          retention-days: 7
+
+  # ============================================================
+  # Windows: build installer
+  # ============================================================
+  build-windows-installer:
+    name: Build Windows Installer
+    runs-on: windows-2022
+    needs: build-windows-drivers
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce  # v2
+
+      - name: Download Windows driver artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          name: windows-drivers
+          path: build/target/drivers
+
+      - name: Build Windows installers (x86, x64, arm64) — skip signing
+        shell: pwsh
+        working-directory: build
+        run: |
+          & cmd.exe /c "build_installer.bat --no_sign_required"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Verify installer outputs
+        shell: pwsh
+        run: |
+          $targetDir = "build\target"
+          Write-Host "=== Installer build outputs ==="
+          Get-ChildItem -Path $targetDir -Filter "*.exe" | Select-Object FullName | Format-Table -AutoSize
+          $exeFiles = Get-ChildItem -Path $targetDir -Filter "qcom_usb_kernel_drivers_*.exe"
+          if ($exeFiles.Count -eq 0) {
+            Write-Host "ERROR: No installer .exe files found in $targetDir" -ForegroundColor Red
+            exit 1
+          }
+          Write-Host "Found $($exeFiles.Count) installer(s)." -ForegroundColor Green
+
+      - name: Upload Windows installer artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: windows-installers
+          path: build/target/qcom_usb_kernel_drivers_*.exe
+          retention-days: 7
