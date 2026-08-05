@@ -1617,6 +1617,48 @@ VOID QCRD_CleanupReadQueues
 
     // purge timeout read queue
     KeCancelTimer(&pDevContext->ReadTimer);
+
+    /* 
+     * Fix for AT+CFUN=0 response loss: 
+     * Drain any remaining data in the ring buffer into pending timeout requests 
+     * before purging the queue. This prevents losing trailing data when a 
+     * device disconnects shortly after sending a response.
+     */
+    while (QCUTIL_RingBufferBytesUsed(&pDevContext->ReadRingBuffer) > 0)
+    {
+        WDFREQUEST timeoutRequest = NULL;
+        if (WdfIoQueueRetrieveNextRequest(pDevContext->TimeoutReadQueue, &timeoutRequest) == STATUS_SUCCESS && timeoutRequest != NULL)
+        {
+            WDF_REQUEST_PARAMETERS params;
+            WDF_REQUEST_PARAMETERS_INIT(&params);
+            WdfRequestGetParameters(timeoutRequest, &params);
+
+            size_t requested = params.Parameters.Read.Length;
+            size_t copied = 0;
+            PUCHAR buffer = NULL;
+
+            if (NT_SUCCESS(WdfRequestRetrieveOutputBuffer(timeoutRequest, requested, &buffer, NULL)))
+            {
+                if (NT_SUCCESS(QCUTIL_RingBufferRead(&pDevContext->ReadRingBuffer, buffer, requested, &copied)) && copied > 0)
+                {
+                    WdfRequestCompleteWithInformation(timeoutRequest, STATUS_SUCCESS, copied);
+                }
+                else
+                {
+                    WdfRequestCompleteWithInformation(timeoutRequest, STATUS_TIMEOUT, 0);
+                }
+            }
+            else
+            {
+                WdfRequestCompleteWithInformation(timeoutRequest, STATUS_INSUFFICIENT_RESOURCES, 0);
+            }
+        }
+        else
+        {
+            break; // No more requests to serve
+        }
+    }
+
     WdfIoQueuePurgeSynchronously(pDevContext->TimeoutReadQueue);
 
     // purge the bulk in pipe
