@@ -164,8 +164,10 @@ jobs:
           # microsoft/windows-drivers is the official Microsoft query pack
           # that replaces SDV. Covers IRQL violations, IRP handling,
           # WDF object lifetime, locking discipline, and memory safety.
-          packs: microsoft/windows-drivers
-          queries: security-and-quality
+          # microsoft/cpp-queries is explicitly listed as it is a required
+          # dependency of microsoft/windows-drivers and is not bundled with
+          # the CodeQL version on the runner.
+          packs: microsoft/cpp-queries,microsoft/windows-drivers
 
       - name: Build all driver projects for CodeQL
         shell: pwsh
