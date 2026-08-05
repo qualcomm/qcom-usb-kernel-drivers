@@ -198,17 +198,33 @@ jobs:
       - name: Check SDV results
         shell: pwsh
         run: |
-          # SDV writes results to SDV directory inside the project folder.
-          # A non-zero defect count in SDV.DVL.xml indicates rule violations.
-          $dvlPath = "${{ matrix.project.dir }}\SDV\SDV.DVL.xml"
+          # Build an absolute, slash-consistent path using Join-Path and
+          # $env:GITHUB_WORKSPACE so it is unambiguous regardless of how
+          # the matrix variable was interpolated.
+          $projectDir = Join-Path $env:GITHUB_WORKSPACE "${{ matrix.project.dir }}"
+          $sdvDir     = Join-Path $projectDir "SDV"
+          $dvlPath    = Join-Path $sdvDir "SDV.DVL.xml"
+
+          Write-Host "Expecting SDV results at: $dvlPath"
+
+          # List what SDV actually produced to aid diagnosis if the file is missing.
+          if (Test-Path $sdvDir) {
+            Write-Host "SDV output directory contents:"
+            Get-ChildItem -Path $sdvDir -Recurse | Select-Object FullName
+          } else {
+            Write-Host "WARNING: SDV output directory does not exist: $sdvDir" -ForegroundColor Yellow
+          }
+
           if (-not (Test-Path $dvlPath)) {
-            Write-Host "ERROR: SDV results file not found at $dvlPath" -ForegroundColor Red
+            Write-Host "ERROR: SDV.DVL.xml not found — SDV may not have completed successfully." -ForegroundColor Red
             exit 1
           }
+
           [xml]$dvl = Get-Content $dvlPath
           $defects = $dvl.DVL.Driver.Defects.Defect
           $count   = if ($defects) { @($defects).Count } else { 0 }
           Write-Host "SDV defects found: $count"
+
           if ($count -gt 0) {
             Write-Host "ERROR: SDV found $count defect(s) in ${{ matrix.project.name }}" -ForegroundColor Red
             foreach ($d in $defects) {
