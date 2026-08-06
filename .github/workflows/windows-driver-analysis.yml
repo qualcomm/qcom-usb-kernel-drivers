@@ -161,7 +161,12 @@ jobs:
         uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3  # v4.37.6
         with:
           languages: cpp
-          config-file: .github/codeql/windows-drivers.yml
+          config: |
+            packs:
+              - microsoft/cpp-queries
+              - microsoft/windows-drivers
+            paths-ignore:
+              - "**/external/examples/**"
 
       - name: Build all driver projects for CodeQL
         shell: pwsh
