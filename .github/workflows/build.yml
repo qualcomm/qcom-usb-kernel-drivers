@@ -38,7 +38,7 @@ jobs:
       - name: Build kernel modules
         working-directory: src/linux
         run: |
-          make KBUILD_MODPOST_WARN=1
+          make KBUILD_MODPOST_WARN=1 W=1
 
       - name: Verify build outputs
         working-directory: src/linux

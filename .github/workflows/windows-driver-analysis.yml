@@ -161,13 +161,12 @@ jobs:
         uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3  # v4.37.6
         with:
           languages: cpp
-          # Use the mustfix.qls suite from microsoft/windows-drivers directly.
-          # This targets only the driver-specific queries and avoids the
-          # example filter queries in microsoft/cpp-queries that depend on
-          # extensional predicates (metricResults, defectResults) not
-          # available in standard CI environments.
+          # Download both packs. The queries field scopes execution to only
+          # the mustfix.qls suite, which avoids the example filter queries
+          # in microsoft/cpp-queries that depend on extensional predicates
+          # (metricResults, defectResults) not available in standard CI.
           packs: microsoft/cpp-queries,microsoft/windows-drivers
-          queries: microsoft/windows-drivers/windows-driver-suites/mustfix.qls
+          queries: mustfix.qls
 
       - name: Build all driver projects for CodeQL
         shell: pwsh
