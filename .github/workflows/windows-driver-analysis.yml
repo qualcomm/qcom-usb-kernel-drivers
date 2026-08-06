@@ -161,13 +161,13 @@ jobs:
         uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3  # v4.37.6
         with:
           languages: cpp
-          # microsoft/windows-drivers is the official Microsoft query pack
-          # that replaces SDV. Covers IRQL violations, IRP handling,
-          # WDF object lifetime, locking discipline, and memory safety.
-          # microsoft/cpp-queries is explicitly listed as it is a required
-          # dependency of microsoft/windows-drivers and is not bundled with
-          # the CodeQL version on the runner.
+          # Use the mustfix.qls suite from microsoft/windows-drivers directly.
+          # This targets only the driver-specific queries and avoids the
+          # example filter queries in microsoft/cpp-queries that depend on
+          # extensional predicates (metricResults, defectResults) not
+          # available in standard CI environments.
           packs: microsoft/cpp-queries,microsoft/windows-drivers
+          queries: microsoft/windows-drivers/windows-driver-suites/mustfix.qls
 
       - name: Build all driver projects for CodeQL
         shell: pwsh
