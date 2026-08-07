@@ -13,7 +13,7 @@ Class       = AndroidUsbDeviceClass
 ClassGUID   = {3F966BD9-FA04-4ec5-991C-D326973B5128}
 Provider    = %QCOM%
 CatalogFile = qcadb.cat
-DriverVer   = 06/15/2026,1.0.0.0
+DriverVer   = 07/15/2026,1.0.0.0
 PnpLockdown = 1
 
 [Manufacturer]

@@ -12,7 +12,7 @@ Signature   = "$WINDOWS NT$"
 Class       = USB
 Provider    = %QUALCOMM%
 ClassGUID   = {36FC9E60-C465-11CF-8056-444553540000}
-DriverVer   = 06/15/2026,1.0.0.0
+DriverVer   = 07/15/2026,1.0.0.0
 CatalogFile = qcfilter.cat
 PnpLockdown = 1
 

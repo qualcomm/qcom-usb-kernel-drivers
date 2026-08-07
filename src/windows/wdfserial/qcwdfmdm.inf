@@ -12,7 +12,7 @@ Signature   = "$WINDOWS NT$"
 Class       = Modem
 Provider    = %QCOM%
 ClassGUID   = {4D36E96D-E325-11CE-BFC1-08002BE10318}
-DriverVer   = 06/15/2026,1.0.0.0
+DriverVer   = 07/15/2026,1.0.0.0
 CatalogFile = qcwdfserial.cat
 PnpLockDown = 1
 

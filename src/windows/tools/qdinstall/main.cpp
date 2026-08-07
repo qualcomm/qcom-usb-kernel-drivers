@@ -5,14 +5,15 @@
 #include "registry.h"
 #include "../../qcversion.h"
 
-constexpr const wchar_t *COMMAND_QDCLR    = L".\\qdclr.exe";
-constexpr const wchar_t *COMMAND_WWANSVC  = L".\\tools\\qcmtusvc.exe";
+constexpr const wchar_t *PATH_QDCLR    = L".\\qdclr.exe";
+constexpr const wchar_t *PATH_WWANSVC  = L".\\tools\\qcmtusvc.exe";
 #ifdef _WIN64
 constexpr const wchar_t *COMMAND_PNPUTIL_MAIN = L"pnputil /add-driver \"";
 #else
 constexpr const wchar_t *COMMAND_PNPUTIL_MAIN = L"C:\\Windows\\Sysnative\\pnputil.exe /add-driver \"";
 #endif
-constexpr const wchar_t *COMMAND_PNPUTIL_OPTS = L"\" /subdirs /install /force";
+constexpr const wchar_t *COMMAND_PNPUTIL_OPTS = L"\" /install /force";
+constexpr const wchar_t *PATH_INF_DIR         = L".\\Drivers\\Windows10\\";
 
 DWORD scan_for_hardware_changes()
 {
@@ -25,7 +26,7 @@ DWORD scan_for_hardware_changes()
         return ERROR_DEVICE_ENUMERATION_ERROR;
     }
 
-    cr = CM_Reenumerate_DevNode(dev_root, CM_REENUMERATE_SYNCHRONOUS);
+    cr = CM_Reenumerate_DevNode(dev_root, 0);
     if (cr != CR_SUCCESS)
     {
         printf("ERROR: CM_Reenumerate_DevNode failed (CR=0x%X)\n", cr);
@@ -59,28 +60,46 @@ DWORD execute_command(const std::wstring &command)
     return ret;
 }
 
-DWORD install_drivers(const std::wstring &path)
+DWORD install_drivers()
 {
-    std::wstring cmd = COMMAND_PNPUTIL_MAIN;
-    cmd += path;
-    cmd += L"\\*.inf";
-    cmd += COMMAND_PNPUTIL_OPTS;
+    // Clean old drivers (best effort — ignore errors from qdclr)
+    printf("\nRemoving old drivers ...\n");
+    execute_command(PATH_QDCLR);
 
-    printf("\nInstalling .inf from %ws ...\n", path.c_str());
-    DWORD ret = execute_command(cmd);
-    if (ret != ERROR_SUCCESS && ret != ERROR_SUCCESS_REBOOT_REQUIRED)
+    // Find and install each .inf in current directory
+    DWORD ret = ERROR_SUCCESS;
+    WIN32_FIND_DATAW fd;
+    std::wstring search_pattern = std::wstring(PATH_INF_DIR) + L"*.inf";
+    HANDLE hFind = FindFirstFileW(search_pattern.c_str(), &fd);
+
+    if (hFind == INVALID_HANDLE_VALUE)
     {
-        printf("ERROR: pnputil failed (exit code 0x%lX)\n", ret);
-        return ret;
+        printf("WARNING: no .inf files found in %ws\n", PATH_INF_DIR);
+        return ERROR_FILE_NOT_FOUND;
     }
 
-    scan_for_hardware_changes();
-    return ERROR_SUCCESS;
+    do {
+        std::wstring cmd = COMMAND_PNPUTIL_MAIN;
+        cmd += PATH_INF_DIR;
+        cmd += fd.cFileName;
+        cmd += COMMAND_PNPUTIL_OPTS;
+        printf("\nInstalling %ws ...\n", fd.cFileName);
+        if ((ret = execute_command(cmd)) != ERROR_SUCCESS)
+        {
+            printf("ERROR: pnputil failed for %ws (exit code 0x%lX)\n", fd.cFileName, ret);
+            FindClose(hFind);
+            return ret;
+        }
+    } while (FindNextFileW(hFind, &fd));
+
+    FindClose(hFind);
+    return scan_for_hardware_changes();
 }
 
 DWORD uninstall_drivers()
 {
-    DWORD ret = execute_command(COMMAND_QDCLR);
+    printf("Removing drivers ...\n");
+    DWORD ret = execute_command(PATH_QDCLR);
 
     if (ret == ERROR_FILE_NOT_FOUND)
     {
@@ -102,61 +121,23 @@ DWORD uninstall_drivers()
     return ret;
 }
 
-static DWORD64 get_dir_size_bytes(const std::wstring &dir)
-{
-    DWORD64 total = 0;
-    WIN32_FIND_DATAW fd;
-    std::wstring pattern = dir + L"\\*";
-
-    HANDLE handle = FindFirstFileW(pattern.c_str(), &fd);
-    if (handle == INVALID_HANDLE_VALUE)
-    {
-        return 0;
-    }
-
-    do
-    {
-        if (wcscmp(fd.cFileName, L".") == 0 || wcscmp(fd.cFileName, L"..") == 0)
-        {
-            continue;
-        }
-
-        std::wstring subdir = dir + L"\\" + fd.cFileName;
-
-        if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-        {
-            total += get_dir_size_bytes(subdir);
-        }
-        else
-        {
-            DWORD64 file_size = ((DWORD64)fd.nFileSizeHigh << 32) | fd.nFileSizeLow;
-            total += file_size;
-        }
-    }
-    while (FindNextFileW(handle, &fd));
-
-    FindClose(handle);
-    return total;
-}
-
 static std::wstring get_exe_directory()
 {
-    WCHAR path[MAX_PATH];
-    GetModuleFileNameW(NULL, path, MAX_PATH);
-    PathCchRemoveFileSpec(path, MAX_PATH);
-    return path[0] ? std::wstring(path) : std::wstring(L".");
+    std::wstring path(MAX_PATH, L'\0');
+    DWORD len = GetModuleFileNameW(NULL, &path[0], static_cast<DWORD>(path.size()));
+    path.resize(len);
+    size_t pos = path.find_last_of(L"\\/");
+    return (pos != std::wstring::npos) ? path.substr(0, pos) : L".";
 }
 
 static void inline print_usage()
 {
-    printf(
+    printf
+    (
         "Usage:\n"
-        "  qdinstall.exe [options]\n\n"
-        "Options:\n"
-        "  -i -p <path>   Install drivers from path\n"
-        "  -u             Uninstall drivers\n"
-        "  -x             Uninstall drivers and remove installation files\n"
-        "  -v             Display version information\n"
+        "  qdinstall.exe -i\n"
+        "  qdinstall.exe -x\n"
+        "  qdinstall.exe -v\n"
     );
 }
 
@@ -170,18 +151,10 @@ static DWORD parse_args(int argc, wchar_t *argv[], Options &opts)
         {
             opts.install = true;
             opts.uninstall = false;
-            opts.remove = false;
-        }
-        else if (arg == L"-u")
-        {
-            opts.uninstall = true;
-            opts.remove = false;
-            opts.install = false;
         }
         else if (arg == L"-x")
         {
-            opts.remove = true;
-            opts.uninstall = false;
+            opts.uninstall = true;
             opts.install = false;
         }
         else if (arg == L"-v")
@@ -270,23 +243,16 @@ int wmain(int argc, wchar_t *argv[])
 
     if (opts.install)
     {
-        // INF root: -p path if provided, otherwise the exe's own directory.
-        std::wstring inf_root = opts.installationPath.empty() ? exe_dir : opts.installationPath;
-        ret = install_drivers(inf_root);
+        ret = install_drivers();
         if (ret == ERROR_ACCESS_DENIED)
         {
             printf("ERROR: failed to install driver (admin required)\n");
             return ret;
         }
-        if (ret == ERROR_INVALID_NAME)
-        {
-            printf("ERROR: failed to install driver (invalid input path)\n");
-            return ret;
-        }
         if (ret == ERROR_NO_MORE_ITEMS)
         {
             printf("INFO: driver already installed for qualcomm usb devices\n");
-            return ERROR_SUCCESS;
+            return ret;
         }
         if (ret == ERROR_SUCCESS_REBOOT_REQUIRED)
         {
@@ -300,10 +266,10 @@ int wmain(int argc, wchar_t *argv[])
         }
 
         // Register and start WWAN service (best effort)
-        if (GetFileAttributesW(COMMAND_WWANSVC) != INVALID_FILE_ATTRIBUTES)
+        if (GetFileAttributesW(PATH_WWANSVC) != INVALID_FILE_ATTRIBUTES)
         {
             printf("\nRegistering WWAN service ...\n");
-            execute_command(std::wstring(COMMAND_WWANSVC) + L" install");
+            execute_command(std::wstring(PATH_WWANSVC) + L" install");
             printf("Starting WWAN service ...\n");
             execute_command(L"net start qcmtusvc");
         }
@@ -316,7 +282,7 @@ int wmain(int argc, wchar_t *argv[])
             info.displayVersion  = QCOM_USB_DRIVERS_PRODUCT_VERSION_STRING_W;
             info.installLocation = opts.installationPath;
             info.uninstallString = L"\"" + opts.installationPath + L"\\qdinstall.exe\" -x";
-            info.estimatedSizeKB = (DWORD)(get_dir_size_bytes(opts.installationPath) / 1024);
+            info.estimatedSizeKB = 0;
 
             printf("\nRegistering installation ...\n");
             printf("Location: %ws\n", opts.installationPath.c_str());
@@ -328,56 +294,28 @@ int wmain(int argc, wchar_t *argv[])
             }
         }
     }
-    else if (opts.uninstall || opts.remove)
+    else if (opts.uninstall)
     {
-        // Read install location from registry before unregistering
-        std::wstring install_location = get_registered_install_location();
-
         // Stop and unregister WWAN service before driver removal
-        if (GetFileAttributesW(COMMAND_WWANSVC) != INVALID_FILE_ATTRIBUTES)
+        if (GetFileAttributesW(PATH_WWANSVC) != INVALID_FILE_ATTRIBUTES)
         {
             printf("Stopping WWAN service ...\n");
             execute_command(L"net stop qcmtusvc");
             printf("Unregistering WWAN service ...\n");
-            execute_command(std::wstring(COMMAND_WWANSVC) + L" uninstall");
+            execute_command(std::wstring(PATH_WWANSVC) + L" uninstall");
         }
 
-        printf("\nRemoving drivers ...\n");
         ret = uninstall_drivers();
         if (ret != ERROR_SUCCESS && ret != ERROR_FILE_NOT_FOUND)
         {
             printf("ERROR: failed to uninstall driver (0x%lX)\n", ret);
             return ret;
         }
-
         printf("\nCleaning up registry entries ...\n");
         ret = unregister_installation();
         if (ret != ERROR_SUCCESS)
         {
             printf("WARNING: failed to clean up registry (0x%lX), continuing...\n", ret);
-        }
-
-        // Schedule deletion of install directory (-x only, cannot delete self while running)
-        if (opts.remove && !install_location.empty())
-        {
-            DWORD attr = GetFileAttributesW(install_location.c_str());
-            if (attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY))
-            {
-                // Change working directory away from install path to avoid locking it
-                SetCurrentDirectoryW(L"C:\\");
-
-                printf("\nScheduling removal of: %ws\n", install_location.c_str());
-                std::wstring del_cmd = L"cmd.exe /c timeout /t 2 /nobreak >nul & rd /s /q \""
-                                       + install_location + L"\"";
-                STARTUPINFOW si_del = { sizeof(si_del) };
-                si_del.dwFlags = STARTF_USESHOWWINDOW;
-                si_del.wShowWindow = SW_HIDE;
-                PROCESS_INFORMATION pi_del = {};
-                CreateProcessW(nullptr, const_cast<wchar_t*>(del_cmd.c_str()),
-                               nullptr, nullptr, FALSE, CREATE_NEW_CONSOLE,
-                               nullptr, nullptr, &si_del, &pi_del);
-                if (pi_del.hProcess) { CloseHandle(pi_del.hProcess); CloseHandle(pi_del.hThread); }
-            }
         }
     }
 

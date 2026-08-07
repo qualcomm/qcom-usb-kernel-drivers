@@ -12,8 +12,10 @@ GENERAL DESCRIPTION
 
 *====*====*====*====*====*====*====*====*====*====*====*====*====*====*====*/
 
-#include <ntddk.h>
-#include <usbdi.h>
+#include "Ntddk.h"
+#include "Usbdi.h"
+#include "Usbdlib.h"
+#include "Wdm.h"
 
 #include "qcfilter.h"
 #include "qcfilterioc.h"
@@ -44,15 +46,19 @@ ProcessDispatchIrp
 )
 {
     KIRQL levelOrHandle;
-    PIO_STACK_LOCATION irpStack;
+    PIO_STACK_LOCATION irpStack, nextStack;
     PDEVICE_EXTENSION pDevExt;
     PVOID ioBuffer;
     ULONG inputBufferLength, outputBufferLength, ioControlCode;
     NTSTATUS ntStatus = STATUS_SUCCESS, ntCloseStatus = STATUS_SUCCESS, myNts;
+    USHORT usLength;
+    BOOLEAN bRemoveRequest = FALSE;
+    KIRQL irqLevel = KeGetCurrentIrql();
 
     pDevExt = DeviceObject->DeviceExtension;
 
     irpStack = IoGetCurrentIrpStackLocation(Irp);
+    nextStack = IoGetNextIrpStackLocation(Irp);
 
     // get the parameters from an IOCTL call
     ioBuffer = Irp->AssociatedIrp.SystemBuffer;
@@ -129,10 +135,16 @@ ProcessDispatchIrp
                             Irp->IoStatus.Information = sizeof(FILTER_DEVICE_INFO);
                         }
                     }
+                    if (ntStatus == STATUS_SUCCESS)
+                    {
+                        KIRQL levelOrHandle;
+                        PCONTROL_DEVICE_EXTENSION deviceExtension = pFilterDeviceInfo->pControlDeviceObject->DeviceExtension;
+                    }
                 }
                 break;
                 case IOCTL_QCDEV_CLOSE_CTL_FILE:
                 {
+                    KIRQL levelOrHandle;
                     PFILTER_DEVICE_INFO pFilterDeviceInfo;
                     if (inputBufferLength != sizeof(FILTER_DEVICE_INFO))
                     {

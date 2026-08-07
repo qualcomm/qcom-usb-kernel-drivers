@@ -66,7 +66,7 @@ int remove_drivers(EXEC_MODE mode)
     DEVINST devRoot;
     if (CM_Locate_DevNode(&devRoot, NULL, CM_LOCATE_DEVNODE_NORMAL) == CR_SUCCESS)
     {
-        CM_Reenumerate_DevNode(devRoot, CM_REENUMERATE_SYNCHRONOUS);
+        CM_Reenumerate_DevNode(devRoot, CM_REENUMERATE_NORMAL);
         printf("\n   Scanning for hardware changes...\n");
     }
 
@@ -304,10 +304,6 @@ BOOL DeviceMatch(PTSTR InfText, DWORD TextSize)
         matchFound = TRUE;
     }
     else if (StrStrW(InfText, TEXT("AndroidUsbDeviceClass")) != NULL)   // QCADB
-    {
-        matchFound = TRUE;
-    }
-    else if (StrStrW(InfText, TEXT("libusb-win32 devices")) != NULL)    // userspace (WinUSB)
     {
         matchFound = TRUE;
     }

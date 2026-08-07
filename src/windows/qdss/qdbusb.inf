@@ -12,7 +12,7 @@ Signature   = "$WINDOWS NT$"
 Class       = USBDevice
 ClassGuid   = {88BAE032-5A81-49f0-BC3D-A4FF138216D6}
 Provider    = %QCOM%
-DriverVer   = 06/15/2026,1.0.0.0
+DriverVer   = 07/15/2026,1.0.0.0
 Catalogfile = qdbusb.cat
 PnpLockdown = 1
 
