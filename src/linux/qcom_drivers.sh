@@ -37,6 +37,7 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 RESET='\033[0m'
 IN_DPKG_MAINTSCRIPT="${DPKG_MAINTSCRIPT_PACKAGE:-}"
+QCOM_USERSPACE_SUPPORT_CONFIG_PATH=/etc/qcom_drivers.conf
 
 # Since Debian package installation already holds the dpkg front‑end lock (used by apt-get),
 # this script must not install dependencies when invoked by a parent dpkg process.
@@ -414,6 +415,9 @@ else
       fi
 	   # update modules.dep and modules.alias
       depmod
+
+      $QCOM_LN_RM_MK_DIR/rm -f $QCOM_USERSPACE_SUPPORT_CONFIG_PATH
+      echo -e "Enable Qualcomm Userspace Support"
 
 	   echo -e "Uninstallation completed successfully."
       exit 0
@@ -1236,6 +1240,10 @@ echo -e "Qualcomm Modem driver is installed at $DEST_MODEM_SERIAL_PATH"
 echo -e "Qualcomm usbnet driver is installed at $DEST_QCOM_USBNET_PATH"
 echo -e "Qualcomm usb driver is installed at $DEST_QCOM_USB_PATH"
 echo -e "Qualcomm udev naming/permission rules are installed at $QCOM_UDEV_PATH"
+
+echo "QCOM_USERSPACE_SUPPORT=0" > $QCOM_USERSPACE_SUPPORT_CONFIG_PATH
+echo -e "Disable Qualcomm Userspace driver support"
+
 
 if [ -f "$DEST_QUD_PATH/RELEASES.md" ]; then
    echo -e "QUD Release Notes available at $DEST_QUD_PATH/RELEASES.md"
