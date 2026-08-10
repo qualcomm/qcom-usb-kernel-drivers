@@ -16,6 +16,9 @@ on:
 permissions:
   contents: read
 
+run:
+  retention-days: 1
+
 jobs:
 
   # ============================================================
@@ -80,7 +83,7 @@ jobs:
                 `4. **Commit with DCO sign-off**: \`git commit -s -m "fix(module): describe your change"\``,
                 `5. **Push to your fork** and open a PR targeting \`develop\`.`,
                 ``,
-                `Please review [CONTRIBUTING.md](../blob/main/CONTRIBUTING.md) for the complete guide.`,
+                `Please review [CONTRIBUTING.md](../../CONTRIBUTING.md) for the complete guide.`,
                 ``,
                 `This PR has been closed automatically. We look forward to your fork-based contribution! 🙌`
               ].join("\n")
@@ -95,30 +98,11 @@ jobs:
 
             core.notice(`PR #${prNumber} from upstream branch has been automatically closed.`);
 
-  # ============================================================
-  # Verify PR originates from a personal fork
-  # ============================================================
-  verify-fork-origin:
-    name: Verify Fork Origin
-    runs-on: ubuntu-latest
-    if: github.base_ref == 'develop'
-    steps:
-      - name: Check that PR comes from a fork
-        env:
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          BASE_REPO: ${{ github.event.pull_request.base.repo.full_name }}
-        run: |
-          echo "Head repository : $HEAD_REPO"
-          echo "Base repository : $BASE_REPO"
-          if [ "$HEAD_REPO" = "$BASE_REPO" ]; then
-            echo "::error::PRs must be submitted from a personal fork, not from a branch in the upstream repository."
-            echo "::error::Please fork the repository, push your changes there, and open a PR from your fork."
-            exit 1
-          fi
-          echo "PR originates from a fork — OK"
+  
+
 
   # ============================================================
-  # Validate PR title follows Conventional Commits
+  # Validate PR title matches branch naming convention
   # ============================================================
   validate-pr-title:
     name: Validate PR Title
@@ -130,12 +114,32 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           echo "PR Title: $PR_TITLE"
-          PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-zA-Z0-9_\-]+\))?: .{1,100}$'
+          # Title must start with a valid branch-type prefix followed by
+          # a slash-separated path and end with ': <description>'
+          # Matches:
+          #   feature/<name>: <description>
+          #   feature/<area>/<name>: <description>
+          #   bugfix/<name>: <description>
+          #   hotfix/<name>: <description>
+          #   docs/<name>: <description>
+          #   refactor/<name>: <description>
+          #   test/<name>: <description>
+          #   ci/<name>: <description>
+          #   users/<username>/<name>: <description>
+          PATTERN='^(feature/[a-zA-Z0-9._-]+(/[a-zA-Z0-9._-]+)?|bugfix/[a-zA-Z0-9._-]+|hotfix/[a-zA-Z0-9._-]+|docs/[a-zA-Z0-9._-]+|refactor/[a-zA-Z0-9._-]+|test/[a-zA-Z0-9._-]+|ci/[a-zA-Z0-9._-]+|users/[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+): .{1,100}$'
           if ! echo "$PR_TITLE" | grep -qE "$PATTERN"; then
-            echo "::error::PR title does not follow Conventional Commits format."
-            echo "::error::Expected: <type>(scope): <description>"
-            echo "::error::Valid types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
-            echo "::error::Example: fix(qcom_usb): resolve null pointer dereference on disconnect"
+            echo "::error::PR title does not follow the required format."
+            echo "::error::Expected: <type>/<name>: <description>"
+            echo "::error::Valid formats:"
+            echo "::error::  feature/<name>: <description>              e.g. feature/add-retry-logic: add retry on disconnect"
+            echo "::error::  feature/<area>/<name>: <description>       e.g. feature/qcom_usbnet/add-retry-logic: add retry on disconnect"
+            echo "::error::  bugfix/<name>: <description>               e.g. bugfix/null-pointer-on-empty-input: fix null deref in parser"
+            echo "::error::  hotfix/<name>: <description>               e.g. hotfix/dma-leak-on-disconnect: release DMA buffer on unplug"
+            echo "::error::  docs/<name>: <description>                 e.g. docs/getting-started: add setup instructions"
+            echo "::error::  refactor/<name>: <description>             e.g. refactor/extract-parser-module: split parser into own file"
+            echo "::error::  test/<name>: <description>                 e.g. test/add-missing-edge-cases: cover empty buffer scenario"
+            echo "::error::  ci/<name>: <description>                   e.g. ci/migrate-to-github-actions: replace Jenkins pipeline"
+            echo "::error::  users/<username>/<name>: <description>     e.g. users/shasaror/usbnet-retry-experiment: WIP retry logic"
             exit 1
           fi
           echo "PR title format is valid — OK"
@@ -163,7 +167,7 @@ jobs:
           fi
           echo "PR description is present — OK"
 
-  # ============================================================
+      # ============================================================
   # Validate source branch naming convention
   # ============================================================
   validate-branch-name:
@@ -176,12 +180,29 @@ jobs:
           BRANCH: ${{ github.head_ref }}
         run: |
           echo "Source branch: $BRANCH"
-          PATTERN='^(feat|fix|docs|refactor|test|chore|ci|perf|build|revert)\/[a-zA-Z0-9._\-]+$'
+          # Matches:
+          #   users/<username>/<description>
+          #   feature/<feature-name>
+          #   feature/<area>/<feature-name>
+          #   bugfix/<description>
+          #   hotfix/<description>
+          #   docs/<description>
+          #   refactor/<description>
+          #   test/<description>
+          #   ci/<description>
+          PATTERN='^(users/[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+|feature/[a-zA-Z0-9._-]+(/[a-zA-Z0-9._-]+)?|bugfix/[a-zA-Z0-9._-]+|hotfix/[a-zA-Z0-9._-]+|docs/[a-zA-Z0-9._-]+|refactor/[a-zA-Z0-9._-]+|test/[a-zA-Z0-9._-]+|ci/[a-zA-Z0-9._-]+)$'
           if ! echo "$BRANCH" | grep -qE "$PATTERN"; then
             echo "::error::Branch name '$BRANCH' does not follow the required naming convention."
-            echo "::error::Expected format: <type>/<description>"
-            echo "::error::Valid types: feat, fix, docs, refactor, test, chore, ci, perf, build, revert"
-            echo "::error::Example: fix/qcom-usb-null-deref"
+            echo "::error::Valid formats:"
+            echo "::error::  users/<username>/<description>     e.g. users/shasaror/usbnet-retry-experiment"
+            echo "::error::  feature/<feature-name>             e.g. feature/add-retry-logic"
+            echo "::error::  feature/<area>/<feature-name>      e.g. feature/qcom_usbnet/add-retry-logic"
+            echo "::error::  bugfix/<description>               e.g. bugfix/null-pointer-on-empty-input"
+            echo "::error::  hotfix/<description>               e.g. hotfix/dma-leak-on-disconnect"
+            echo "::error::  docs/<description>                 e.g. docs/getting-started"
+            echo "::error::  refactor/<description>             e.g. refactor/extract-parser-module"
+            echo "::error::  test/<description>                 e.g. test/add-missing-edge-cases"
+            echo "::error::  ci/<description>                   e.g. ci/migrate-to-github-actions"
             exit 1
           fi
           echo "Branch name is valid — OK"

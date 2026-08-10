@@ -54,7 +54,7 @@ jobs:
         with:
           name: linux-kernel-modules-${{ matrix.os }}
           path: src/linux/**/*.ko
-          retention-days: 7
+          retention-days: 1
 
   # ============================================================
   # Linux: build .deb package
@@ -91,7 +91,7 @@ jobs:
         with:
           name: linux-deb-package
           path: src/linux/build/*.deb
-          retention-days: 7
+          retention-days: 1
 
   # ============================================================
   # Windows: build drivers
@@ -154,7 +154,7 @@ jobs:
         with:
           name: windows-drivers
           path: build/target/drivers/
-          retention-days: 7
+          retention-days: 1
 
   # ============================================================
   # Windows: build installer
@@ -202,4 +202,4 @@ jobs:
         with:
           name: windows-installers
           path: build/target/qcom_usb_kernel_drivers_*.exe
-          retention-days: 7
+          retention-days: 1

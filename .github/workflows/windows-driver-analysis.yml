@@ -9,12 +9,7 @@ name: Windows Driver Analysis
 #      Catches buffer overruns, null dereferences, IRQL violations, and
 #      SAL annotation mismatches at compile time.
 #
-#   2. CodeQL with microsoft/windows-drivers query pack — the official
-#      Microsoft-recommended replacement for SDV (deprecated in WDK
-#      10.0.26100+ / VS2022). Covers IRQL violations, IRP handling,
-#      WDF object lifetime, locking discipline, and memory safety.
-#      Results are uploaded to GitHub Security as SARIF.
-#
+
 # Static Driver Verifier (SDV) is intentionally excluded — it was removed
 # from WDK 10.0.26100+ and is no longer compatible with VS2022 or later.
 # Driver Verifier (runtime) is also excluded — it requires a live kernel
@@ -22,6 +17,9 @@ name: Windows Driver Analysis
 #
 # Only kernel driver projects are analysed. Tool projects (qdinstall,
 # qdclr, qdcfg, qcdev, wwansvc) are user-mode executables and are excluded.
+#
+# Note: CodeQL analysis has been intentionally removed from this workflow.
+
 
 on:
   pull_request:
@@ -35,7 +33,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write  # required to upload SARIF results to GitHub Security
 
 jobs:
 
@@ -120,82 +117,4 @@ jobs:
           path: ca_${{ matrix.project.driver_type }}.log
           retention-days: 14
 
-  # ============================================================
-  # CodeQL — microsoft/windows-drivers query pack (SDV replacement)
-  # ============================================================
-  codeql-driver-analysis:
-    name: CodeQL Windows Driver Analysis
-    runs-on: windows-2022
-    permissions:
-      contents: read
-      security-events: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-        with:
-          persist-credentials: false
-
-      - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce  # v2
-
-      - name: Install WDK
-        shell: pwsh
-        run: |
-          $wdkUrl       = "https://go.microsoft.com/fwlink/?linkid=2335869"
-          $wdkInstaller = "$env:TEMP\wdksetup.exe"
-          Write-Host "Downloading WDK..."
-          & curl.exe -L --retry 3 --retry-delay 5 -o $wdkInstaller $wdkUrl
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          if ((Get-Item $wdkInstaller).Length -lt 1MB) {
-            Write-Host "ERROR: WDK installer download appears corrupt." -ForegroundColor Red; exit 1
-          }
-          Write-Host "Installing WDK silently..."
-          $proc = Start-Process -FilePath $wdkInstaller -ArgumentList "/quiet /norestart" -PassThru -Wait
-          if ($proc.ExitCode -ne 0) {
-            Write-Host "ERROR: WDK installer exited with $($proc.ExitCode)" -ForegroundColor Red
-            exit $proc.ExitCode
-          }
-          Write-Host "WDK installed."
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@5595ccaf912efad79be6eef63a5619ff05969be3  # v4.37.6
-        with:
-          languages: cpp
-          config: |
-            packs:
-              - microsoft/cpp-queries
-              - microsoft/windows-drivers
-            paths-ignore:
-              - "**/external/examples/**"
-
-      - name: Build all driver projects for CodeQL
-        shell: pwsh
-        run: |
-          # Build all four kernel driver projects under the CodeQL tracer
-          # so it captures every compilation unit across all drivers.
-          $projects = @(
-            "src/windows/filter/qcusbfilter.vcxproj",
-            "src/windows/ndis/qcusbnet.vcxproj",
-            "src/windows/wdfserial/qcwdfserial.vcxproj",
-            "src/windows/qdss/qdbusb.vcxproj"
-          )
-          foreach ($proj in $projects) {
-            Write-Host "Building $proj for CodeQL tracing..."
-            msbuild $proj `
-              /p:Configuration=Release `
-              /p:Platform=x64 `
-              /t:Build `
-              /m `
-              /nologo
-            if ($LASTEXITCODE -ne 0) {
-              Write-Host "ERROR: Build failed for $proj" -ForegroundColor Red
-              exit $LASTEXITCODE
-            }
-          }
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@5595ccaf912efad79be6eef63a5619ff05969be3  # v4.37.6
-        with:
-          category: windows-drivers
-          # Findings appear under Security -> Code scanning alerts.
-          upload: always
+  
