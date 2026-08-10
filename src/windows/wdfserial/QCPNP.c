@@ -3410,7 +3410,7 @@ NTSTATUS QCPNP_SetupIoThreadsAndQueues
     for (ULONG i = 0; i < pDevContext->UrbReadListCapacity; i++)
     {
         WDFREQUEST readRequest;
-        status = QCRD_CreateReadUrb(pDevContext, pDevContext->UrbReadBufferSize, '4gaT', &readRequest);
+        status = QCRD_CreateReadUrb(pDevContext, pDevContext->UrbReadBufferSize, &readRequest);
         if (!NT_SUCCESS(status) || readRequest == NULL)
         {
             QCSER_DbgPrint
@@ -3491,11 +3491,6 @@ exit:
             PLIST_ENTRY peek = head->Flink;
             RemoveEntryList(peek);
             PREQUEST_CONTEXT pReqContext = CONTAINING_RECORD(peek, REQUEST_CONTEXT, Link);
-            if (pReqContext->ReadBufferParam != NULL)
-            {
-                ExFreePoolWithTag(pReqContext->ReadBufferParam, '4gaT');
-                pReqContext->ReadBufferParam = NULL;
-            }
             WDFREQUEST request = pReqContext->Self;
             WdfObjectDelete(request);
         }
