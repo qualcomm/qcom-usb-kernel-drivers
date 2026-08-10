@@ -164,7 +164,7 @@ ls /lib/modules/$(uname -r)/kernel/drivers/usb/misc/ | grep qcom_usb
 3. Make your changes and ensure they compile on all supported platforms.
 4. Submit a pull request with a clear description of the changes.
 
-Please follow the existing coding style and run the appropriate static analysis tools before submitting.
+Please follow the existing coding style and run the appropriate static analysis tools before submitting. For full contribution guidelines, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Bug & Vulnerability Reporting
 
