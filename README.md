@@ -118,107 +118,14 @@ sudo ./qcom_drivers.sh install
 sudo ./qcom_drivers.sh uninstall
 ```
 
-For more guidance on the build process, FAQs, and troubleshooting, please refer to the [Linux README](./src/linux/README.md).
-
 ---
 
 ## Debian Package
 
-A Debian (`.deb`) package bundles the entire driver source tree and automatically builds and loads the kernel modules during installation via `qcom_drivers.sh`. The package name is **`qud`** and all files are installed under `/opt/qcom/QUD/build/`.
-
-### Prerequisites
-
-The following packages are required on the build host:
-
-```bash
-sudo apt-get install -y dpkg-dev build-essential
-```
-
-> **Note:** The build script (`build-deb.sh`) must be run on a Debian/Ubuntu host that has `dpkg-deb` available.
-
-### Build the Debian Package
-
-1. Clone the repository (if not already done):
-   ```bash
-   git clone https://github.com/qualcomm/qcom-usb-kernel-drivers.git
-   cd qcom-usb-kernel-drivers
-   ```
-
-2. Navigate to the Linux source directory:
-   ```bash
-   cd src/linux
-   ```
-
-3. Run the build script:
-   ```bash
-   ./build-deb.sh
-   ```
-
-   The package is generated at:
-   ```
-   src/linux/build/qud_<version>_all.deb
-   ```
-   For example, with the current driver version `1.0.6.5`:
-   ```
-   src/linux/build/qud_1.0.6.5_all.deb
-   ```
-
-4. *(Optional)* To also produce a `.zip` bundle containing the `.deb`, `README.md`, and `RELEASES.md`:
-   ```bash
-   ./build-deb.sh zip
-   ```
-   Output:
-   ```
-   src/linux/build/qud_<version>_all.zip
-   ```
-
-#### Customization via Environment Variables
-
-You can override default build settings by exporting environment variables before running the script:
-
-| Variable | Default | Description |
-|---|---|---|
-| `PKG_NAME` | `qud` | Debian package name |
-| `VERSION` | Parsed from `version.h` | Package version string |
-| `ARCH` | `all` | Target architecture (`all`, `amd64`, `arm64`, `i386`) |
-| `MAINTAINER` | `host-drivers.team <host-drivers.team@qti.qualcomm.com>` | Package maintainer field |
-| `INSTALL_PREFIX` | `/opt/qcom/QUD/build` | Installation path inside the target system |
-| `OUTPUT_DIR` | `./build` | Directory where the `.deb` file is written |
-| `NO_CLEANUP` | `0` | Set to `1` to keep the temporary build working directory for inspection |
-
-Example — build for `amd64` with a custom output directory:
-```bash
-ARCH=amd64 OUTPUT_DIR=/tmp/qud-out ./build-deb.sh
-```
-
-#### Inspect the Package Payload (Before Installing)
-
-List all files that will be installed by the package:
-```bash
-dpkg-deb -c src/linux/build/qud_<version>_all.deb
-```
-
----
-
-### Install the Debian Package
+### Install
 
 ```bash
 sudo dpkg -i src/linux/build/qud_<version>_all.deb
-```
-
-For example:
-```bash
-sudo dpkg -i src/linux/build/qud_1.0.6.5_all.deb
-```
-
-During installation, `dpkg` automatically:
-1. Runs the **`preinst`** script — cleans up any previous QUD installation (qpm-cli packages, legacy services, old install directory).
-2. Unpacks the driver source tree to `/opt/qcom/QUD/build/`.
-3. Runs the **`postinst`** script — installs kernel headers if missing, then calls `qcom_drivers.sh install` to compile and load the kernel modules.
-
-Installation logs are written to:
-```
-/opt/qcom/QUD/qcom_kernel_install.log
 ```
 
 > **Note:** If `dpkg` reports missing dependencies, resolve them first with:
@@ -227,134 +134,26 @@ Installation logs are written to:
 > ```
 > Then re-run the `dpkg -i` command.
 
----
-
-### Uninstall the Debian Package
+### Uninstall
 
 ```bash
 sudo dpkg -r qud
 ```
 
-This runs `qcom_drivers.sh uninstall` to unload and remove the kernel modules before removing the package files. Uninstallation logs are written to:
-```
-/opt/qcom/QUD/qcom_kernel_uninstall.log
-```
-
-To also remove any residual configuration files (full purge):
-```bash
-sudo dpkg --purge qud
-```
-
 ---
 
-### Verify the Debian Package Installation
-
-#### 1. Check the Installed Package Version
-
-```bash
-dpkg -s qud | grep -i ^Version
-```
-
-Expected output (example):
-```
-Version: 1.0.6.5
-```
-
-To see the full package status and metadata:
-```bash
-dpkg -s qud
-```
-
-Expected output (example):
-```
-Package: qud
-Status: install ok installed
-Priority: optional
-Section: kernel
-Installed-Size: ...
-Maintainer: host-drivers.team <host-drivers.team@qti.qualcomm.com>
-Architecture: all
-Version: 1.0.6.5
-Depends: bash, coreutils, sed, grep, make, kmod, build-essential, ...
-Description: Qualcomm USB kernel drivers for QUD devices.
-```
-
-#### 2. Confirm the Package Appears in the Installed Package List
-
-```bash
-dpkg -l | grep qud
-```
-
-Expected output:
-```
-ii  qud   1.0.6.5   all   Qualcomm USB kernel drivers for QUD devices.
-```
-
-The `ii` prefix means the package is correctly installed.
-
-#### 3. Verify Kernel Modules Are Loaded
+### Verify Kernel Modules Are Loaded
 
 ```bash
 lsmod | grep qcom
 ```
 
-Expected output (modules currently loaded):
-```
-qcom_usbnet    ...
-qcom_usb       ...
-```
-
-#### 4. Verify Kernel Modules Are Present on Disk
+### Verify Kernel Modules Are Present on Disk
 
 ```bash
-ls /lib/modules/$(uname -r)/kernel/drivers/net/usb/ | grep qcom
+ls /lib/modules/$(uname -r)/kernel/drivers/net/usb/ | grep qcom_usbnet
+ls /lib/modules/$(uname -r)/kernel/drivers/usb/misc/ | grep qcom_usb
 ```
-
-#### 5. Check the Installation Log
-
-Review the full installation log for any warnings or errors:
-```bash
-cat /opt/qcom/QUD/qcom_kernel_install.log
-```
-
-#### 6. Verify Installed Files
-
-List all files installed by the package:
-```bash
-dpkg -L qud
-```
-
-Confirm the driver source tree is present under the install prefix:
-```bash
-ls /opt/qcom/QUD/build/
-```
-
----
-
-### Version Number
-
-The package version is automatically read from `src/linux/version.h` at build time:
-
-```c
-#define DRIVER_VERSION "1.0.6.5"
-```
-
-The resulting `.deb` filename encodes the version:
-```
-qud_<DRIVER_VERSION>_<ARCH>.deb
-```
-
-To check the version of the **currently installed** package at any time:
-```bash
-dpkg -s qud | grep -i ^Version
-```
-
-To check the version **embedded inside a `.deb` file** before installing it:
-```bash
-dpkg-deb -f src/linux/build/qud_<version>_all.deb Version
-```
-
-For a full history of version changes and release notes, see [RELEASES.md](./src/linux/RELEASES.md).
 
 ---
 
