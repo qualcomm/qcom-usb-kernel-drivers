@@ -1680,7 +1680,6 @@ NTSTATUS QCSER_SetTimeout
             else
             {
                 pDevContext->ReadTimeout.ucTimeoutType = QCSER_READ_TIMEOUT_CASE_11;
-                pDevContext->ReadTimeout.bUseReadInterval = TRUE;
             }
 
             if ((pDevContext->ReadTimeout.ucTimeoutType != QCSER_READ_TIMEOUT_CASE_9) &&

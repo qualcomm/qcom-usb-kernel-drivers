@@ -622,7 +622,7 @@ void QCRD_ReadRequestHandlerThread
                                 );
                                 WDF_REQUEST_PARAMETERS_INIT(&requestParam);
                                 WdfRequestGetParameters(pendingTimeoutRequest, &requestParam);
-                                if (QCRD_StartReadTimeout(pDevContext, (ULONG)requestParam.Parameters.Read.Length) == FALSE)
+                                if (QCRD_StartReadTimeout(pDevContext, FALSE, (ULONG)requestParam.Parameters.Read.Length) == FALSE)
                                 {
                                     // timeout immediately
                                     WdfRequestComplete(pendingTimeoutRequest, STATUS_SUCCESS);
@@ -731,10 +731,9 @@ void QCRD_ReadRequestHandlerThread
                                 break;
                             }
 
-                            WDF_REQUEST_PARAMETERS_INIT(&requestParam);
-                            WdfRequestGetParameters(request, &requestParam);
+                            pReqContext = QCReqGetContext(request);
                             size_t availableLength = QCUTIL_RingBufferBytesUsed(rxBuffer);
-                            size_t requestedLength = requestParam.Parameters.Read.Length;
+                            size_t requestedLength = pReqContext->ReadBufferParam.AvailableBytes;
                             QCSER_DbgPrint
                             (
                                 QCSER_DBG_MASK_READ,
@@ -743,12 +742,39 @@ void QCRD_ReadRequestHandlerThread
                             );
 
                             size_t bytesCopied = 0;
-                            PUCHAR outputRxBuffer = NULL;
-                            WdfRequestRetrieveOutputBuffer(request, requestedLength, &outputRxBuffer, NULL);
+                            size_t readOffset = pReqContext->ReadBufferParam.Capacity - pReqContext->ReadBufferParam.AvailableBytes;
+                            PUCHAR outputRxBuffer = pReqContext->ReadBufferParam.pReadBuffer + readOffset;
                             status = QCUTIL_RingBufferRead(rxBuffer, outputRxBuffer, requestedLength, &bytesCopied);
                             if (NT_SUCCESS(status))
                             {
-                                WdfRequestCompleteWithInformation(request, STATUS_SUCCESS, bytesCopied);
+                                if (pDevContext->ReadTimeout.bUseReadInterval == TRUE)
+                                {
+                                    pReqContext->ReadBufferParam.AvailableBytes -= bytesCopied;
+                                    if (pReqContext->ReadBufferParam.AvailableBytes == 0)
+                                    {
+                                        WdfRequestCompleteWithInformation(request, STATUS_SUCCESS, pReqContext->ReadBufferParam.Capacity);
+                                        KeCancelTimer(&pDevContext->ReadTimer);
+                                        KeClearEvent(&pDevContext->ReadRequestTimeoutEvent);
+                                    }
+                                    else
+                                    {
+                                        status = WdfRequestForwardToIoQueue(request, pDevContext->TimeoutReadQueue);
+                                        if (NT_SUCCESS(status))
+                                        {
+                                            QCRD_StartReadTimeout(pDevContext, TRUE, 0);
+                                        }
+                                        else
+                                        {
+                                            WdfRequestCompleteWithInformation(request, status, 0);
+                                            KeCancelTimer(&pDevContext->ReadTimer);
+                                            KeClearEvent(&pDevContext->ReadRequestTimeoutEvent);
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    WdfRequestCompleteWithInformation(request, STATUS_SUCCESS, bytesCopied);
+                                }
                                 QCSER_DbgPrint
                                 (
                                     QCSER_DBG_MASK_READ,
@@ -938,7 +964,18 @@ void QCRD_ReadRequestHandlerThread
                     QCSER_DBG_LEVEL_TRACE,
                     ("<%ws> RIRP: QCRD_ReadRequestHandlerThread READ_THREAD_REQUEST_TIMEOUT_EVENT triggered\n", pDevContext->PortName)
                 );
-                QCUTIL_IoQueuePopAndComplete(pDevContext->TimeoutReadQueue, STATUS_TIMEOUT, 0);
+
+                status = WdfIoQueueRetrieveNextRequest(pDevContext->TimeoutReadQueue, &request);
+                if (NT_SUCCESS(status) && request != NULL)
+                {
+                    pReqContext = QCReqGetContext(request);
+                    size_t bytesCopied = pReqContext->ReadBufferParam.Capacity - pReqContext->ReadBufferParam.AvailableBytes;
+                    if (bytesCopied == 0)
+                    {
+                        status = STATUS_TIMEOUT;
+                    }
+                    WdfRequestCompleteWithInformation(request, status, bytesCopied);
+                }
                 break;
             }
             case READ_THREAD_SCAN_WAIT_MASK_EVENT:
@@ -1469,6 +1506,7 @@ VOID QCRD_ClearBuffer
  *           if the request should complete immediately with no data.
  *
  * arguments:pDevContext = pointer to the device context.
+ *           bInternalTimeout = enable interval timeout.
  *           readLength  = number of bytes requested by the read operation.
  *
  * returns:  BOOLEAN - TRUE if a timer was started, FALSE if the request
@@ -1478,6 +1516,7 @@ VOID QCRD_ClearBuffer
 BOOLEAN QCRD_StartReadTimeout
 (
     PDEVICE_CONTEXT pDevContext,
+    BOOLEAN bInternalTimeout,
     ULONG readLength
 )
 {
@@ -1499,10 +1538,22 @@ BOOLEAN QCRD_StartReadTimeout
         case QCSER_READ_TIMEOUT_CASE_1:
         case QCSER_READ_TIMEOUT_CASE_2:
         case QCSER_READ_TIMEOUT_CASE_7:
+        {
+            timeoutMillisecond = 0L;
+            break;
+        }
+        // interval timeout
         case QCSER_READ_TIMEOUT_CASE_9:
         case QCSER_READ_TIMEOUT_CASE_10:
         {
-            timeoutMillisecond = 0L;
+            if (bInternalTimeout == TRUE)
+            {
+                timeoutMillisecond = pDevContext->Timeouts.ReadIntervalTimeout;
+            }
+            else
+            {
+                timeoutMillisecond = 0L;
+            }
             break;
         }
         // constant timeout

@@ -64,6 +64,7 @@ VOID QCRD_ClearBuffer
 BOOLEAN QCRD_StartReadTimeout
 (
     PDEVICE_CONTEXT pDevContext,
+    BOOLEAN bInternalTimeout,
     ULONG readLength
 );
 
