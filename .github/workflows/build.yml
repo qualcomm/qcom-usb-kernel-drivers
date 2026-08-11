@@ -12,10 +12,54 @@ permissions:
 jobs:
 
   # ============================================================
+  # Detect which platform directories changed.
+  # Outputs:
+  #   run_linux   – true when src/linux/** is touched
+  #   run_windows – true when build/** or src/windows/** is touched
+  # ============================================================
+  detect-changes:
+    name: Detect Changed Directories
+    runs-on: ubuntu-latest
+    outputs:
+      run_linux:   ${{ steps.filter.outputs.linux }}
+      run_windows: ${{ steps.filter.outputs.windows }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Determine changed paths
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          # Linux: any change under src/linux/
+          if echo "$CHANGED" | grep -qE '^src/linux/'; then
+            echo "linux=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "linux=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Windows: any change under build/ or src/windows/
+          if echo "$CHANGED" | grep -qE '^(build/|src/windows/)'; then
+            echo "windows=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "windows=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ============================================================
   # Linux: build kernel modules
   # ============================================================
   build-linux:
     name: Build Linux Kernel Modules (${{ matrix.os }})
+    needs: detect-changes
+    if: needs.detect-changes.outputs.run_linux == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -62,7 +106,8 @@ jobs:
   build-deb:
     name: Build Linux .deb Package
     runs-on: ubuntu-22.04
-    needs: build-linux
+    needs: [detect-changes, build-linux]
+    if: needs.detect-changes.outputs.run_linux == 'true'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
@@ -98,6 +143,8 @@ jobs:
   # ============================================================
   build-windows-drivers:
     name: Build Windows Drivers
+    needs: detect-changes
+    if: needs.detect-changes.outputs.run_windows == 'true'
     runs-on: windows-2022
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
@@ -162,7 +209,8 @@ jobs:
   build-windows-installer:
     name: Build Windows Installer
     runs-on: windows-2022
-    needs: build-windows-drivers
+    needs: [detect-changes, build-windows-drivers]
+    if: needs.detect-changes.outputs.run_windows == 'true'
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
