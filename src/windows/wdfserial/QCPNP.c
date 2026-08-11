@@ -820,7 +820,7 @@ NTSTATUS QCPNP_DeviceConfig
 
     // Timeout Read Queue
     WDF_IO_QUEUE_CONFIG_INIT(&queueConfig, WdfIoQueueDispatchManual);
-    queueConfig.PowerManaged = WdfFalse;
+    queueConfig.PowerManaged = WdfTrue;
     status = WdfIoQueueCreate
     (
         device,
