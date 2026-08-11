@@ -122,6 +122,39 @@ sudo ./qcom_drivers.sh uninstall
 
 ## Debian Package
 
+### Create
+
+The `build-deb.sh` script packages the entire `src/linux` folder into a self-contained `.deb` file. It reads the driver version from `version.h` and installs all files under `/opt/qcom/QUD`.
+
+```bash
+./build-deb.sh
+```
+
+This produces:
+
+```
+src/linux/build/qud_<version>_all.deb
+```
+
+To also bundle the `.deb` together with `README.md` and `RELEASES.md` into a `.zip` archive, pass the `zip` argument:
+
+```bash
+./build-deb.sh zip
+```
+
+This produces:
+
+```
+src/linux/build/qud_<version>_all.zip
+```
+#### Verify Package Payload
+
+To inspect the contents of the generated `.deb` without installing it:
+
+```bash
+dpkg-deb -c src/linux/build/qud_<version>_all.deb
+```
+
 ### Install
 
 ```bash
@@ -137,7 +170,37 @@ sudo dpkg -i src/linux/build/qud_<version>_all.deb
 ### Uninstall
 
 ```bash
-sudo dpkg -r qud
+sudo dpkg -P qud
+```
+
+### Query Installed Version
+
+```bash
+dpkg -s qud | grep -i ^Version
+```
+
+### Installation & Uninstallation Logs
+
+All installation and uninstallation activity is logged for troubleshooting:
+
+| Operation | Log File |
+|---|---|
+| Installation | `/opt/qcom/QUD/qcom_kernel_install.log` |
+| Uninstallation | `/opt/qcom/QUD/qcom_kernel_uninstall.log` |
+
+The installation log captures:
+- Kernel header installation attempts.
+- Full output of `qcom_drivers.sh install`.
+- Relevant excerpts from `/var/log/dpkg.log`.
+
+The uninstallation log captures:
+- Full output of `qcom_drivers.sh uninstall`.
+- Post-removal directory cleanup.
+
+To monitor the installation log in real time:
+
+```bash
+tail -f /opt/qcom/QUD/qcom_kernel_install.log
 ```
 
 ---
