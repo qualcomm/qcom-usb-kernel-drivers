@@ -94,11 +94,6 @@ NTSTATUS QCPNP_EvtDeviceAdd
         goto exit;
     }
 
-    if (pDevContext->FdoDeviceType == FILE_DEVICE_SERIAL_PORT)
-    {
-        QCPNP_ReportDeviceName(pDevContext);
-    }
-
 exit:
     if (!NT_SUCCESS(status))
     {
@@ -265,6 +260,50 @@ NTSTATUS QCPNP_SetStamp
         WdfRegistryClose(key);
     }
     return STATUS_SUCCESS;
+}
+
+/****************************************************************************
+ *
+ * function: QCPNP_IncrementGeneration
+ *
+ * purpose:  Increments QCDeviceGeneration DWORD in the driver registry key
+ *           on every PrepareHardware so QDS can detect a re-enumeration even
+ *           when DevDesc/DevName/SerNum are identical across reboots.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
+NTSTATUS QCPNP_IncrementGeneration(PDEVICE_CONTEXT pDevContext)
+{
+    NTSTATUS       status = STATUS_SUCCESS;
+    WDFDEVICE      device = pDevContext->Device;
+    WDFKEY         key;
+    ULONG          genValue = 0;
+    DECLARE_CONST_UNICODE_STRING(valueName, VEN_DEV_GENERATION);
+
+    status = WdfDeviceOpenRegistryKey(device, PLUGPLAY_REGKEY_DRIVER,
+        KEY_QUERY_VALUE | KEY_SET_VALUE, WDF_NO_OBJECT_ATTRIBUTES, &key);
+    if (!NT_SUCCESS(status))
+    {
+        return status;
+    }
+
+    WdfRegistryQueryValue(key, &valueName, REG_DWORD, &genValue, sizeof(genValue), NULL);
+    WdfRegistryClose(key);
+
+    genValue++;
+    status = QCMAIN_SetDriverRegistryDword((LPWSTR)valueName.Buffer, genValue, pDevContext);
+
+    QCSER_DbgPrint
+    (
+        QCSER_DBG_MASK_CONTROL,
+        QCSER_DBG_LEVEL_DETAIL,
+        ("<%ws> QCPNP_IncrementGeneration new generation: %lu, status: 0x%x\n",
+         pDevContext->PortName, genValue, status)
+    );
+    return status;
 }
 
 /****************************************************************************
@@ -1714,6 +1753,10 @@ NTSTATUS QCPNP_EvtDevicePrepareHardware
         status = QCPNP_RegisterWmiPowerGuid(pDevContext);
     }
 
+    // Increment QCDeviceGeneration so QDS can detect a re-enumeration even
+    // when the device identity (DevDesc/DevName/SerNum) is unchanged.
+    QCPNP_IncrementGeneration(pDevContext);
+
 exit:
     if (!NT_SUCCESS(status))
     {
@@ -2234,6 +2277,14 @@ NTSTATUS QCPNP_EvtDeviceD0Entry
         QCSER_DBG_LEVEL_TRACE,
         ("<%ws> QCPNP_EvtDeviceD0Entry Completed!\n", pDevContext->PortName)
     );
+
+    // Re-announce diag device name to parent/filter on every D0 entry.
+    // EvtDeviceAdd fires only once; D0Entry fires on each re-enumeration.
+    if (pDevContext->FdoDeviceType == FILE_DEVICE_SERIAL_PORT)
+    {
+        QCPNP_ReportDeviceName(pDevContext);
+    }
+
     return STATUS_SUCCESS;
 }
 
@@ -3279,6 +3330,9 @@ NTSTATUS QCPNP_SetupIoThreadsAndQueues
     NTSTATUS status;
     LARGE_INTEGER threadInitTimeout;
     threadInitTimeout.QuadPart = WDF_REL_TIMEOUT_IN_MS(QCPNP_THREAD_INIT_TIMEOUT_MS);
+
+    // Clear stale removal signal in case we're re-entering after a removal cycle
+    KeClearEvent(&pDevContext->DeviceRemoveEvent);
 
     // Init write request list, lock and events
     InitializeListHead(&pDevContext->WriteRequestPendingList);
