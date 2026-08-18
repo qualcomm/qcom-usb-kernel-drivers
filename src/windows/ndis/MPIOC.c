@@ -2708,18 +2708,20 @@ PMPIOC_DEV_INFO MPIOC_FindIoDevice
          }
          else
          {
-#if 0
             if ((pIocDev->Adapter == NULL) ||
                 (pIocDev->Adapter->UsbRemoved == TRUE) ||
                 (pIocDev->Adapter->USBDo == NULL))
             {
+               if (IocDevice == pIocDev)
+               {
+                  bReferenceFound = TRUE;
+               }
                peekEntry = peekEntry->Flink;
                continue;
             }
-#endif
 
             pDevExt1 = pIocDev->Adapter->USBDo->DeviceExtension;
-            if (pAdapter != NULL)
+            if (pAdapter != NULL && pAdapter->USBDo != NULL)
             {
                pDevExt = (PDEVICE_EXTENSION)pAdapter->USBDo->DeviceExtension;
             }
