@@ -290,7 +290,7 @@ NTSTATUS QCPNP_IncrementGeneration(PDEVICE_CONTEXT pDevContext)
         return status;
     }
 
-    WdfRegistryQueryValue(key, &valueName, REG_DWORD, &genValue, sizeof(genValue), NULL);
+    WdfRegistryQueryValue(key, &valueName, sizeof(genValue), &genValue, NULL, NULL);
     WdfRegistryClose(key);
 
     genValue++;
