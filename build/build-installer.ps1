@@ -608,6 +608,8 @@ namespace PayloadInstaller
             LogLine("[STEP] Session ended : " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss") + "  exit=" + exitCode);
             CloseLog();
             Console.WriteLine("\nPlease find the installation logs at: " + LogFile);
+            Console.WriteLine("\nPress any key to exit...");
+            Console.ReadKey(true);
             return exitCode;
         }
     }
