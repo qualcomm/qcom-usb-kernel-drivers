@@ -1,0 +1,155 @@
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+# SPDX-License-Identifier: BSD-3-Clause
+name: Windows Driver Analysis
+
+# Runs two complementary static analysis tools on every PR that touches
+# Windows driver source code:
+#
+#   1. Code Analysis (/analyze) — MSBuild-integrated MSVC static analyser.
+#      Catches buffer overruns, null dereferences, IRQL violations, and
+#      SAL annotation mismatches at compile time.
+#
+
+# Static Driver Verifier (SDV) is intentionally excluded — it was removed
+# from WDK 10.0.26100+ and is no longer compatible with VS2022 or later.
+# Driver Verifier (runtime) is also excluded — it requires a live kernel
+# and cannot run in a hosted CI environment.
+#
+# Only kernel driver projects are analysed. Tool projects (qdinstall,
+# qdclr, qdcfg, qcdev, wwansvc) are user-mode executables and are excluded.
+#
+# Note: CodeQL analysis has been intentionally removed from this workflow.
+
+
+on:
+  pull_request:
+    branches:
+      - develop
+    paths:
+      - 'src/windows/filter/**'
+      - 'src/windows/ndis/**'
+      - 'src/windows/wdfserial/**'
+      - 'src/windows/qdss/**'
+      - 'build/**'
+
+permissions:
+  contents: read
+
+jobs:
+
+  # ============================================================
+  # Detect whether Windows-relevant paths changed.
+  # Covers: build/ and all src/windows/ driver subdirectories.
+  # ============================================================
+  detect-changes:
+    name: Detect Changed Directories
+    runs-on: ubuntu-latest
+    outputs:
+      run_windows: ${{ steps.filter.outputs.windows }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Determine changed paths
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          # Windows: any change under build/ or src/windows/
+          if echo "$CHANGED" | grep -qE '^(build/|src/windows/)'; then
+            echo "windows=true"  >> "$GITHUB_OUTPUT"
+          else
+            echo "windows=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ============================================================
+  # Code Analysis (/analyze) — all four driver projects
+  # ============================================================
+  code-analysis:
+    name: Code Analysis — ${{ matrix.project.name }}
+    needs: detect-changes
+    if: needs.detect-changes.outputs.run_windows == 'true'
+    runs-on: windows-2022
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - name: qcusbfilter (WDM)
+            vcxproj: src/windows/filter/qcusbfilter.vcxproj
+            driver_type: WDM
+          - name: qcusbnet (WDM)
+            vcxproj: src/windows/ndis/qcusbnet.vcxproj
+            driver_type: WDM
+          - name: qcwdfserial (KMDF)
+            vcxproj: src/windows/wdfserial/qcwdfserial.vcxproj
+            driver_type: KMDF
+          - name: qdbusb (KMDF)
+            vcxproj: src/windows/qdss/qdbusb.vcxproj
+            driver_type: KMDF
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce  # v2
+
+      - name: Install WDK
+        shell: pwsh
+        run: |
+          $wdkUrl       = "https://go.microsoft.com/fwlink/?linkid=2335869"
+          $wdkInstaller = "$env:TEMP\wdksetup.exe"
+          Write-Host "Downloading WDK..."
+          & curl.exe -L --retry 3 --retry-delay 5 -o $wdkInstaller $wdkUrl
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ((Get-Item $wdkInstaller).Length -lt 1MB) {
+            Write-Host "ERROR: WDK installer download appears corrupt." -ForegroundColor Red; exit 1
+          }
+          Write-Host "Installing WDK silently..."
+          $proc = Start-Process -FilePath $wdkInstaller -ArgumentList "/quiet /norestart" -PassThru -Wait
+          if ($proc.ExitCode -ne 0) {
+            Write-Host "ERROR: WDK installer exited with $($proc.ExitCode)" -ForegroundColor Red
+            exit $proc.ExitCode
+          }
+          Write-Host "WDK installed."
+
+      - name: Run Code Analysis
+        shell: pwsh
+        run: |
+          # /analyze enables MSVC static analysis.
+          # RunCodeAnalysis=true tells the WDK targets to enable /analyze.
+          # AnalysisStopOnError=true fails the build on any Code Analysis warning.
+          msbuild "${{ matrix.project.vcxproj }}" `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:RunCodeAnalysis=true `
+            /p:AnalysisStopOnError=true `
+            /p:EnablePREfast=true `
+            /p:CodeAnalysisRuleSet=NativeRecommendedRules.ruleset `
+            /p:CA_PlugInDir="$(${env:WindowsSdkDir})\..\..\WDK\CodeAnalysis\Plugins" `
+            /t:Build `
+            /m `
+            /nologo `
+            /filelogger `
+            /fileloggerparameters:LogFile=ca_${{ matrix.project.driver_type }}.log
+
+      - name: Upload Code Analysis log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: code-analysis-${{ matrix.project.name }}
+          path: ca_${{ matrix.project.driver_type }}.log
+          retention-days: 14
+
+  
