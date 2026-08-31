@@ -16,9 +16,6 @@ on:
 permissions:
   contents: read
 
-run:
-  retention-days: 1
-
 jobs:
 
   # ============================================================
