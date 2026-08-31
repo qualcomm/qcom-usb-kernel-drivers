@@ -859,7 +859,7 @@ NTSTATUS QCPNP_DeviceConfig
 
     // Timeout Read Queue
     WDF_IO_QUEUE_CONFIG_INIT(&queueConfig, WdfIoQueueDispatchManual);
-    queueConfig.PowerManaged = WdfFalse;
+    queueConfig.PowerManaged = WdfTrue;
     status = WdfIoQueueCreate
     (
         device,
@@ -3464,7 +3464,7 @@ NTSTATUS QCPNP_SetupIoThreadsAndQueues
     for (ULONG i = 0; i < pDevContext->UrbReadListCapacity; i++)
     {
         WDFREQUEST readRequest;
-        status = QCRD_CreateReadUrb(pDevContext, pDevContext->UrbReadBufferSize, '4gaT', &readRequest);
+        status = QCRD_CreateReadUrb(pDevContext, pDevContext->UrbReadBufferSize, &readRequest);
         if (!NT_SUCCESS(status) || readRequest == NULL)
         {
             QCSER_DbgPrint
@@ -3485,47 +3485,52 @@ NTSTATUS QCPNP_SetupIoThreadsAndQueues
     QCUTIL_RingBufferInit(&pDevContext->ReadRingBuffer, USB_INTERNAL_READ_BUFFER_SIZE);
 
     // create write thread
-    status = QCPNP_CreateWorkerThread
-    (
-        pDevContext,
-        QCWT_WriteRequestHandlerThread,
-        &pDevContext->WriteThreadStartedEvent,
-        &threadInitTimeout,
-        &pDevContext->WriteRequestHandlerThread
-    );
-    if (!NT_SUCCESS(status))
+    if (pDevContext->BulkOUT != NULL)
     {
-        QCSER_DbgPrint
+        status = QCPNP_CreateWorkerThread
         (
-            QCSER_DBG_MASK_WRITE,
-            QCSER_DBG_LEVEL_CRITICAL,
-            ("<%ws> QCPNP_SetupIoThreadsAndQueues write handler thread create FAILED status: 0x%x\n", pDevContext->PortName, status)
+            pDevContext,
+            QCWT_WriteRequestHandlerThread,
+            &pDevContext->WriteThreadStartedEvent,
+            &threadInitTimeout,
+            &pDevContext->WriteRequestHandlerThread
         );
-        pDevContext->WriteRequestHandlerThread = NULL;
-        goto exit;
+        if (!NT_SUCCESS(status))
+        {
+            QCSER_DbgPrint
+            (
+                QCSER_DBG_MASK_WRITE,
+                QCSER_DBG_LEVEL_CRITICAL,
+                ("<%ws> QCPNP_SetupIoThreadsAndQueues write handler thread create FAILED status: 0x%x\n", pDevContext->PortName, status)
+            );
+            pDevContext->WriteRequestHandlerThread = NULL;
+            goto exit;
+        }
     }
 
     // create read thread
-    status = QCPNP_CreateWorkerThread
-    (
-        pDevContext,
-        QCRD_ReadRequestHandlerThread,
-        &pDevContext->ReadThreadStartedEvent,
-        &threadInitTimeout,
-        &pDevContext->ReadRequestHandlerThread
-    );
-    if (!NT_SUCCESS(status))
+    if (pDevContext->BulkIN != NULL)
     {
-        QCSER_DbgPrint
+        status = QCPNP_CreateWorkerThread
         (
-            QCSER_DBG_MASK_READ,
-            QCSER_DBG_LEVEL_CRITICAL,
-            ("<%ws> QCPNP_SetupIoThreadsAndQueues read handler thread create FAILED status: 0x%x\n", pDevContext->PortName, status)
+            pDevContext,
+            QCRD_ReadRequestHandlerThread,
+            &pDevContext->ReadThreadStartedEvent,
+            &threadInitTimeout,
+            &pDevContext->ReadRequestHandlerThread
         );
-        pDevContext->ReadRequestHandlerThread = NULL;
-        goto exit;
+        if (!NT_SUCCESS(status))
+        {
+            QCSER_DbgPrint
+            (
+                QCSER_DBG_MASK_READ,
+                QCSER_DBG_LEVEL_CRITICAL,
+                ("<%ws> QCPNP_SetupIoThreadsAndQueues read handler thread create FAILED status: 0x%x\n", pDevContext->PortName, status)
+            );
+            pDevContext->ReadRequestHandlerThread = NULL;
+            goto exit;
+        }
     }
-
     KeInitializeTimer(&pDevContext->ReadTimer);
     KeInitializeDpc(&pDevContext->ReadTimeoutDpc, QCRD_ReadTimeoutDpc, pDevContext);
 
@@ -3545,11 +3550,6 @@ exit:
             PLIST_ENTRY peek = head->Flink;
             RemoveEntryList(peek);
             PREQUEST_CONTEXT pReqContext = CONTAINING_RECORD(peek, REQUEST_CONTEXT, Link);
-            if (pReqContext->ReadBufferParam != NULL)
-            {
-                ExFreePoolWithTag(pReqContext->ReadBufferParam, '4gaT');
-                pReqContext->ReadBufferParam = NULL;
-            }
             WDFREQUEST request = pReqContext->Self;
             WdfObjectDelete(request);
         }

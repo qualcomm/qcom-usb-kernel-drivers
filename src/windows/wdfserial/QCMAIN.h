@@ -281,7 +281,7 @@ typedef struct _REQUEST_CONTEXT
     LIST_ENTRY Link;
     WDFREQUEST Self;
     PDEVICE_CONTEXT pDevContext;
-    PREAD_BUFFER_PARAM ReadBufferParam;
+    READ_BUFFER_PARAM ReadBufferParam;
 } REQUEST_CONTEXT, *PREQUEST_CONTEXT;
 
 #pragma pack(push, 1)
