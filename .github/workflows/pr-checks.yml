@@ -19,19 +19,50 @@ permissions:
 jobs:
 
   # ============================================================
-  # Block PRs targeting main
+  # Gate PRs targeting main:
+  #   - source branch MUST be 'develop'
+  #   - actor MUST be a maintainer (write / maintain / admin)
   # ============================================================
   block-pr-to-main:
-    name: Block PR Targeting Main
+    name: Gate PR Targeting Main
     runs-on: ubuntu-latest
     if: github.base_ref == 'main'
+    permissions:
+      contents: read
     steps:
-      - name: Fail if PR targets main
+      - name: Enforce develop-only source branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
-          echo "::error::PRs targeting main are not accepted."
-          echo "::error::Please target the develop branch instead."
-          echo "::error::See CONTRIBUTING.md for the contribution workflow."
-          exit 1
+          if [ "$HEAD_REF" != "develop" ]; then
+            echo "::error::PRs targeting main are only accepted from the 'develop' branch."
+            echo "::error::This PR originates from '$HEAD_REF'."
+            echo "::error::Please target the 'develop' branch instead, or merge 'develop' → 'main' via the release process."
+            echo "::error::See CONTRIBUTING.md for the contribution workflow."
+            exit 1
+          fi
+          echo "Source branch is 'develop' — OK"
+
+      - name: Enforce maintainer-only merge to main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+          REPO: ${{ github.repository }}
+        run: |
+          PERMISSION=$(gh api "repos/${REPO}/collaborators/${ACTOR}/permission" \
+            --jq '.permission' 2>/dev/null || echo "none")
+          echo "Actor '${ACTOR}' permission: ${PERMISSION}"
+          case "$PERMISSION" in
+            admin|maintain|write)
+              echo "Actor '${ACTOR}' is a maintainer — OK"
+              ;;
+            *)
+              echo "::error::Only maintainers (write/maintain/admin) may open PRs targeting main."
+              echo "::error::Actor '${ACTOR}' has permission '${PERMISSION}'."
+              echo "::error::Please open your PR against the 'develop' branch instead."
+              exit 1
+              ;;
+          esac
 
   # ============================================================
   # Block PRs from upstream repository (non-fork)
@@ -164,7 +195,7 @@ jobs:
           fi
           echo "PR description is present — OK"
 
-      # ============================================================
+  # ============================================================
   # Validate source branch naming convention
   # ============================================================
   validate-branch-name:
