@@ -1740,6 +1740,17 @@ VOID MPQCTL_HandleGetClientIdRsp
     {
         // for external client
         pIoDev = (PMPIOC_DEV_INFO)item->Context;
+        if (pIoDev == NULL)
+        {
+            QCNET_DbgPrint
+            (
+                MP_DBG_MASK_CONTROL,
+                MP_DBG_LEVEL_ERROR,
+                ("<%s> QMICTL_GET_CLIENT_ID_RESP (TID %d): NULL IoDev context\n",
+                pAdapter->PortName, qmictl->TransactionId)
+            );
+            return;
+        }
         pClientIdReceivedEvent = &pIoDev->ClientIdReceivedEvent;
     }
 

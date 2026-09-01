@@ -12998,6 +12998,29 @@ ULONG MPQMUX_ProcessWmsRawReadResp
             {
                 PNDIS_WWAN_SMS_READ pSmsRead = (PNDIS_WWAN_SMS_READ)pOID->OidReqCopy.DATA.QUERY_INFORMATION.InformationBuffer;
                 PNDIS_WWAN_SMS_RECEIVE pSMSReceive = (PNDIS_WWAN_SMS_RECEIVE)pOID->pOIDResp;
+                if (pSmsRead == NULL || pSMSReceive == NULL)
+                {
+                    QCNET_DbgPrint
+                    (
+                        MP_DBG_MASK_OID_QMI, MP_DBG_LEVEL_ERROR,
+                        ("<%s> QMUX: RawReadResp NULL ptr: pSmsRead=0x%p pSMSReceive=0x%p\n",
+                        pAdapter->PortName, pSmsRead, pSMSReceive)
+                    );
+                    pOID->OIDStatus = NDIS_STATUS_FAILURE;
+                    if (pSMSReceive != NULL)
+                    {
+                        // Set the status field in the response buffer so the
+                        // indication carries the correct failure status.
+                        pSMSReceive->uStatus = NDIS_STATUS_FAILURE;
+                    }
+                    else
+                    {
+                        // pOIDResp is NULL; zero out RespLen to avoid passing
+                        // a NULL buffer with non-zero size to NdisMIndicateStatusEx.
+                        pOID->OIDRespLen = 0;
+                    }
+                    break;
+                }
                 if (pAdapter->DeviceReadyState == DeviceWWanOff)
                 {
                     pOID->OIDStatus = WWAN_STATUS_NOT_INITIALIZED;
