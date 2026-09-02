@@ -26,7 +26,10 @@ jobs:
   block-pr-to-main:
     name: Gate PR Targeting Main
     runs-on: ubuntu-latest
-    if: github.base_ref == 'main'
+    on:
+      pull_request:
+        branches:
+          - main
     permissions:
       contents: read
     steps:
