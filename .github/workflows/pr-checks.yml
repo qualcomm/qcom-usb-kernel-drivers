@@ -23,7 +23,7 @@ jobs:
   #   - source branch MUST be 'develop'
   #   - actor MUST be a maintainer (write / maintain / admin)
   # ============================================================
-    block-pr-to-main:
+  block-pr-to-main:
     name: Gate PR Targeting Main
     runs-on: ubuntu-latest
     if: github.base_ref == 'main'
