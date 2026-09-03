@@ -9,10 +9,10 @@ Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
 		Debug|x64 = Debug|x64
-		Debug|x86 = Debug|x86
+		
 		Release|ARM64 = Release|ARM64
 		Release|x64 = Release|x64
-		Release|x86 = Release|x86
+		
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{A4901F04-A502-407B-A405-A7C3E1B69733}.Debug|ARM64.ActiveCfg = Debug|ARM64
@@ -21,16 +21,14 @@ Global
 		{A4901F04-A502-407B-A405-A7C3E1B69733}.Debug|x64.ActiveCfg = Debug|x64
 		{A4901F04-A502-407B-A405-A7C3E1B69733}.Debug|x64.Build.0 = Debug|x64
 		{A4901F04-A502-407B-A405-A7C3E1B69733}.Debug|x64.Deploy.0 = Debug|x64
-		{A4901F04-A502-407B-A405-A7C3E1B69733}.Debug|x86.ActiveCfg = Debug|Win32
-		{A4901F04-A502-407B-A405-A7C3E1B69733}.Debug|x86.Build.0 = Debug|Win32
+		
 		{A4901F04-A502-407B-A405-A7C3E1B69733}.Release|ARM64.ActiveCfg = Release|ARM64
 		{A4901F04-A502-407B-A405-A7C3E1B69733}.Release|ARM64.Build.0 = Release|ARM64
 		{A4901F04-A502-407B-A405-A7C3E1B69733}.Release|ARM64.Deploy.0 = Release|ARM64
 		{A4901F04-A502-407B-A405-A7C3E1B69733}.Release|x64.ActiveCfg = Release|x64
 		{A4901F04-A502-407B-A405-A7C3E1B69733}.Release|x64.Build.0 = Release|x64
 		{A4901F04-A502-407B-A405-A7C3E1B69733}.Release|x64.Deploy.0 = Release|x64
-		{A4901F04-A502-407B-A405-A7C3E1B69733}.Release|x86.ActiveCfg = Release|Win32
-		{A4901F04-A502-407B-A405-A7C3E1B69733}.Release|x86.Build.0 = Release|Win32
+		
 		{A4901F04-A502-407B-A405-A7C3E1B69733}.Release|x86.Deploy.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
