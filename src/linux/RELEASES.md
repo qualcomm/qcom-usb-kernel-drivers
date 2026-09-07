@@ -10,9 +10,9 @@ All notable changes to the **Qualcomm USB Kernel Drivers (QUD)** project are doc
 Qualcomm USB host drivers providing logical representations of Qualcomm chipset-enabled mobile devices over USB connection (Only for Qualcomm users).
 
 - **Open source repository:** https://github.com/qualcomm/qcom-usb-kernel-drivers.git
+- **Contributing:** If you are interested in contributing to the open-source Qualcomm USB Kernel Driver, please refer to [CONTRIBUTING.md](../../CONTRIBUTING.md), or raise an issue on GitHub for any query.
 - **Public QUD Wiki Reference:** https://qwiki.qualcomm.com/public/Qct-linux-usb-host-drivers
 - **Contacts:** `<host-drivers.team@qti.qualcomm.com>` — For any question or comment regarding QUD driver.
-- **Contributing:** If you are interested in contributing to the open-source Qualcomm USB Kernel Driver, please refer to [CONTRIBUTING.md](../../CONTRIBUTING.md), or raise an issue on GitHub for any query.
 
 ## Tools
 
@@ -22,6 +22,12 @@ Qualcomm USB host drivers providing logical representations of Qualcomm chipset-
 - For newer releases (1.0.6.0 and above): `/opt/qcom/QUD/tools/rmnet/rmnet_QMICall`
 
 ---
+
+## [1.0.6.6] - 2026-09-3
+1. Extended support for Debian 13 ARM64 platform.
+2. Automated removal of existing QUD Debian packages during QUD installation via QSC/QPM.
+3. Automated removal of existing QUD Userspace Debian packages during QUD installation via QSC/QPM.
+4. Improved QSC/QPM cli error reporting on terminal during QUD driver installation.
 
 ## [1.0.6.5] - 2026-06-17
 1. Fix dpkg installing twice issue. All cleanup moved to preinst debian maintainer section.
