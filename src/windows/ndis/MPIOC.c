@@ -1861,9 +1861,10 @@ NDIS_STATUS MPIOC_CleanupIOCDeviceList(
 {
    PLIST_ENTRY     headOfList, peekEntry, nextEntry;
 	PMPIOC_DEV_INFO IocDevice;
-	PMPIOC_DEV_INFO pIocDev;
-	PFILTER_DEVICE_INFO pFilterDeviceInfo;
+   PMPIOC_DEV_INFO pIocDev;
+   PFILTER_DEVICE_INFO pFilterDeviceInfo;
     ULONG ReturnBufferLength = 0;
+   BOOLEAN deferredCleanup = FALSE;
 
 
 	if (!IsListEmpty(LocalList))
@@ -1885,6 +1886,51 @@ NDIS_STATUS MPIOC_CleanupIOCDeviceList(
             /* need to check if this is needed or not: TODO MURALI */
             // terminate the write thread - double check
             MPIOC_CancelWriteThread(pIocDev);
+
+            if ((pIocDev->pWriteThread != NULL) || (pIocDev->hWriteThreadHandle != NULL))
+            {
+               LARGE_INTEGER timeout;
+               NTSTATUS waitStatus;
+               QCNET_DbgPrint
+               (
+                  MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_ERROR,
+                  ("<%s> MPIOC_CleanupIOCDeviceList: write thread still running, waiting\n", pAdapter->PortName)
+               );
+               // Signal cancel in case CancelWriteThread returned without doing so
+               KeSetEvent(&pIocDev->CancelWriteEvent, IO_NO_INCREMENT, FALSE);
+               timeout.QuadPart = -(50 * 1000 * 1000);  // 5 sec
+               waitStatus = KeWaitForSingleObject
+               (
+                  &pIocDev->WtWorkerThreadExitEvent,
+                  Executive,
+                  KernelMode,
+                  FALSE,
+                  &timeout
+               );
+
+               if (!NT_SUCCESS(waitStatus) ||
+                   (pIocDev->pWriteThread != NULL) ||
+                   (pIocDev->hWriteThreadHandle != NULL))
+               {
+                  QCNET_DbgPrint
+                  (
+                     MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_CRITICAL,
+                     ("<%s> MPIOC_CleanupIOCDeviceList: write thread did not exit, defer IOC cleanup 0x%p (status 0x%x)\n",
+                     pAdapter->PortName, pIocDev, waitStatus)
+                  );
+
+                  // Do not free an IOC device that may still be referenced by
+                  // its write thread.  The object is intentionally retained
+                  // so a later cleanup attempt can observe thread termination.
+                  RemoveEntryList(&pIocDev->List);
+                  InitializeListHead(&pIocDev->List);
+                  deferredCleanup = TRUE;
+                  peekEntry = nextEntry;
+                  nextEntry = nextEntry->Flink;
+                  continue;
+               }
+            }
+
             QCNET_DbgPrint
             (
                MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
@@ -1951,7 +1997,7 @@ NDIS_STATUS MPIOC_CleanupIOCDeviceList(
             ExFreePool(pIocDev);
 	   	}
     }
-   return NDIS_STATUS_SUCCESS;
+   return (deferredCleanup == TRUE) ? NDIS_STATUS_FAILURE : NDIS_STATUS_SUCCESS;
 }
 
 NDIS_STATUS MPIOC_DeleteDevice
@@ -3972,6 +4018,11 @@ VOID MPIOC_EmptyIrpCompletionQueue(PMPIOC_DEV_INFO pIocDev)
    BOOLEAN         bComplete;
    BOOLEAN         bCancelled = FALSE;
    KIRQL           irql = KeGetCurrentIrql();
+
+   if (pAdapter == NULL)
+   {
+      return;
+   }
 
    QCNET_DbgPrint
    (
