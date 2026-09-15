@@ -3074,6 +3074,7 @@ BOOLEAN MPMAIN_InitializeQMI(PMP_ADAPTER pAdapter, INT QmiRetries)
                         // Register event for extended-IP-config
                         MPQWDS_SendIndicationRegisterReq(pAdapter, NULL, TRUE);
 
+                        MPIP_CancelWdsIpClient(pAdapter);
                         MPIP_StartWdsIpClient(pAdapter);
 
                         // See if there is any connection indication
@@ -5015,7 +5016,14 @@ VOID MPMAIN_DisconnectNotification(PMP_ADAPTER pAdapter)
 #endif // MP_QCQOS_ENABLED
 
     // stop the IPv6 client
-    MPIP_CancelWdsIpClient(pAdapter);
+    if (pAdapter != NULL && KeGetCurrentIrql() == PASSIVE_LEVEL)
+    {
+        MPIP_CancelWdsIpClient(pAdapter);
+    }
+    else if (pAdapter != NULL)
+    {
+        KeSetEvent(&pAdapter->WdsIpThreadCancelEvent, IO_NO_INCREMENT, FALSE);
+    }
 
     // reset QMI initialization
     pAdapter->QmiInitialized = FALSE;

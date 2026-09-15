@@ -156,6 +156,11 @@ NTSTATUS MPIP_CancelWdsIpClient(PMP_ADAPTER pAdapter)
     LARGE_INTEGER delayValue;
     LARGE_INTEGER timeoutValue;
 
+    if (pAdapter == NULL)
+    {
+        return STATUS_INVALID_PARAMETER;
+    }
+
     QCNET_DbgPrint
     (
         MP_DBG_MASK_CONTROL,
@@ -212,8 +217,12 @@ NTSTATUS MPIP_CancelWdsIpClient(PMP_ADAPTER pAdapter)
             );
             ObDereferenceObject(pAdapter->pWdsIpThread);
             KeClearEvent(&pAdapter->WdsIpThreadClosedEvent);
-            ZwClose(pAdapter->hWdsIpThreadHandle);
             pAdapter->pWdsIpThread = NULL;
+            if (pAdapter->hWdsIpThreadHandle != NULL)
+            {
+                ZwClose(pAdapter->hWdsIpThreadHandle);
+                pAdapter->hWdsIpThreadHandle = NULL;
+            }
         }
         else  // best effort
         {
@@ -227,7 +236,11 @@ NTSTATUS MPIP_CancelWdsIpClient(PMP_ADAPTER pAdapter)
                 &timeoutValue
             );
             KeClearEvent(&pAdapter->WdsIpThreadClosedEvent);
-            ZwClose(pAdapter->hWdsIpThreadHandle);
+            if (pAdapter->hWdsIpThreadHandle != NULL)
+            {
+                ZwClose(pAdapter->hWdsIpThreadHandle);
+                pAdapter->hWdsIpThreadHandle = NULL;
+            }
         }
     }
 
