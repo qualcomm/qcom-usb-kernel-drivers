@@ -89,6 +89,7 @@ NTSTATUS MPIOC_IRPDispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp)
     PFILE_OBJECT       fileObj;
     ULONG              QMIType = 0;
     ANSI_STRING        ansiString;
+    BOOLEAN             writeThreadStopped = TRUE;
 
     irpStack = IoGetCurrentIrpStackLocation(Irp);
 
@@ -415,10 +416,22 @@ NTSTATUS MPIOC_IRPDispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp)
              );
 
              // terminate the write worker thread
-             MPIOC_CancelWriteThread(pIocDev);
+             writeThreadStopped = MPIOC_CancelWriteThread(pIocDev);
 
-             // Cleanup queues
-             MPIOC_CleanupQueues(pIocDev, 1);
+             if (writeThreadStopped == TRUE)
+             {
+                // Cleanup queues only after the worker is confirmed stopped.
+                MPIOC_CleanupQueues(pIocDev, 1);
+             }
+             else
+             {
+                QCNET_DbgPrint
+                (
+                   MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_CRITICAL,
+                   ("<%s> MPIOC: defer queue cleanup while write thread is still active 0x%p\n",
+                   pAdapter->PortName, pIocDev)
+                );
+             }
           }
 
           if (pIocDev->Type == MP_DEV_TYPE_CONTROL)  // MTU service is provided by CONTROL device
@@ -444,7 +457,10 @@ NTSTATUS MPIOC_IRPDispatch(PDEVICE_OBJECT DeviceObject, PIRP Irp)
              );
              MPIOC_CancelNotificationIrp(pIocDev, IOCTL_QCDEV_WAIT_NOTIFY);
           }
-          MPIOC_EmptyIrpCompletionQueue(pIocDev);
+          if (writeThreadStopped == TRUE)
+          {
+             MPIOC_EmptyIrpCompletionQueue(pIocDev);
+          }
 
           if (pIocDev->DeviceOpenCount > 0)
           {
@@ -1883,52 +1899,26 @@ NDIS_STATUS MPIOC_CleanupIOCDeviceList(
                       List
                    );
 
-            /* need to check if this is needed or not: TODO MURALI */
-            // terminate the write thread - double check
-            MPIOC_CancelWriteThread(pIocDev);
-
-            if ((pIocDev->pWriteThread != NULL) || (pIocDev->hWriteThreadHandle != NULL))
+            // Do not free the IOC until write-thread cancellation has
+            // positively completed.  On timeout the cancellation routine
+            // deliberately retains the thread references.
+            if (MPIOC_CancelWriteThread(pIocDev) == FALSE)
             {
-               LARGE_INTEGER timeout;
-               NTSTATUS waitStatus;
                QCNET_DbgPrint
                (
                   MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_ERROR,
-                  ("<%s> MPIOC_CleanupIOCDeviceList: write thread still running, waiting\n", pAdapter->PortName)
-               );
-               // Signal cancel in case CancelWriteThread returned without doing so
-               KeSetEvent(&pIocDev->CancelWriteEvent, IO_NO_INCREMENT, FALSE);
-               timeout.QuadPart = -(50 * 1000 * 1000);  // 5 sec
-               waitStatus = KeWaitForSingleObject
-               (
-                  &pIocDev->WtWorkerThreadExitEvent,
-                  Executive,
-                  KernelMode,
-                  FALSE,
-                  &timeout
+                  ("<%s> MPIOC_CleanupIOCDeviceList: defer IOC cleanup while write thread is active 0x%p\n",
+                   pAdapter->PortName, pIocDev)
                );
 
-               if (!NT_SUCCESS(waitStatus) ||
-                   (pIocDev->pWriteThread != NULL) ||
-                   (pIocDev->hWriteThreadHandle != NULL))
-               {
-                  QCNET_DbgPrint
-                  (
-                     MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_CRITICAL,
-                     ("<%s> MPIOC_CleanupIOCDeviceList: write thread did not exit, defer IOC cleanup 0x%p (status 0x%x)\n",
-                     pAdapter->PortName, pIocDev, waitStatus)
-                  );
-
-                  // Do not free an IOC device that may still be referenced by
-                  // its write thread.  The object is intentionally retained
-                  // so a later cleanup attempt can observe thread termination.
-                  RemoveEntryList(&pIocDev->List);
-                  InitializeListHead(&pIocDev->List);
-                  deferredCleanup = TRUE;
-                  peekEntry = nextEntry;
-                  nextEntry = nextEntry->Flink;
-                  continue;
-               }
+               // Do not free an IOC device that may still be referenced by
+               // its write thread.  The object is intentionally retained.
+               RemoveEntryList(&pIocDev->List);
+               InitializeListHead(&pIocDev->List);
+               deferredCleanup = TRUE;
+               peekEntry = nextEntry;
+               nextEntry = nextEntry->Flink;
+               continue;
             }
 
             QCNET_DbgPrint
@@ -4507,14 +4497,22 @@ NTSTATUS MPIOC_StartWriteThread(PMPIOC_DEV_INFO pIocDev)
    return ntStatus;
 }  // MPIOC_StartWriteThread
 
-VOID MPIOC_CancelWriteThread
+BOOLEAN MPIOC_CancelWriteThread
 (
    PMPIOC_DEV_INFO pIocDev
 )
 {
-   PMP_ADAPTER   pAdapter = pIocDev->Adapter;
-   NTSTATUS      ntStatus;
+   PMP_ADAPTER   pAdapter;
+   NTSTATUS      ntStatus = STATUS_SUCCESS;
    LARGE_INTEGER timeoutValue;
+   BOOLEAN       threadStopped = TRUE;
+
+   if ((pIocDev == NULL) || (pIocDev->Adapter == NULL))
+   {
+      return FALSE;
+   }
+
+   pAdapter = pIocDev->Adapter;
 
    QCNET_DbgPrint
    (
@@ -4531,12 +4529,12 @@ VOID MPIOC_CancelWriteThread
          MP_DBG_LEVEL_CRITICAL,
          ("<%s> MPIOC Cxl: wrong IRQL\n", pAdapter->PortName)
       );
-      return;
+      return FALSE;
    }
 
    if (InterlockedIncrement(&pIocDev->WriteThreadInCancellation) > 1)
    {
-      while ((pIocDev->hWriteThreadHandle != NULL) || (pIocDev->pWriteThread != NULL))
+      while (pIocDev->WriteThreadInCancellation > 1)
       {
          QCNET_DbgPrint
          (
@@ -4547,7 +4545,8 @@ VOID MPIOC_CancelWriteThread
          MPMAIN_Wait(-(3 * 1000 * 1000));  // 300ms
       }
       InterlockedDecrement(&pIocDev->WriteThreadInCancellation);
-      return;
+      return ((pIocDev->hWriteThreadHandle == NULL) &&
+              (pIocDev->pWriteThread == NULL));
    }
 
    if ((pIocDev->hWriteThreadHandle == NULL) &&
@@ -4559,7 +4558,7 @@ VOID MPIOC_CancelWriteThread
          ("<%s> MPIOC_CxlWtTh: already cancelled IODEV 0x%p\n", pAdapter->PortName, pIocDev)
       );
       InterlockedDecrement(&pIocDev->WriteThreadInCancellation);
-      return;
+      return TRUE;
    }
 
    // if (pIocDev->DeviceOpenCount > 0)
@@ -4578,9 +4577,28 @@ VOID MPIOC_CancelWriteThread
                        FALSE,
                        NULL
                     );
-         ObDereferenceObject(pIocDev->pWriteThread);
-         KeClearEvent(&pIocDev->WtWorkerThreadExitEvent);
-         ZwClose(pIocDev->hWriteThreadHandle);
+         if (!NT_SUCCESS(ntStatus))
+         {
+            threadStopped = FALSE;
+         }
+         else
+         {
+            ObDereferenceObject(pIocDev->pWriteThread);
+            pIocDev->pWriteThread = NULL;
+         }
+
+         if ((threadStopped == TRUE) && (pIocDev->hWriteThreadHandle != NULL))
+         {
+            ntStatus = ZwClose(pIocDev->hWriteThreadHandle);
+            if (!NT_SUCCESS(ntStatus))
+            {
+               threadStopped = FALSE;
+            }
+            else
+            {
+               pIocDev->hWriteThreadHandle = NULL;
+            }
+         }
       }
       else // best effort
       {
@@ -4593,19 +4611,34 @@ VOID MPIOC_CancelWriteThread
                        FALSE,
                        &timeoutValue
                     );
-         if (ntStatus == STATUS_TIMEOUT)
+         if (!NT_SUCCESS(ntStatus))
          {
+            threadStopped = FALSE;
             QCNET_DbgPrint
             (
                MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_ERROR,
                ("<%s> MPIOC_CxlWtTh: timeout for dev 0x%p\n", pAdapter->PortName, pIocDev)
             );
          }
-         KeClearEvent(&pIocDev->WtWorkerThreadExitEvent);
-         ZwClose(pIocDev->hWriteThreadHandle);
+
+         if ((threadStopped == TRUE) && (pIocDev->hWriteThreadHandle != NULL))
+         {
+            ntStatus = ZwClose(pIocDev->hWriteThreadHandle);
+            if (!NT_SUCCESS(ntStatus))
+            {
+               threadStopped = FALSE;
+            }
+            else
+            {
+               pIocDev->hWriteThreadHandle = NULL;
+            }
+         }
       }
-      pIocDev->hWriteThreadHandle = NULL;
-      pIocDev->pWriteThread       = NULL;
+
+      if (threadStopped == TRUE)
+      {
+         KeClearEvent(&pIocDev->WtWorkerThreadExitEvent);
+      }
    }
    else
    {
@@ -4624,6 +4657,7 @@ VOID MPIOC_CancelWriteThread
       ("<%s> MPIOC_CxlWtTh-1: 0x%p/0x%p(type %d, id %d)\n", pAdapter->PortName,
         pIocDev, pIocDev->ControlDeviceObject, pIocDev->QMIType, pIocDev->ClientId)
    );
+   return threadStopped;
 }  // MPIOC_CancelWriteThread
 
 // cleanup I/O queues (ReadIrpQueue/WriteIrpQueue/ReadDataQueue)

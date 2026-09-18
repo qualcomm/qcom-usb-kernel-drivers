@@ -40,6 +40,13 @@ static BOOLEAN MPQCTL_ValidateRequestParameters
         return FALSE;
     }
 
+    // MsgLen is a ULONG output value.  The corrupted address in the crash
+    // dump was not ULONG-aligned, which is never valid for this parameter.
+    if (((ULONG_PTR)MsgLen & (sizeof(*MsgLen) - 1)) != 0)
+    {
+        return FALSE;
+    }
+
     // These pointers are supplied by the internal request builder.  Keep a
     // corrupted pointer from becoming a kernel-mode page fault.
     if ((MmIsAddressValid(pAdapter) == FALSE) ||
@@ -60,9 +67,11 @@ static BOOLEAN MPQCTL_AppendRequestLength
 )
 {
     if ((MsgLen == NULL) ||
+        (((ULONG_PTR)MsgLen & (sizeof(*MsgLen) - 1)) != 0) ||
         (MmIsAddressValid(MsgLen) == FALSE) ||
         (MmIsAddressValid((PUCHAR)MsgLen + sizeof(*MsgLen) - 1) == FALSE) ||
         (Length > MPQCTL_MAX_REQUEST_LENGTH) ||
+        (*MsgLen < sizeof(QCQMI_HDR)) ||
         (*MsgLen > (MPQCTL_MAX_REQUEST_LENGTH - Length)))
     {
         return FALSE;

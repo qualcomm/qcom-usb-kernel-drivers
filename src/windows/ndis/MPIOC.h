@@ -280,7 +280,7 @@ VOID MPIOC_CancelWriteRoutine
 
 NTSTATUS MPIOC_StartWriteThread(PMPIOC_DEV_INFO pIocDev);
 
-VOID MPIOC_CancelWriteThread
+BOOLEAN MPIOC_CancelWriteThread
 (
     PMPIOC_DEV_INFO pIocDev
 );
