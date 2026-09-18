@@ -24,6 +24,132 @@ GENERAL DESCRIPTION
 
 #endif   // EVENT_TRACING
 
+#define MPQCTL_MAX_REQUEST_LENGTH 0xFFFFUL
+
+static BOOLEAN MPQCTL_ValidateRequestParameters
+(
+    PMP_ADAPTER pAdapter,
+    PUCHAR      TransactionId,
+    PULONG      MsgLen
+)
+{
+    if ((pAdapter == NULL) ||
+        (TransactionId == NULL) ||
+        (MsgLen == NULL))
+    {
+        return FALSE;
+    }
+
+    // These pointers are supplied by the internal request builder.  Keep a
+    // corrupted pointer from becoming a kernel-mode page fault.
+    if ((MmIsAddressValid(pAdapter) == FALSE) ||
+        (MmIsAddressValid(TransactionId) == FALSE) ||
+        (MmIsAddressValid(MsgLen) == FALSE) ||
+        (MmIsAddressValid((PUCHAR)MsgLen + sizeof(*MsgLen) - 1) == FALSE))
+    {
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static BOOLEAN MPQCTL_AppendRequestLength
+(
+    PULONG MsgLen,
+    ULONG  Length
+)
+{
+    if ((MsgLen == NULL) ||
+        (MmIsAddressValid(MsgLen) == FALSE) ||
+        (MmIsAddressValid((PUCHAR)MsgLen + sizeof(*MsgLen) - 1) == FALSE) ||
+        (Length > MPQCTL_MAX_REQUEST_LENGTH) ||
+        (*MsgLen > (MPQCTL_MAX_REQUEST_LENGTH - Length)))
+    {
+        return FALSE;
+    }
+
+    *MsgLen += Length;
+    return TRUE;
+}
+
+static NTSTATUS MPQCTL_WaitForMainAdapterQmiInit
+(
+    PMP_ADAPTER  pAdapter,
+    PLARGE_INTEGER Timeout
+)
+{
+    PLIST_ENTRY     headOfList;
+    PLIST_ENTRY     peekEntry;
+    PMP_ADAPTER     pMainAdapter = NULL;
+    PDEVICE_EXTENSION pDevExt;
+    PDEVICE_EXTENSION pTempDevExt;
+    NTSTATUS        nts;
+
+    if ((pAdapter == NULL) ||
+        (pAdapter->USBDo == NULL) ||
+        (Timeout == NULL))
+    {
+        return STATUS_INVALID_PARAMETER;
+    }
+
+    pDevExt = (PDEVICE_EXTENSION)pAdapter->USBDo->DeviceExtension;
+    if (pDevExt == NULL)
+    {
+        return STATUS_INVALID_DEVICE_STATE;
+    }
+
+    NdisAcquireSpinLock(&GlobalData.Lock);
+    if (!IsListEmpty(&GlobalData.AdapterList))
+    {
+        headOfList = &GlobalData.AdapterList;
+        peekEntry = headOfList->Flink;
+        while (peekEntry != headOfList)
+        {
+            PMP_ADAPTER pTempAdapter = CONTAINING_RECORD
+            (
+                peekEntry,
+                MP_ADAPTER,
+                List
+            );
+
+            if ((pTempAdapter->USBDo != NULL) &&
+                (pTempAdapter->pMPRmLock != NULL))
+            {
+                pTempDevExt = (PDEVICE_EXTENSION)pTempAdapter->USBDo->DeviceExtension;
+                if ((pTempDevExt != NULL) &&
+                    (pDevExt->MuxInterface.PhysicalInterfaceNumber == pTempDevExt->MuxInterface.InterfaceNumber) &&
+                    (pDevExt->MuxInterface.FilterDeviceObj == pTempDevExt->MuxInterface.FilterDeviceObj) &&
+                    ((pTempAdapter->Flags & fMP_ANY_FLAGS) == 0) &&
+                    NT_SUCCESS(IoAcquireRemoveLock(pTempAdapter->pMPRmLock, NULL)))
+                {
+                    pMainAdapter = pTempAdapter;
+                    break;
+                }
+            }
+
+            peekEntry = peekEntry->Flink;
+        }
+    }
+    NdisReleaseSpinLock(&GlobalData.Lock);
+
+    if (pMainAdapter == NULL)
+    {
+        return STATUS_DEVICE_NOT_READY;
+    }
+
+    nts = KeWaitForSingleObject
+    (
+        &pMainAdapter->MainAdapterQmiInitSuccessful,
+        Executive,
+        KernelMode,
+        FALSE,
+        Timeout
+    );
+
+    IoReleaseRemoveLock(pMainAdapter->pMPRmLock, NULL);
+    return nts;
+}
+
 UCHAR MPQCTL_GetNextTransactionId(PMP_ADAPTER pAdapter)
 {
     return GetPhysicalAdapterQCTLTransactionId(pAdapter);
@@ -481,21 +607,11 @@ NDIS_STATUS MPQCTL_GetQMICTLVersion
             {
 
                 NTSTATUS nts;
-                PMP_ADAPTER returnAdapter = NULL;
 
                 timeoutValue.QuadPart = QMICTL_TIMEOUT_RX; // -(10 * 1000 * 1000);   // 1.0 sec
 
-                DisconnectedAllAdapters(pAdapter, &returnAdapter);
-                // wait for signal
-                nts = KeWaitForSingleObject
-                (
-                    &returnAdapter->MainAdapterQmiInitSuccessful,
-                    Executive,
-                    KernelMode,
-                    FALSE,
-                    &timeoutValue
-                );
-                if (nts == STATUS_TIMEOUT)
+                nts = MPQCTL_WaitForMainAdapterQmiInit(pAdapter, &timeoutValue);
+                if (!NT_SUCCESS(nts))
                 {
                     ndisStatus = NDIS_STATUS_FAILURE;
 
@@ -503,7 +619,8 @@ NDIS_STATUS MPQCTL_GetQMICTLVersion
                     (
                         MP_DBG_MASK_CONTROL,
                         MP_DBG_LEVEL_ERROR,
-                        ("<%s> MPQCTL_SendQMICTLSync for non muxed adapter timedout: timeout\n", pAdapter->PortName)
+                        ("<%s> MPQCTL_SendQMICTLSync for non muxed adapter wait failed: 0x%x\n",
+                         pAdapter->PortName, nts)
                     );
                 }
 
@@ -1304,7 +1421,12 @@ PVOID MPQCTL_HandleSetInstanceIdReq
     PQMICTL_MSG qmictl;
     PVOID       msgBuf = NULL;
 
-    *MsgLen += sizeof(QMICTL_SET_INSTANCE_ID_REQ_MSG);
+    if (!MPQCTL_ValidateRequestParameters(pAdapter, TransactionId, MsgLen) ||
+        !MPQCTL_AppendRequestLength(MsgLen, sizeof(QMICTL_SET_INSTANCE_ID_REQ_MSG)))
+    {
+        return NULL;
+    }
+
     msgBuf = ExAllocatePool(NonPagedPool, *MsgLen);
     if (msgBuf == NULL)
     {
@@ -1385,7 +1507,12 @@ PVOID MPQCTL_HandleGetVersionReq
     PQMICTL_MSG qmictl;
     PVOID       msgBuf = NULL;
 
-    *MsgLen += sizeof(QMICTL_GET_VERSION_REQ_MSG);
+    if (!MPQCTL_ValidateRequestParameters(pAdapter, TransactionId, MsgLen) ||
+        !MPQCTL_AppendRequestLength(MsgLen, sizeof(QMICTL_GET_VERSION_REQ_MSG)))
+    {
+        return NULL;
+    }
+
     msgBuf = ExAllocatePool(NonPagedPool, *MsgLen);
     if (msgBuf == NULL)
     {
@@ -1672,7 +1799,12 @@ PVOID MPQCTL_HandleGetClientIdReq
     PQMICTL_MSG qmictl;
     PVOID       msgBuf = NULL;
 
-    *MsgLen += sizeof(QMICTL_GET_CLIENT_ID_REQ_MSG);
+    if (!MPQCTL_ValidateRequestParameters(pAdapter, TransactionId, MsgLen) ||
+        !MPQCTL_AppendRequestLength(MsgLen, sizeof(QMICTL_GET_CLIENT_ID_REQ_MSG)))
+    {
+        return NULL;
+    }
+
     msgBuf = ExAllocatePool(NonPagedPool, *MsgLen);
     if (msgBuf == NULL)
     {
@@ -1809,7 +1941,12 @@ PVOID MPQCTL_HandleReleaseClientIdReq
     PQMICTL_MSG qmictl;
     PVOID       msgBuf = NULL;
 
-    *MsgLen += sizeof(QMICTL_RELEASE_CLIENT_ID_REQ_MSG);
+    if (!MPQCTL_ValidateRequestParameters(pAdapter, TransactionId, MsgLen) ||
+        !MPQCTL_AppendRequestLength(MsgLen, sizeof(QMICTL_RELEASE_CLIENT_ID_REQ_MSG)))
+    {
+        return NULL;
+    }
+
     msgBuf = ExAllocatePool(NonPagedPool, *MsgLen);
     if (msgBuf == NULL)
     {
@@ -2041,7 +2178,11 @@ PVOID MPQCTL_HandleSetDataFormatReq
     PVOID       msgBuf = NULL;
     PUCHAR      bufPtr;
 
-    *MsgLen += sizeof(QMICTL_SET_DATA_FORMAT_REQ_MSG);
+    if (!MPQCTL_ValidateRequestParameters(pAdapter, TransactionId, MsgLen) ||
+        !MPQCTL_AppendRequestLength(MsgLen, sizeof(QMICTL_SET_DATA_FORMAT_REQ_MSG)))
+    {
+        return NULL;
+    }
 
 #ifdef QC_IP_MODE
     QCNET_DbgPrint
@@ -2054,20 +2195,29 @@ PVOID MPQCTL_HandleSetDataFormatReq
 
     if (pAdapter->IsLinkProtocolSupported == TRUE)
     {
-        *MsgLen += sizeof(QMICTL_SET_DATA_FORMAT_TLV_LINK_PROT);
+        if (!MPQCTL_AppendRequestLength(MsgLen, sizeof(QMICTL_SET_DATA_FORMAT_TLV_LINK_PROT)))
+        {
+            return NULL;
+        }
     }
 #endif // QC_IP_MODE
 
 #ifdef QCMP_UL_TLP
     if (pAdapter->MPEnableTLP != 0) // registry setting
     {
-        *MsgLen += sizeof(QMICTL_SET_DATA_FORMAT_TLV_UL_TLP);
+        if (!MPQCTL_AppendRequestLength(MsgLen, sizeof(QMICTL_SET_DATA_FORMAT_TLV_UL_TLP)))
+        {
+            return NULL;
+        }
     }
 
 #ifdef QCMP_DL_TLP
     if ((pAdapter->IsDLTLPSupported == TRUE) && (pAdapter->MPEnableDLTLP != 0)) // registry setting
     {
-        *MsgLen += sizeof(QMICTL_SET_DATA_FORMAT_TLV_DL_TLP);
+        if (!MPQCTL_AppendRequestLength(MsgLen, sizeof(QMICTL_SET_DATA_FORMAT_TLV_DL_TLP)))
+        {
+            return NULL;
+        }
     }
 #endif // QCMP_DL_TLP
 
@@ -2743,7 +2893,12 @@ PVOID MPQCTL_HandleSyncReq
     PQMICTL_MSG qmictl;
     PVOID       msgBuf = NULL;
 
-    *MsgLen += sizeof(QMICTL_SYNC_REQ_MSG);
+    if (!MPQCTL_ValidateRequestParameters(pAdapter, TransactionId, MsgLen) ||
+        !MPQCTL_AppendRequestLength(MsgLen, sizeof(QMICTL_SYNC_REQ_MSG)))
+    {
+        return NULL;
+    }
+
     msgBuf = ExAllocatePool(NonPagedPool, *MsgLen);
     if (msgBuf == NULL)
     {
