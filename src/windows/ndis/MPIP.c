@@ -235,11 +235,14 @@ NTSTATUS MPIP_CancelWdsIpClient(PMP_ADAPTER pAdapter)
                 FALSE,
                 &timeoutValue
             );
-            KeClearEvent(&pAdapter->WdsIpThreadClosedEvent);
-            if (pAdapter->hWdsIpThreadHandle != NULL)
+            if (ntStatus == STATUS_SUCCESS)
             {
-                ZwClose(pAdapter->hWdsIpThreadHandle);
-                pAdapter->hWdsIpThreadHandle = NULL;
+                KeClearEvent(&pAdapter->WdsIpThreadClosedEvent);
+                if (pAdapter->hWdsIpThreadHandle != NULL)
+                {
+                    ZwClose(pAdapter->hWdsIpThreadHandle);
+                    pAdapter->hWdsIpThreadHandle = NULL;
+                }
             }
         }
     }
@@ -275,6 +278,7 @@ VOID MPIP_WdsIpThread(PVOID Context)
         ZwClose(pAdapter->hWdsIpThreadHandle);
         pAdapter->hWdsIpThreadHandle = NULL;
         KeSetEvent(&pAdapter->WdsIpThreadStartedEvent, IO_NO_INCREMENT, FALSE);
+        KeSetEvent(&pAdapter->WdsIpThreadClosedEvent, IO_NO_INCREMENT, FALSE);
         PsTerminateSystemThread(STATUS_UNSUCCESSFUL);
     }
 
@@ -295,6 +299,7 @@ VOID MPIP_WdsIpThread(PVOID Context)
         ZwClose(pAdapter->hWdsIpThreadHandle);
         pAdapter->hWdsIpThreadHandle = NULL;
         KeSetEvent(&pAdapter->WdsIpThreadStartedEvent, IO_NO_INCREMENT, FALSE);
+        KeSetEvent(&pAdapter->WdsIpThreadClosedEvent, IO_NO_INCREMENT, FALSE);
         PsTerminateSystemThread(STATUS_NO_MEMORY);
     }
 
@@ -315,6 +320,7 @@ VOID MPIP_WdsIpThread(PVOID Context)
         ZwClose(pAdapter->hWdsIpThreadHandle);
         pAdapter->hWdsIpThreadHandle = NULL;
         KeSetEvent(&pAdapter->WdsIpThreadStartedEvent, IO_NO_INCREMENT, FALSE);
+        KeSetEvent(&pAdapter->WdsIpThreadClosedEvent, IO_NO_INCREMENT, FALSE);
         PsTerminateSystemThread(STATUS_NO_MEMORY);
     }
 
@@ -335,6 +341,7 @@ VOID MPIP_WdsIpThread(PVOID Context)
         ZwClose(pAdapter->hWdsIpThreadHandle);
         pAdapter->hWdsIpThreadHandle = NULL;
         KeSetEvent(&pAdapter->WdsIpThreadStartedEvent, IO_NO_INCREMENT, FALSE);
+        KeSetEvent(&pAdapter->WdsIpThreadClosedEvent, IO_NO_INCREMENT, FALSE);
         PsTerminateSystemThread(STATUS_NO_MEMORY);
     }
     pAdapter->WdsIpClientContext = pIocDev;

@@ -3444,6 +3444,20 @@ void MPIOC_WriteThread
    LARGE_INTEGER checkInterval;
    PMP_ADAPTER returnAdapter;
 
+   if ((pAdapter == NULL) || (pAdapter->pMPRmLock == NULL))
+   {
+      KeSetEvent(&pIocDev->WriteThreadStartedEvent, IO_NO_INCREMENT, FALSE);
+      return;
+   }
+
+   ntStatus = IoAcquireRemoveLock(pAdapter->pMPRmLock, NULL);
+   if (!NT_SUCCESS(ntStatus))
+   {
+      KeSetEvent(&pIocDev->WriteThreadStartedEvent, IO_NO_INCREMENT, FALSE);
+      return;
+   }
+   QcStatsIncrement(pAdapter, MP_RML_TH, 100);
+
    QCNET_DbgPrint
    (
       MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
@@ -3464,6 +3478,8 @@ void MPIOC_WriteThread
          MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
          ("<%s> MPIOC Wth: out of memory.\n", pAdapter->PortName)
       );
+      QcMpIoReleaseRemoveLock(pAdapter, pAdapter->pMPRmLock, NULL, MP_RML_TH, 100)
+      KeSetEvent(&pIocDev->WriteThreadStartedEvent, IO_NO_INCREMENT, FALSE);
       return;
    }
 
@@ -3482,24 +3498,9 @@ void MPIOC_WriteThread
          ("<%s> MPIOC Wth: out of memory-IRP.\n", pAdapter->PortName)
       );
       ExFreePool(pwbArray);
+      QcMpIoReleaseRemoveLock(pAdapter, pAdapter->pMPRmLock, NULL, MP_RML_TH, 100)
+      KeSetEvent(&pIocDev->WriteThreadStartedEvent, IO_NO_INCREMENT, FALSE);
       return;
-   }
-
-   ntStatus = IoAcquireRemoveLock(pAdapter->pMPRmLock, NULL);
-   if (!NT_SUCCESS(ntStatus))
-   {
-      QCNET_DbgPrint
-      (
-         MP_DBG_MASK_CONTROL, MP_DBG_LEVEL_DETAIL,
-         ("<%s> MPIOC Wth: rm lock err\n", pAdapter->PortName)
-      );
-      ExFreePool(pwbArray);
-      IoFreeIrp(pIrp);
-      return;
-   }
-   else
-   {
-      QcStatsIncrement(pAdapter, MP_RML_TH, 100);
    }
 
    pIocDev->bWriteActive  = FALSE;
@@ -4530,6 +4531,15 @@ BOOLEAN MPIOC_CancelWriteThread
          ("<%s> MPIOC Cxl: wrong IRQL\n", pAdapter->PortName)
       );
       return FALSE;
+   }
+
+   if (pIocDev->bWtThreadInCreation == TRUE)
+   {
+      KeSetEvent(&pIocDev->CancelWriteEvent, IO_NO_INCREMENT, FALSE);
+      while (pIocDev->bWtThreadInCreation == TRUE)
+      {
+         MPMAIN_Wait(-(3 * 1000 * 1000));  // 300ms
+      }
    }
 
    if (InterlockedIncrement(&pIocDev->WriteThreadInCancellation) > 1)

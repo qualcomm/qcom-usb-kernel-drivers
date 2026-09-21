@@ -1615,6 +1615,15 @@ VOID MPINI_FreeAdapter(PMP_ADAPTER pAdapter)
         return;
     }
 
+    // Stop all remove-lock protected asynchronous users before touching any
+    // adapter-owned fields.  This is intentionally before the resource
+    // teardown below; waiting at the old location near the end was too late
+    // to protect those fields from an outstanding worker thread.
+    if (pAdapter->pMPRmLock != NULL)
+    {
+        IoReleaseRemoveLockAndWait(pAdapter->pMPRmLock, NULL);
+    }
+
     QCNET_DbgPrint
     (
         MP_DBG_MASK_CONTROL,
@@ -1841,11 +1850,6 @@ VOID MPINI_FreeAdapter(PMP_ADAPTER pAdapter)
         pAdapter->Stats[MP_RML_TH], pAdapter->Stats[MP_CNT_TIMER], pAdapter->Stats[MP_MEM_CTL],
         pAdapter->Stats[MP_MEM_RD], pAdapter->Stats[MP_MEM_WT])
     );
-
-    if (pAdapter->pMPRmLock != NULL)
-    {
-        IoReleaseRemoveLockAndWait(pAdapter->pMPRmLock, NULL);
-    }
 
     //
     // Finally free the memory for pAdapter context.

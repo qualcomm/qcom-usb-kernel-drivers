@@ -436,6 +436,7 @@ VOID MPMAIN_MiniportHaltEx(NDIS_HANDLE MiniportAdapterContext, NDIS_HALT_ACTION 
 {
     PMP_ADAPTER       pAdapter = (PMP_ADAPTER)MiniportAdapterContext;
     BOOLEAN           bCancelled, bDone;
+    NTSTATUS          wdsStatus;
     LONG              nHaltCount = 0, Count;
     LARGE_INTEGER     timeoutValue;
 
@@ -451,7 +452,35 @@ VOID MPMAIN_MiniportHaltEx(NDIS_HANDLE MiniportAdapterContext, NDIS_HALT_ACTION 
     MPQOS_CancelQosThread(pAdapter);
 #endif // MP_QCQOS_ENABLED
 
-    MPIP_CancelWdsIpClient(pAdapter);
+    wdsStatus = MPIP_CancelWdsIpClient(pAdapter);
+    if (wdsStatus == STATUS_TIMEOUT)
+    {
+        QCNET_DbgPrint
+        (
+            MP_DBG_MASK_CONTROL,
+            MP_DBG_LEVEL_CRITICAL,
+            ("<%s> MPMAIN_MiniportHalt: WDS thread did not exit in time; waiting before adapter teardown\n",
+             pAdapter->PortName)
+        );
+        KeWaitForSingleObject
+        (
+            &pAdapter->WdsIpThreadClosedEvent,
+            Executive,
+            KernelMode,
+            FALSE,
+            NULL
+        );
+        // The event is the completion acknowledgement for the handle-only
+        // path.  Do not call MPIP_CancelWdsIpClient again here: that routine
+        // clears the event before waiting and would turn a completed thread
+        // into a second timeout.
+        if (pAdapter->hWdsIpThreadHandle != NULL)
+        {
+            ZwClose(pAdapter->hWdsIpThreadHandle);
+            pAdapter->hWdsIpThreadHandle = NULL;
+        }
+        KeClearEvent(&pAdapter->WdsIpThreadClosedEvent);
+    }
 
     USBCTL_ClrDtrRts(pAdapter->USBDo);  // drop DTR to cleanup device
     MPIOC_SetStopState(pAdapter, TRUE);
@@ -460,7 +489,6 @@ VOID MPMAIN_MiniportHaltEx(NDIS_HANDLE MiniportAdapterContext, NDIS_HALT_ACTION 
     // Unregister the ioctl interface.
     //
     MPIOC_DeregisterDevice(pAdapter);
-
 
     // Release internal client id -- DTR drop releases all in device
     RtlZeroMemory((PVOID)pAdapter->ClientId, (QMUX_TYPE_MAX + 1));
