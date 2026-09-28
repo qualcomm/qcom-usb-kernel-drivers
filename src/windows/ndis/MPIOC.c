@@ -2744,18 +2744,22 @@ PMPIOC_DEV_INFO MPIOC_FindIoDevice
          }
          else
          {
-#if 0
             if ((pIocDev->Adapter == NULL) ||
                 (pIocDev->Adapter->UsbRemoved == TRUE) ||
                 (pIocDev->Adapter->USBDo == NULL))
             {
+               if (IocDevice == pIocDev)
+               {
+                  bReferenceFound = TRUE;
+               }
                peekEntry = peekEntry->Flink;
                continue;
             }
-#endif
 
             pDevExt1 = pIocDev->Adapter->USBDo->DeviceExtension;
-            if (pAdapter != NULL)
+            if ((pAdapter != NULL) &&
+                (pAdapter->UsbRemoved == FALSE) &&
+                (pAdapter->USBDo != NULL))
             {
                pDevExt = (PDEVICE_EXTENSION)pAdapter->USBDo->DeviceExtension;
             }
@@ -2766,7 +2770,7 @@ PMPIOC_DEV_INFO MPIOC_FindIoDevice
                // each seconday adapter list
                if ((pIocDev->QMIType == pQMI->QMIType)
                    &&
-                   ((pDevExt != NULL) && (((pDevExt->MuxInterface.MuxEnabled != 0x01) && (pIocDev->Adapter == pAdapter)) ||
+                   ((pDevExt != NULL) && (pDevExt1 != NULL) && (((pDevExt->MuxInterface.MuxEnabled != 0x01) && (pIocDev->Adapter == pAdapter)) ||
                      ((pDevExt->MuxInterface.MuxEnabled == 0x01) && (pDevExt1->MuxInterface.PhysicalInterfaceNumber == pDevExt->MuxInterface.PhysicalInterfaceNumber) &&
                       (pDevExt1->MuxInterface.FilterDeviceObj == pDevExt->MuxInterface.FilterDeviceObj)))
                    ))
@@ -2819,7 +2823,7 @@ PMPIOC_DEV_INFO MPIOC_FindIoDevice
                   // each seconday adapter list
                   if ((pIocDev->QMIType == pQMI->QMIType)
                       &&
-                      ((pDevExt != NULL) && (((pDevExt->MuxInterface.MuxEnabled != 0x01) && (pIocDev->Adapter == pAdapter)) ||
+                      ((pDevExt != NULL) && (pDevExt1 != NULL) && (((pDevExt->MuxInterface.MuxEnabled != 0x01) && (pIocDev->Adapter == pAdapter)) ||
                         ((pDevExt->MuxInterface.MuxEnabled == 0x01) && (pDevExt1->MuxInterface.PhysicalInterfaceNumber == pDevExt->MuxInterface.PhysicalInterfaceNumber) &&
                          (pDevExt1->MuxInterface.FilterDeviceObj == pDevExt->MuxInterface.FilterDeviceObj)))
                       ))

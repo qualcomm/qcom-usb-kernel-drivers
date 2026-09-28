@@ -485,11 +485,6 @@ VOID MPMAIN_MiniportHaltEx(NDIS_HANDLE MiniportAdapterContext, NDIS_HALT_ACTION 
     USBCTL_ClrDtrRts(pAdapter->USBDo);  // drop DTR to cleanup device
     MPIOC_SetStopState(pAdapter, TRUE);
 
-    //
-    // Unregister the ioctl interface.
-    //
-    MPIOC_DeregisterDevice(pAdapter);
-
     // Release internal client id -- DTR drop releases all in device
     RtlZeroMemory((PVOID)pAdapter->ClientId, (QMUX_TYPE_MAX + 1));
 
@@ -697,6 +692,11 @@ VOID MPMAIN_MiniportHaltEx(NDIS_HANDLE MiniportAdapterContext, NDIS_HALT_ACTION 
 
     /* Cancel the work thread */
     MPMAIN_CancelMPThread(pAdapter);
+
+    // Unregister the ioctl interface only after all worker threads have
+    // stopped using IOC devices.  This prevents IOC/Adapter lifetime races
+    // during teardown.
+    MPIOC_DeregisterDevice(pAdapter);
 
 
 #ifdef NDIS_WDM
