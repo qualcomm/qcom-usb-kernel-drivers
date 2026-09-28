@@ -328,7 +328,7 @@ else
          fi
       fi
 
-      if  [[ $OSName =~ "Ubuntu 24.04" ]]; then
+      if  [[ $OSName =~ "Ubuntu 24.04" ]] || [[ $OSName =~ "Debian" ]]; then
          if [ -f $QCOM_NET_DEPENDENCY_PATH/mii.ko ]; then
             $QCOM_LN_RM_MK_DIR/rm -rf $QCOM_NET_DEPENDENCY_PATH/mii.ko
          fi
@@ -954,17 +954,26 @@ MODLOADED="`/sbin/lsmod | grep usbserial`"
 if [ "$MODLOADED" == "" ]; then
    echo -e "To load dependency"
    echo -e "Loading module usbserial"
-   if [[ $OSName =~ "Red Hat Enterprise Linux" ]] || [[ $OSName =~ "Fedora Linux" ]]; then
+   if [[ $OSName =~ "Red Hat Enterprise Linux" ]] || [[ $OSName =~ "Fedora Linux" ]] || [[ $OSName =~ "Debian" ]]; then
       if [ -f $MODULE_BLACKLIST_PATH/usbserial.ko.xz ]; then
-	      xz -d $MODULE_BLACKLIST_PATH/usbserial.ko.xz 
-      	$QCOM_MODBIN_DIR/insmod $MODULE_BLACKLIST_PATH/usbserial.ko
+         xz -d -k $MODULE_BLACKLIST_PATH/usbserial.ko.xz
+         $QCOM_MODBIN_DIR/insmod $MODULE_BLACKLIST_PATH/usbserial.ko
+      elif [ -f $MODULE_BLACKLIST_PATH/usbserial.ko.zst ]; then
+         unzstd -d $MODULE_BLACKLIST_PATH/usbserial.ko.zst
+         $QCOM_MODBIN_DIR/insmod $MODULE_BLACKLIST_PATH/usbserial.ko
+      elif [ -f $MODULE_BLACKLIST_PATH/usbserial.ko ]; then
+         $QCOM_MODBIN_DIR/insmod $MODULE_BLACKLIST_PATH/usbserial.ko
       fi
       MODLOADED="`/sbin/lsmod | grep usbserial`"
       if [ "$MODLOADED" == "" ]; then
         echo -e "$OSName: usbserial.ko module not present at $MODULE_BLACKLIST_PATH"
       fi
    else
-	   $QCOM_MODBIN_DIR/insmod $MODULE_BLACKLIST_PATH/usbserial.ko
+      if [ -f $MODULE_BLACKLIST_PATH/usbserial.ko ]; then
+         $QCOM_MODBIN_DIR/insmod $MODULE_BLACKLIST_PATH/usbserial.ko
+      else
+         echo -e "$OSName: usbserial.ko module not present at $MODULE_BLACKLIST_PATH"
+      fi
    fi
 else
    echo -e "Module usbserial already in place"
@@ -1081,9 +1090,9 @@ echo -e "Loading $QCOM_USBNET_MODULE_NAME module dependency"
 MODLOADED="`/sbin/lsmod | grep mii`"
 if [ "$MODLOADED" == "" ]; then
    echo -e "Loading module mii"
-   if [[ $OSName =~ "Red Hat Enterprise Linux" ]] || [[ $OSName =~ "Fedora Linux" ]] || [[ $OSName =~ "Ubuntu 24.04" ]]; then
+   if [[ $OSName =~ "Red Hat Enterprise Linux" ]] || [[ $OSName =~ "Fedora Linux" ]] || [[ $OSName =~ "Ubuntu 24.04" ]] || [[ $OSName =~ "Debian" ]]; then
       if [ -f $QCOM_NET_DEPENDENCY_PATH/mii.ko.xz ]; then
-        xz -d $QCOM_NET_DEPENDENCY_PATH/mii.ko.xz
+        xz -d -k $QCOM_NET_DEPENDENCY_PATH/mii.ko.xz
       fi
       if [ -f $QCOM_NET_DEPENDENCY_PATH/mii.ko.zst ]; then
         unzstd -d $QCOM_NET_DEPENDENCY_PATH/mii.ko.zst
@@ -1109,9 +1118,9 @@ fi
 MODLOADED="`/sbin/lsmod | grep usbnet`"
 if [ "$MODLOADED" == "" ]; then
    echo -e "Loading module usbnet"
-   if [[ $OSName =~ "Red Hat Enterprise Linux" ]] || [[ $OSName =~ "Fedora Linux" ]] || [[ $OSName =~ "Ubuntu 24.04" ]]; then
+   if [[ $OSName =~ "Red Hat Enterprise Linux" ]] || [[ $OSName =~ "Fedora Linux" ]] || [[ $OSName =~ "Ubuntu 24.04" ]] || [[ $OSName =~ "Debian" ]]; then
       if [ -f $QCOM_USBNET_AND_QMI_WWAN/usbnet.ko.xz ]; then
-        xz -d $QCOM_USBNET_AND_QMI_WWAN/usbnet.ko.xz
+        xz -d -k $QCOM_USBNET_AND_QMI_WWAN/usbnet.ko.xz
       fi
       if [ -f $QCOM_USBNET_AND_QMI_WWAN/usbnet.ko.zst ]; then
         unzstd -d $QCOM_USBNET_AND_QMI_WWAN/usbnet.ko.zst
@@ -1125,7 +1134,7 @@ if [ "$MODLOADED" == "" ]; then
       fi
    else
       if [ -f $QCOM_USBNET_AND_QMI_WWAN/usbnet.ko ]; then
-   	   $QCOM_MODBIN_DIR/insmod $QCOM_USBNET_AND_QMI_WWAN/usbnet.ko
+         $QCOM_MODBIN_DIR/insmod $QCOM_USBNET_AND_QMI_WWAN/usbnet.ko
       else
          echo -e "$OSName: usbnet.ko module not present at $QCOM_USBNET_AND_QMI_WWAN"
       fi

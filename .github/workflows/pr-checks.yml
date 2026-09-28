@@ -1,0 +1,337 @@
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+# SPDX-License-Identifier: BSD-3-Clause
+name: PR Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+
+permissions:
+  contents: read
+
+jobs:
+
+  # ============================================================
+  # Gate PRs targeting main:
+  #   - source branch MUST be 'develop'
+  #   - actor MUST be a maintainer (write / maintain / admin)
+  # ============================================================
+  block-pr-to-main:
+    name: Gate PR Targeting Main
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'main'
+    permissions:
+      contents: read
+    steps:
+      - name: Enforce develop-only source branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          if [ "$HEAD_REF" != "develop" ]; then
+            echo "::error::PRs targeting main are only accepted from the 'develop' branch."
+            echo "::error::This PR originates from '$HEAD_REF'."
+            echo "::error::Please target the 'develop' branch instead, or merge 'develop' → 'main' via the release process."
+            echo "::error::See CONTRIBUTING.md for the contribution workflow."
+            exit 1
+          fi
+          echo "Source branch is 'develop' — OK"
+
+      - name: Enforce maintainer-only merge to main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+          REPO: ${{ github.repository }}
+        run: |
+          PERMISSION=$(gh api "repos/${REPO}/collaborators/${ACTOR}/permission" \
+            --jq '.permission' 2>/dev/null || echo "none")
+          echo "Actor '${ACTOR}' permission: ${PERMISSION}"
+          case "$PERMISSION" in
+            admin|maintain|write)
+              echo "Actor '${ACTOR}' is a maintainer — OK"
+              ;;
+            *)
+              echo "::error::Only maintainers (write/maintain/admin) may open PRs targeting main."
+              echo "::error::Actor '${ACTOR}' has permission '${PERMISSION}'."
+              echo "::error::Please open your PR against the 'develop' branch instead."
+              exit 1
+              ;;
+          esac
+
+  # ============================================================
+  # Block PRs from upstream repository (non-fork)
+  # ============================================================
+  block-upstream-pr:
+    name: Block PR From Upstream Repository
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Detect and block upstream-origin PRs
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const pr          = context.payload.pull_request;
+            const headRepo    = pr.head.repo.full_name;
+            const baseRepo    = pr.base.repo.full_name;
+            const prNumber    = pr.number;
+            const contributor = pr.user.login;
+
+            console.log(`PR #${prNumber} — head: ${headRepo} → base: ${baseRepo}`);
+
+            if (headRepo !== baseRepo) {
+              console.log("PR originates from a fork — no action needed.");
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              issue_number: prNumber,
+              body: [
+                `## PRs From the Upstream Repository Are Not Accepted`,
+                ``,
+                `Hi @${contributor}, thank you for your interest in contributing!`,
+                ``,
+                `This pull request was opened from a branch inside the upstream repository (\`${baseRepo}\`) rather than from a personal fork. **All external contributions must come from a personal fork**.`,
+                ``,
+                `### How to contribute correctly`,
+                ``,
+                `1. **Fork** the repository: https://github.com/${baseRepo}/fork`,
+                `2. **Clone your fork**: \`git clone https://github.com/${contributor}/${context.repo.repo}.git\``,
+                `3. **Create a branch** from \`develop\`: \`git checkout -b fix/your-description develop\``,
+                `4. **Commit with DCO sign-off**: \`git commit -s -m "fix(module): describe your change"\``,
+                `5. **Push to your fork** and open a PR targeting \`develop\`.`,
+                ``,
+                `Please review [CONTRIBUTING.md](../../CONTRIBUTING.md) for the complete guide.`,
+                ``,
+                `This PR has been closed automatically. We look forward to your fork-based contribution! 🙌`
+              ].join("\n")
+            });
+
+            await github.rest.pulls.update({
+              owner:       context.repo.owner,
+              repo:        context.repo.repo,
+              pull_number: prNumber,
+              state:       "closed"
+            });
+
+            core.notice(`PR #${prNumber} from upstream branch has been automatically closed.`);
+
+  
+
+
+  # ============================================================
+  # Validate PR title matches branch naming convention
+  # ============================================================
+  validate-pr-title:
+    name: Validate PR Title
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    steps:
+      - name: Check PR title format
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "PR Title: $PR_TITLE"
+          # Title must start with a valid branch-type prefix followed by
+          # a slash-separated path and end with ': <description>'
+          # Matches:
+          #   feature/<name>: <description>
+          #   feature/<area>/<name>: <description>
+          #   bugfix/<name>: <description>
+          #   hotfix/<name>: <description>
+          #   docs/<name>: <description>
+          #   refactor/<name>: <description>
+          #   test/<name>: <description>
+          #   ci/<name>: <description>
+          #   users/<username>/<name>: <description>
+          PATTERN='^(feature/[a-zA-Z0-9._-]+(/[a-zA-Z0-9._-]+)?|bugfix/[a-zA-Z0-9._-]+|hotfix/[a-zA-Z0-9._-]+|docs/[a-zA-Z0-9._-]+|refactor/[a-zA-Z0-9._-]+|test/[a-zA-Z0-9._-]+|ci/[a-zA-Z0-9._-]+|users/[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+): .{1,100}$'
+          if ! echo "$PR_TITLE" | grep -qE "$PATTERN"; then
+            echo "::error::PR title does not follow the required format."
+            echo "::error::Expected: <type>/<name>: <description>"
+            echo "::error::Valid formats:"
+            echo "::error::  feature/<name>: <description>              e.g. feature/add-retry-logic: add retry on disconnect"
+            echo "::error::  feature/<area>/<name>: <description>       e.g. feature/qcom_usbnet/add-retry-logic: add retry on disconnect"
+            echo "::error::  bugfix/<name>: <description>               e.g. bugfix/null-pointer-on-empty-input: fix null deref in parser"
+            echo "::error::  hotfix/<name>: <description>               e.g. hotfix/dma-leak-on-disconnect: release DMA buffer on unplug"
+            echo "::error::  docs/<name>: <description>                 e.g. docs/getting-started: add setup instructions"
+            echo "::error::  refactor/<name>: <description>             e.g. refactor/extract-parser-module: split parser into own file"
+            echo "::error::  test/<name>: <description>                 e.g. test/add-missing-edge-cases: cover empty buffer scenario"
+            echo "::error::  ci/<name>: <description>                   e.g. ci/migrate-to-github-actions: replace Jenkins pipeline"
+            echo "::error::  users/<username>/<name>: <description>     e.g. users/shasaror/usbnet-retry-experiment: WIP retry logic"
+            exit 1
+          fi
+          echo "PR title format is valid — OK"
+
+  # ============================================================
+  # Validate PR description is not empty
+  # ============================================================
+  validate-pr-description:
+    name: Validate PR Description
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    steps:
+      - name: Check PR body is present
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if [ -z "$(echo "$PR_BODY" | tr -d '[:space:]')" ]; then
+            echo "::error::PR description is empty. Please describe what this PR changes and why."
+            exit 1
+          fi
+          WORD_COUNT=$(echo "$PR_BODY" | wc -w)
+          if [ "$WORD_COUNT" -lt 10 ]; then
+            echo "::error::PR description is too short ($WORD_COUNT words). Please provide a meaningful description."
+            exit 1
+          fi
+          echo "PR description is present — OK"
+
+  # ============================================================
+  # Validate source branch naming convention
+  # ============================================================
+  validate-branch-name:
+    name: Validate Branch Name
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    steps:
+      - name: Check branch naming convention
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          echo "Source branch: $BRANCH"
+          # Matches:
+          #   users/<username>/<description>
+          #   feature/<feature-name>
+          #   feature/<area>/<feature-name>
+          #   bugfix/<description>
+          #   hotfix/<description>
+          #   docs/<description>
+          #   refactor/<description>
+          #   test/<description>
+          #   ci/<description>
+          PATTERN='^(users/[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+|feature/[a-zA-Z0-9._-]+(/[a-zA-Z0-9._-]+)?|bugfix/[a-zA-Z0-9._-]+|hotfix/[a-zA-Z0-9._-]+|docs/[a-zA-Z0-9._-]+|refactor/[a-zA-Z0-9._-]+|test/[a-zA-Z0-9._-]+|ci/[a-zA-Z0-9._-]+)$'
+          if ! echo "$BRANCH" | grep -qE "$PATTERN"; then
+            echo "::error::Branch name '$BRANCH' does not follow the required naming convention."
+            echo "::error::Valid formats:"
+            echo "::error::  users/<username>/<description>     e.g. users/shasaror/usbnet-retry-experiment"
+            echo "::error::  feature/<feature-name>             e.g. feature/add-retry-logic"
+            echo "::error::  feature/<area>/<feature-name>      e.g. feature/qcom_usbnet/add-retry-logic"
+            echo "::error::  bugfix/<description>               e.g. bugfix/null-pointer-on-empty-input"
+            echo "::error::  hotfix/<description>               e.g. hotfix/dma-leak-on-disconnect"
+            echo "::error::  docs/<description>                 e.g. docs/getting-started"
+            echo "::error::  refactor/<description>             e.g. refactor/extract-parser-module"
+            echo "::error::  test/<description>                 e.g. test/add-missing-edge-cases"
+            echo "::error::  ci/<description>                   e.g. ci/migrate-to-github-actions"
+            exit 1
+          fi
+          echo "Branch name is valid — OK"
+
+  # ============================================================
+  # Detect prohibited file changes
+  # ============================================================
+  check-prohibited-files:
+    name: Check for Prohibited File Changes
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detect changes to protected files
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          PROHIBITED_PATTERNS=(
+            "^LICENSE"
+            "^\.github/workflows/"
+            "^SECURITY\.md"
+          )
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          VIOLATIONS=0
+          for pattern in "${PROHIBITED_PATTERNS[@]}"; do
+            MATCHES=$(echo "$CHANGED_FILES" | grep -E "$pattern" || true)
+            if [ -n "$MATCHES" ]; then
+              echo "::warning::The following protected file(s) were modified — a maintainer must review:"
+              echo "$MATCHES" | while read -r f; do echo "  • $f"; done
+              VIOLATIONS=$((VIOLATIONS + 1))
+            fi
+          done
+          if [ "$VIOLATIONS" -gt 0 ]; then
+            echo "::warning::This PR modifies one or more protected files. A maintainer must review before merging."
+          else
+            echo "No prohibited file changes detected — OK"
+          fi
+
+  # ============================================================
+  # Check PR size
+  # ============================================================
+  check-pr-size:
+    name: Check PR Size
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Warn on large PRs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          MAX_LINES=1500
+          INSERTIONS=$(git diff --numstat "$BASE_SHA" "$HEAD_SHA" | awk '{sum += $1} END {print sum+0}')
+          DELETIONS=$(git diff --numstat "$BASE_SHA" "$HEAD_SHA" | awk '{sum += $2} END {print sum+0}')
+          TOTAL=$((INSERTIONS + DELETIONS))
+          echo "Lines added   : $INSERTIONS"
+          echo "Lines removed : $DELETIONS"
+          echo "Total changes : $TOTAL"
+          if [ "$TOTAL" -gt "$MAX_LINES" ]; then
+            echo "::warning::This PR changes $TOTAL lines (threshold: $MAX_LINES)."
+            echo "::warning::Consider splitting it into smaller, focused PRs for easier review."
+          else
+            echo "PR size is within the recommended limit — OK"
+          fi
+
+  # ============================================================
+  # Detect leftover conflict markers
+  # ============================================================
+  check-no-conflict-markers:
+    name: No Conflict Markers
+    runs-on: ubuntu-latest
+    if: github.base_ref == 'develop'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Scan for unresolved conflict markers
+        run: |
+          MARKERS=$(grep -rn --include="*.c" --include="*.h" --include="*.sh" \
+            --include="*.md" --include="*.yml" --include="*.yaml" \
+            -E "^(<{7}|>{7}|={7}|\|{7}) " . || true)
+          if [ -n "$MARKERS" ]; then
+            echo "::error::Unresolved merge conflict markers found:"
+            echo "$MARKERS"
+            exit 1
+          fi
+          echo "No conflict markers found — OK"

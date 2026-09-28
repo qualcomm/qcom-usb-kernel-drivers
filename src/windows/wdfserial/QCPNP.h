@@ -69,7 +69,8 @@ NTSTATUS QCPNP_ConfigUsbDevice
 
 NTSTATUS QCPNP_EnableSelectiveSuspend
 (
-    WDFDEVICE Device
+    WDFDEVICE Device,
+    BOOLEAN   HonorPersistedUserChoice
 );
 
 NTSTATUS QCPNP_DisableSelectiveSuspend
@@ -183,5 +184,10 @@ NTSTATUS QCPNP_SetStamp
 (
     PDEVICE_CONTEXT pDevContext,
     BOOLEAN        Startup
+);
+
+NTSTATUS QCPNP_IncrementGeneration
+(
+    PDEVICE_CONTEXT pDevContext
 );
 #endif // QCPNP_H

@@ -1795,6 +1795,49 @@ NTSTATUS QDBPNP_CreateSymbolicName(WDFDEVICE Device)
         return nts;
     }
 
+    // Query the driver key name to extract the instance suffix to build a unique FriendlyName 
+    bufLen = 512;
+    nts = WdfDeviceQueryProperty
+    (
+        Device,
+        DevicePropertyDriverKeyName,
+        bufLen,
+        (PVOID)driverKey,
+        &resultLen
+    );
+
+    if (nts == STATUS_SUCCESS)
+    {
+        PCHAR pStart, pEnd;
+
+        QDB_DbgPrint
+        (
+            QDB_DBG_MASK_CONTROL,
+            QDB_DBG_LEVEL_DETAIL,
+            ("<%s> QDBPNP_CreateSymbolicName(SwKey): <%ws>\n", pDevContext->PortName, (PWCHAR)driverKey)
+        );
+        pStart = (PCHAR)driverKey;
+        pEnd   = pStart + resultLen;
+
+        // Scan backwards for '\' (0x5C 0x00 in little-endian UTF-16)
+        while (pEnd > pStart)
+        {
+            if (*pEnd != 0x5C)
+            {
+                pEnd--;
+            }
+            else
+            {
+                bMatched = TRUE;
+                break;
+            }
+        }
+        if (bMatched == TRUE)
+        {
+            pSwInstance = (pEnd + 2);  // points to instance string, e.g. "0000"
+        }
+    }
+
     // fetch device description and use it to overwrite FriendlyName
     bufLen = MAX_NAME_LEN;
     nts = WdfDeviceQueryProperty
@@ -1808,6 +1851,13 @@ NTSTATUS QDBPNP_CreateSymbolicName(WDFDEVICE Device)
 
     if (nts == STATUS_SUCCESS)
     {
+        // Append instance suffix so Device Manager shows 
+        if (pSwInstance != NULL)
+        {
+            RtlStringCbCatW(pDevContext->FriendlyNameHolder, MAX_NAME_LEN * sizeof(WCHAR), LEFT_P);
+            RtlStringCbCatW(pDevContext->FriendlyNameHolder, MAX_NAME_LEN * sizeof(WCHAR), (PCWSTR)pSwInstance);
+            RtlStringCbCatW(pDevContext->FriendlyNameHolder, MAX_NAME_LEN * sizeof(WCHAR), RIGHT_P);
+        }
         RtlInitUnicodeString(&friendlyNameU, pDevContext->FriendlyNameHolder);
 
         RtlInitUnicodeString(&tempUcString, DEVICE_LINK_NAME_PATH);       //"\??\"

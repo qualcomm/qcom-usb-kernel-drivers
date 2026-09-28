@@ -94,11 +94,6 @@ NTSTATUS QCPNP_EvtDeviceAdd
         goto exit;
     }
 
-    if (pDevContext->FdoDeviceType == FILE_DEVICE_SERIAL_PORT)
-    {
-        QCPNP_ReportDeviceName(pDevContext);
-    }
-
 exit:
     if (!NT_SUCCESS(status))
     {
@@ -265,6 +260,50 @@ NTSTATUS QCPNP_SetStamp
         WdfRegistryClose(key);
     }
     return STATUS_SUCCESS;
+}
+
+/****************************************************************************
+ *
+ * function: QCPNP_IncrementGeneration
+ *
+ * purpose:  Increments QCDeviceGeneration DWORD in the driver registry key
+ *           on every PrepareHardware so QDS can detect a re-enumeration even
+ *           when DevDesc/DevName/SerNum are identical across reboots.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  NT Status
+ *
+ ****************************************************************************/
+NTSTATUS QCPNP_IncrementGeneration(PDEVICE_CONTEXT pDevContext)
+{
+    NTSTATUS       status = STATUS_SUCCESS;
+    WDFDEVICE      device = pDevContext->Device;
+    WDFKEY         key;
+    ULONG          genValue = 0;
+    DECLARE_CONST_UNICODE_STRING(valueName, VEN_DEV_GENERATION);
+
+    status = WdfDeviceOpenRegistryKey(device, PLUGPLAY_REGKEY_DRIVER,
+        KEY_QUERY_VALUE | KEY_SET_VALUE, WDF_NO_OBJECT_ATTRIBUTES, &key);
+    if (!NT_SUCCESS(status))
+    {
+        return status;
+    }
+
+    WdfRegistryQueryValue(key, &valueName, sizeof(genValue), &genValue, NULL, NULL);
+    WdfRegistryClose(key);
+
+    genValue++;
+    status = QCMAIN_SetDriverRegistryDword((LPWSTR)valueName.Buffer, genValue, pDevContext);
+
+    QCSER_DbgPrint
+    (
+        QCSER_DBG_MASK_CONTROL,
+        QCSER_DBG_LEVEL_DETAIL,
+        ("<%ws> QCPNP_IncrementGeneration new generation: %lu, status: 0x%x\n",
+         pDevContext->PortName, genValue, status)
+    );
+    return status;
 }
 
 /****************************************************************************
@@ -644,7 +683,18 @@ NTSTATUS QCPNP_DeviceConfig
     pDevContext->InterruptInPipe = NULL;
     pDevContext->BulkIN = NULL;
     pDevContext->BulkOUT = NULL;
+    // Placeholder default; WdfUseDefault (see QCPNP_EnableSelectiveSuspend,
+    // called with HonorPersistedUserChoice=TRUE) lets WDF re-apply the
+    // user's persisted "Allow the computer to turn off this device"
+    // choice instead of forcing it back on every boot/re-enumeration.
+    // Forced FALSE below for SAHARA/FIREHOSE/LPC devices.
     pDevContext->PowerManagementEnabled = TRUE;
+    QCSER_DbgPrint
+    (
+        QCSER_DBG_MASK_POWER,
+        QCSER_DBG_LEVEL_TRACE,
+        ("<%ws> QCPNP_DeviceConfig PowerManagementEnabled seeded to placeholder TRUE (overwritten later from persisted registry value)\n", pDevContext->PortName)
+    );
     pDevContext->AmountInInQueue = 0;
     RtlZeroMemory(&pDevContext->Timeouts, sizeof(SERIAL_TIMEOUTS));
     RtlZeroMemory(&pDevContext->PerfStats, sizeof(SERIALPERF_STATS));
@@ -1689,8 +1739,9 @@ NTSTATUS QCPNP_EvtDevicePrepareHardware
         pDevContext->PowerManagementEnabled = FALSE;
     }
 
-    // Setup usb selective suspend
-    status = QCPNP_EnableSelectiveSuspend(Device);
+    // Boot/re-enum path: let WDF re-apply the persisted "Allow the
+    // computer to turn off this device" choice instead of forcing it on.
+    status = QCPNP_EnableSelectiveSuspend(Device, TRUE);
     if (!NT_SUCCESS(status))
     {
         QCSER_DbgPrint
@@ -1713,6 +1764,10 @@ NTSTATUS QCPNP_EvtDevicePrepareHardware
         // Register WMI Power Guid
         status = QCPNP_RegisterWmiPowerGuid(pDevContext);
     }
+
+    // Increment QCDeviceGeneration so QDS can detect a re-enumeration even
+    // when the device identity (DevDesc/DevName/SerNum) is unchanged.
+    QCPNP_IncrementGeneration(pDevContext);
 
 exit:
     if (!NT_SUCCESS(status))
@@ -2065,14 +2120,25 @@ exit:
  * purpose:  Configures USB selective suspend idle settings based on the
  *           registry-specified idle timeout value.
  *
- * arguments:Device = handle to the WDF device object.
+ * arguments:Device                   = handle to the WDF device object.
+ *           HonorPersistedUserChoice = TRUE on boot/re-enumeration
+ *           (QCPNP_EvtDevicePrepareHardware): Enabled is set to
+ *           WdfUseDefault so WDF re-applies the user's last "Allow the
+ *           computer to turn off this device" choice, persisted by WDF
+ *           itself in Device Parameters\WDF\IdleInWorkingState (which
+ *           this driver must not read/write directly for that purpose).
+ *           FALSE on an explicit runtime WMI toggle
+ *           (QCPNP_PMSetWmiDataItem/DataBlock): Enabled is set to the
+ *           explicit WdfTrue/WdfFalse value so the new choice takes
+ *           effect immediately.
  *
  * returns:  NT Status
  *
  ****************************************************************************/
 NTSTATUS QCPNP_EnableSelectiveSuspend
 (
-    WDFDEVICE Device
+    WDFDEVICE Device,
+    BOOLEAN   HonorPersistedUserChoice
 )
 {
     NTSTATUS        status = STATUS_SUCCESS;
@@ -2084,7 +2150,8 @@ NTSTATUS QCPNP_EnableSelectiveSuspend
     (
         QCSER_DBG_MASK_POWER,
         QCSER_DBG_LEVEL_TRACE,
-        ("<%ws> QCPNP_EnableSelectiveSuspend\n", pDevContext->PortName)
+        ("<%ws> QCPNP_EnableSelectiveSuspend PowerManagementEnabled=%d HonorPersistedUserChoice=%d\n",
+         pDevContext->PortName, pDevContext->PowerManagementEnabled, HonorPersistedUserChoice)
     );
 
     idleSettings.IdleTimeout = pDevContext->SelectiveSuspendIdleTime;
@@ -2106,7 +2173,19 @@ NTSTATUS QCPNP_EnableSelectiveSuspend
         {
             idleSettings.IdleTimeout *= 1000;
         }
-        idleSettings.Enabled = pDevContext->PowerManagementEnabled ? WdfTrue : WdfFalse;
+        if (!pDevContext->PowerManagementEnabled)
+        {
+            // HW-forced disable (SAHARA/FIREHOSE/LPC) always wins.
+            idleSettings.Enabled = WdfFalse;
+        }
+        else if (HonorPersistedUserChoice)
+        {
+            idleSettings.Enabled = WdfUseDefault;
+        }
+        else
+        {
+            idleSettings.Enabled = WdfTrue;
+        }
         status = WdfDeviceAssignS0IdleSettings(Device, &idleSettings);
         if (status == STATUS_POWER_STATE_INVALID)
         {
@@ -2234,6 +2313,14 @@ NTSTATUS QCPNP_EvtDeviceD0Entry
         QCSER_DBG_LEVEL_TRACE,
         ("<%ws> QCPNP_EvtDeviceD0Entry Completed!\n", pDevContext->PortName)
     );
+
+    // Re-announce diag device name to parent/filter on every D0 entry.
+    // EvtDeviceAdd fires only once; D0Entry fires on each re-enumeration.
+    if (pDevContext->FdoDeviceType == FILE_DEVICE_SERIAL_PORT)
+    {
+        QCPNP_ReportDeviceName(pDevContext);
+    }
+
     return STATUS_SUCCESS;
 }
 
@@ -3280,6 +3367,9 @@ NTSTATUS QCPNP_SetupIoThreadsAndQueues
     LARGE_INTEGER threadInitTimeout;
     threadInitTimeout.QuadPart = WDF_REL_TIMEOUT_IN_MS(QCPNP_THREAD_INIT_TIMEOUT_MS);
 
+    // Clear stale removal signal in case we're re-entering after a removal cycle
+    KeClearEvent(&pDevContext->DeviceRemoveEvent);
+
     // Init write request list, lock and events
     InitializeListHead(&pDevContext->WriteRequestPendingList);
     WdfSpinLockCreate(WDF_NO_OBJECT_ATTRIBUTES, &pDevContext->WriteRequestPendingListLock);
@@ -3899,6 +3989,7 @@ VOID QCPNP_RetrieveServiceConfig(PDEVICE_CONTEXT pDevContext)
             ("<%ws> QCPNP_RetrieveServiceConfig: failed to fetch SS value from reg 0x%x\n", pDevContext->PortName, status)
         );
     }
+
     WdfRegistryClose(key);
     return;
 
@@ -4549,6 +4640,83 @@ NTSTATUS QCPNP_WdmPreprocessSystemControl
 
 /****************************************************************************
  *
+ * function: QCPNP_SyncPersistedIdleEnabledState
+ *
+ * purpose:  Best-effort, read-only re-sync of pDevContext->PowerManagementEnabled
+ *           with the WDF-owned IdleInWorkingState registry value. Called
+ *           only when the driver's custom Power Management checkbox state
+ *           is actually queried (QCPNP_PMQueryWmiDataBlock), i.e. when the
+ *           user opens the device's Power Management property page -
+ *           NOT on every boot/re-enumeration. This keeps the checkbox
+ *           showing the real persisted state without re-reading the
+ *           registry on every device (re-)initialization, and avoids the
+ *           GUI echoing back (and thus overwriting) a stale value when
+ *           the property page is closed. Never writes the registry value
+ *           and never influences the Enabled decision passed to
+ *           WdfDeviceAssignS0IdleSettings, which remains fully owned by
+ *           WDF via WdfUseDefault/WdfTrue/WdfFalse.
+ *
+ * arguments:pDevContext = pointer to the device context.
+ *
+ * returns:  VOID
+ *
+ ****************************************************************************/
+VOID QCPNP_SyncPersistedIdleEnabledState(PDEVICE_CONTEXT pDevContext)
+{
+    NTSTATUS       status;
+    WDFKEY         deviceParamsKey = NULL;
+    WDFKEY         wdfKey = NULL;
+    UNICODE_STRING ucWdfSubKey;
+    UNICODE_STRING ucValueName;
+    ULONG          idleInWorkingState = 0;
+
+    status = WdfDeviceOpenRegistryKey
+    (
+        pDevContext->Device,
+        PLUGPLAY_REGKEY_DEVICE,
+        KEY_READ,
+        WDF_NO_OBJECT_ATTRIBUTES,
+        &deviceParamsKey
+    );
+    if (!NT_SUCCESS(status))
+    {
+        goto exit;
+    }
+
+    RtlInitUnicodeString(&ucWdfSubKey, L"WDF");
+    status = WdfRegistryOpenKey(deviceParamsKey, &ucWdfSubKey, KEY_READ, WDF_NO_OBJECT_ATTRIBUTES, &wdfKey);
+    if (!NT_SUCCESS(status))
+    {
+        goto exit;
+    }
+
+    RtlInitUnicodeString(&ucValueName, L"IdleInWorkingState");
+    status = QCMAIN_GetDriverRegistryDword(wdfKey, &ucValueName, &idleInWorkingState, pDevContext);
+    if (NT_SUCCESS(status))
+    {
+        pDevContext->PowerManagementEnabled = (idleInWorkingState != 0);
+        QCSER_DbgPrint
+        (
+            QCSER_DBG_MASK_POWER,
+            QCSER_DBG_LEVEL_TRACE,
+            ("<%ws> QCPNP_SyncPersistedIdleEnabledState IdleInWorkingState=%lu PowerManagementEnabled=%d\n",
+             pDevContext->PortName, idleInWorkingState, pDevContext->PowerManagementEnabled)
+        );
+    }
+
+exit:
+    if (wdfKey != NULL)
+    {
+        WdfRegistryClose(wdfKey);
+    }
+    if (deviceParamsKey != NULL)
+    {
+        WdfRegistryClose(deviceParamsKey);
+    }
+}
+
+/****************************************************************************
+ *
  * function: QCPNP_PMQueryWmiDataBlock
  *
  * purpose:  WMI callback to query a data block. Returns the current power
@@ -4596,6 +4764,16 @@ NTSTATUS QCPNP_PMQueryWmiDataBlock
                 {
                     status = STATUS_BUFFER_TOO_SMALL;
                     break;
+                }
+                // HW-forced disable (SAHARA/FIREHOSE/LPC) is not a user
+                // choice and has no corresponding persisted registry
+                // state to sync from; skip the read and keep reporting
+                // the forced FALSE set in QCPNP_EvtDevicePrepareHardware.
+                if (!(IS_DEV_PROTOCOL_SAHARA(pDevContext->InterfaceProtocol) ||
+                      IS_DEV_PROTOCOL_FIREHOSE(pDevContext->InterfaceProtocol) ||
+                      (pDevContext->DeviceFunction == QCUSB_DEV_FUNC_LPC)))
+                {
+                    QCPNP_SyncPersistedIdleEnabledState(pDevContext);
                 }
                 *(PBOOLEAN)Buffer = pDevContext->PowerManagementEnabled;
                 *InstanceLengthArray = sizeof(BOOLEAN);
@@ -4674,7 +4852,8 @@ NTSTATUS QCPNP_PMSetWmiDataItem
             pDevContext->PowerManagementEnabled = *(PBOOLEAN)Buffer;
             if (pDevContext->PowerManagementEnabled)
             {
-                QCPNP_EnableSelectiveSuspend(device);
+                // Explicit user toggle: apply immediately (HonorPersistedUserChoice = FALSE).
+                QCPNP_EnableSelectiveSuspend(device, FALSE);
             }
             else
             {
@@ -4810,7 +4989,8 @@ NTSTATUS QCPNP_PMSetWmiDataBlock
             pDevContext->PowerManagementEnabled = *(PBOOLEAN)Buffer;
             if (pDevContext->PowerManagementEnabled)
             {
-                QCPNP_EnableSelectiveSuspend(device);
+                // Explicit user toggle: apply immediately (HonorPersistedUserChoice = FALSE).
+                QCPNP_EnableSelectiveSuspend(device, FALSE);
             }
             else
             {

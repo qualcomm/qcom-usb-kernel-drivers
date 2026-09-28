@@ -1386,8 +1386,8 @@ NDIS_STATUS MPOID_QueryInformation
             driverCaps.Header.Type = NDIS_OBJECT_TYPE_DEFAULT;
             driverCaps.Header.Revision = NDIS_WWAN_DRIVER_CAPS_REVISION_1;
             driverCaps.Header.Size = sizeof(NDIS_WWAN_DRIVER_CAPS);
-            driverCaps.DriverCaps.ulMajorVersion = WWAN_MAJOR_VERSION;
-            driverCaps.DriverCaps.ulMinorVersion = WWAN_MINOR_VERSION;
+            driverCaps.DriverCaps.ulMajorVersion = WWAN_MAJOR_VERSION_1;
+            driverCaps.DriverCaps.ulMinorVersion = WWAN_MINOR_VERSION_0;
             MPOID_GetInformation(&pInfo, &ulInfoLen, &driverCaps, sizeof(NDIS_WWAN_DRIVER_CAPS));
             break;
         }

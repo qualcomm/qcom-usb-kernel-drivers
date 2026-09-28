@@ -401,6 +401,7 @@ WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(REQUEST_CONTEXT, QCReqGetContext)
 // Registry Value Names
 #define VEN_DEV_PORT        L"AssignedPortForQCDevice"
 #define VEN_DEV_TIME        L"QCDeviceStamp"
+#define VEN_DEV_GENERATION  L"QCDeviceGeneration"
 #define VEN_DEV_SERNUM      L"QCDeviceSerialNumber"
 #define VEN_DEV_MSM_SERNUM  L"QCDeviceMsmSerialNumber"
 #define VEN_DEV_PROTOC      L"QCDeviceProtocol"
