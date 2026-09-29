@@ -1,14 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
-    <ProjectConfiguration Include="Debug|Win32">
-      <Configuration>Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|Win32">
-      <Configuration>Release</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
@@ -36,22 +28,6 @@
     <ProjectName>qcwdfserial</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <TargetVersion>Windows10</TargetVersion>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
-    <ConfigurationType>Driver</ConfigurationType>
-    <DriverType>KMDF</DriverType>
-    <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <TargetVersion>Windows10</TargetVersion>
-    <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
-    <ConfigurationType>Driver</ConfigurationType>
-    <DriverType>KMDF</DriverType>
-    <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <TargetVersion>Windows10</TargetVersion>
     <UseDebugLibraries>true</UseDebugLibraries>
@@ -88,16 +64,6 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
-    <OutDir>$(SolutionDir)$(Platform)\$(ConfigurationName)\</OutDir>
-    <IntDir>$(Platform)\$(ConfigurationName)\</IntDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
-    <OutDir>$(SolutionDir)$(Platform)\$(ConfigurationName)\</OutDir>
-    <IntDir>$(Platform)\$(ConfigurationName)\</IntDir>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
   </PropertyGroup>
@@ -130,34 +96,6 @@
       <WppEnabled>true</WppEnabled>
       <WppScanConfigurationData>QCWPP.h</WppScanConfigurationData>
       <PreprocessorDefinitions>_WIN64;_AMD64_;AMD64;EVENT_TRACING;QCUSB_MUX_PROTOCOL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-    <ResourceCompile>
-      <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories);..\</AdditionalIncludeDirectories>
-    </ResourceCompile>
-    <DriverSign>
-      <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
-    </DriverSign>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <ClCompile>
-      <WppEnabled>true</WppEnabled>
-      <PreprocessorDefinitions>_X86_=1;i386=1;STD_CALL;EVENT_TRACING;QCUSB_MUX_PROTOCOL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <WppScanConfigurationData>QCWPP.h</WppScanConfigurationData>
-      <WarningLevel>Level2</WarningLevel>
-    </ClCompile>
-    <ResourceCompile>
-      <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories);..\</AdditionalIncludeDirectories>
-    </ResourceCompile>
-    <DriverSign>
-      <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
-    </DriverSign>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <ClCompile>
-      <PreprocessorDefinitions>_X86_=1;i386=1;STD_CALL;EVENT_TRACING;QCUSB_MUX_PROTOCOL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <WppScanConfigurationData>QCWPP.h</WppScanConfigurationData>
-      <WppEnabled>true</WppEnabled>
-      <WarningLevel>Level2</WarningLevel>
     </ClCompile>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories);..\</AdditionalIncludeDirectories>

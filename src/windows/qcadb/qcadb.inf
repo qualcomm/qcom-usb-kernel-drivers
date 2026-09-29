@@ -13,11 +13,11 @@ Class       = AndroidUsbDeviceClass
 ClassGUID   = {3F966BD9-FA04-4ec5-991C-D326973B5128}
 Provider    = %QCOM%
 CatalogFile = qcadb.cat
-DriverVer   = 06/15/2026,1.0.0.0
+DriverVer   = 09/29/2026,1.0.0.0
 PnpLockdown = 1
 
 [Manufacturer]
-%QCOM% = Standard, NTamd64, NTarm64, NTx86
+%QCOM% = Standard, NTamd64, NTarm64
 
 [Standard.NTamd64]
 ;Google NexusOne
@@ -209,130 +209,6 @@ PnpLockdown = 1
 %QcAdbInterface90E708% = USB_Install, USB\VID_05C6&PID_90E7&MI_08
 %QcAdbInterface90E208% = USB_Install, USB\VID_05C6&PID_90E2&MI_08
 %QcAdbInterface90E906% = USB_Install, USB\VID_05C6&PID_90E9&MI_06
-%QcAdbInterface911006% = USB_Install, USB\VID_05C6&PID_9110&MI_06
-%QcAdbInterface911303% = USB_Install, USB\VID_05C6&PID_9113&MI_03
-%QcAdbInterface911502% = USB_Install, USB\VID_05C6&PID_9115&MI_02
-%QcAdbInterface911705% = USB_Install, USB\VID_05C6&PID_9117&MI_05
-%QcAdbInterface90FF04% = USB_Install, USB\VID_05C6&PID_90FF&MI_04
-%QcAdbInterface912804% = USB_Install, USB\VID_05C6&PID_9128&MI_04
-%QcAdbInterface912A05% = USB_Install, USB\VID_05C6&PID_912A&MI_05
-%QcAdbInterface912C06% = USB_Install, USB\VID_05C6&PID_912C&MI_06
-%QcAdbInterface912E01% = USB_Install, USB\VID_05C6&PID_912E&MI_01
-%QcAdbInterface912F01% = USB_Install, USB\VID_05C6&PID_912F&MI_01
-%QcAdbInterface913001% = USB_Install, USB\VID_05C6&PID_9130&MI_01
-%QcAdbInterface913104% = USB_Install, USB\VID_05C6&PID_9131&MI_04
-%QcAdbInterface913305% = USB_Install, USB\VID_05C6&PID_9133&MI_05
-%QcAdbInterface913502% = USB_Install, USB\VID_05C6&PID_9135&MI_02
-%QcAdbInterface913C03% = USB_Install, USB\VID_05C6&PID_913C&MI_03
-%QcAdbInterface913E04% = USB_Install, USB\VID_05C6&PID_913E&MI_04
-%QcAdbInterface914003% = USB_Install, USB\VID_05C6&PID_9140&MI_03
-%QcAdbInterface914203% = USB_Install, USB\VID_05C6&PID_9142&MI_03
-%QcAdbInterface914404% = USB_Install, USB\VID_05C6&PID_9144&MI_04
-%QcAdbInterface914607% = USB_Install, USB\VID_05C6&PID_9146&MI_07
-%QcAdbInterface901A01% = USB_Install, USB\VID_05C6&PID_901A&MI_01
-%QcAdbInterface901E01% = USB_Install, USB\VID_05C6&PID_901E&MI_01
-%QcAdbInterface901F01% = USB_Install, USB\VID_05C6&PID_901F&MI_01
-%QcAdbInterface903002% = USB_Install, USB\VID_05C6&PID_9030&MI_02
-%QcAdbInterface903D01% = USB_Install, USB\VID_05C6&PID_903D&MI_01
-%QcAdbInterface904901% = USB_Install, USB\VID_05C6&PID_9049&MI_01
-%QcAdbInterface904B01% = USB_Install, USB\VID_05C6&PID_904B&MI_01
-%QcAdbInterface905601% = USB_Install, USB\VID_05C6&PID_9056&MI_01
-%QcAdbInterface908501% = USB_Install, USB\VID_05C6&PID_9085&MI_01
-%QcAdbInterface908705% = USB_Install, USB\VID_05C6&PID_9087&MI_05
-%QcAdbInterface908904% = USB_Install, USB\VID_05C6&PID_9089&MI_04
-%QcAdbInterface909402% = USB_Install, USB\VID_05C6&PID_9094&MI_02
-%QcAdbInterface909600% = USB_Install, USB\VID_05C6&PID_9096&MI_00
-%QcAdbInterface90A101% = USB_Install, USB\VID_05C6&PID_90A1&MI_01
-%QcAdbInterface90A901% = USB_Install, USB\VID_05C6&PID_90A9&MI_01
-%QcAdbInterface90AE02% = USB_Install, USB\VID_05C6&PID_90AE&MI_02
-%QcAdbInterface90EC01% = USB_Install, USB\VID_05C6&PID_90EC&MI_01
-%QcAdbInterface90EE07% = USB_Install, USB\VID_05C6&PID_90EE&MI_07
-%QcAdbInterface90F007% = USB_Install, USB\VID_05C6&PID_90F0&MI_07
-%QcAdbInterface90F201% = USB_Install, USB\VID_05C6&PID_90F2&MI_01
-%QcAdbInterface90F708% = USB_Install, USB\VID_05C6&PID_90F7&MI_08
-%QcAdbInterface90F909% = USB_Install, USB\VID_05C6&PID_90F9&MI_09
-%QcAdbInterface910208% = USB_Install, USB\VID_05C6&PID_9102&MI_08
-%QcAdbInterface910403% = USB_Install, USB\VID_05C6&PID_9104&MI_03
-%QcAdbInterface910802% = USB_Install, USB\VID_05C6&PID_9108&MI_02
-%QcAdbInterface910A07% = USB_Install, USB\VID_05C6&PID_910A&MI_07
-%QcAdbInterface910C06% = USB_Install, USB\VID_05C6&PID_910C&MI_06
-%QcAdbInterface910E05% = USB_Install, USB\VID_05C6&PID_910E&MI_05
-%QcAdbInterface913905% = USB_Install, USB\VID_05C6&PID_9139&MI_05
-%QcAdbInterface914804% = USB_Install, USB\VID_05C6&PID_9148&MI_04
-
-;
-;Google Recovery
-%SingleRecoveryInterfaceD001% = USB_Install, USB\VID_18D1&PID_D001
-;
-;Google fastboot
-%SingleBootLoaderInterfaceD00D% = USB_Install, USB\VID_18D1&PID_D00D
-
-[Standard.NTx86]
-;Google NexusOne
-%SingleAdbInterface0D02%      = USB_Install, USB\VID_18D1&PID_0D02
-%CompositeAdbInterface0D0201% = USB_Install, USB\VID_18D1&PID_0D02&MI_01
-%SingleAdbInterface4E11%      = USB_Install, USB\VID_18D1&PID_4E11
-%CompositeAdbInterface4E1201% = USB_Install, USB\VID_18D1&PID_4E12&MI_01
-%CompositeAdbInterface4E2201% = USB_Install, USB\VID_18D1&PID_4E22&MI_01
-;
-%QcAdbInterface2E7601% = USB_Install, USB\VID_22B8&PID_2E76&MI_01
-
-;Qualcomm Devices
-%QcAdbInterface676501% = USB_Install, USB\VID_05C6&PID_6765&MI_01
-%QcAdbInterface902501% = USB_Install, USB\VID_05C6&PID_9025&MI_01
-%QcAdbInterface902402% = USB_Install, USB\VID_05C6&PID_9024&MI_02
-%QcAdbInterface901500% = USB_Install, USB\VID_05C6&PID_9015&MI_00
-%QcAdbInterface901801% = USB_Install, USB\VID_05C6&PID_9018&MI_01
-%QcAdbInterface902900% = USB_Install, USB\VID_05C6&PID_9029&MI_00
-%QcAdbInterface903102% = USB_Install, USB\VID_05C6&PID_9031&MI_02
-%QcAdbInterface903702% = USB_Install, USB\VID_05C6&PID_9037&MI_02
-%QcAdbInterface903502% = USB_Install, USB\VID_05C6&PID_9035&MI_02
-%QcAdbInterface905302% = USB_Install, USB\VID_05C6&PID_9053&MI_02
-%QcAdbInterface903901% = USB_Install, USB\VID_05C6&PID_9039&MI_01
-%QcAdbInterface904E01% = USB_Install, USB\VID_05C6&PID_904E&MI_01
-%QcAdbInterface903A02% = USB_Install, USB\VID_05C6&PID_903A&MI_02
-%QcAdbInterface903F03% = USB_Install, USB\VID_05C6&PID_903F&MI_03
-%QcAdbInterface902201% = USB_Install, USB\VID_05C6&PID_9022&MI_01
-%QcAdbInterface902D03% = USB_Install, USB\VID_05C6&PID_902D&MI_03
-%QcAdbInterface901D01% = USB_Install, USB\VID_05C6&PID_901D&MI_01
-%QcAdbInterface903B02% = USB_Install, USB\VID_05C6&PID_903B&MI_02
-%QcAdbInterface904204% = USB_Install, USB\VID_05C6&PID_9042&MI_04
-%QcAdbInterface904402% = USB_Install, USB\VID_05C6&PID_9044&MI_02
-%QcAdbInterface904601% = USB_Install, USB\VID_05C6&PID_9046&MI_01
-%QcAdbInterface905903% = USB_Install, USB\VID_05C6&PID_9059&MI_03
-%QcAdbInterface906003% = USB_Install, USB\VID_05C6&PID_9060&MI_03
-%QcAdbInterface906401% = USB_Install, USB\VID_05C6&PID_9064&MI_01
-%QcAdbInterface906503% = USB_Install, USB\VID_05C6&PID_9065&MI_03
-%QcAdbInterface908205% = USB_Install, USB\VID_05C6&PID_9082&MI_05
-%QcAdbInterface908403% = USB_Install, USB\VID_05C6&PID_9084&MI_03
-%QcAdbInterface909804% = USB_Install, USB\VID_05C6&PID_9098&MI_04
-%QcAdbInterface909A04% = USB_Install, USB\VID_05C6&PID_909A&MI_04
-%QcAdbInterface909103% = USB_Install, USB\VID_05C6&PID_9091&MI_03
-%QcAdbInterface902001% = USB_Install, USB\VID_05C6&PID_9020&MI_01
-%QcAdbInterface90A204% = USB_Install, USB\VID_05C6&PID_90A2&MI_04
-%QcAdbInterface90AD01% = USB_Install, USB\VID_05C6&PID_90AD&MI_01
-%QcAdbInterface90B403% = USB_Install, USB\VID_05C6&PID_90B4&MI_03
-%QcAdbInterface90B604% = USB_Install, USB\VID_05C6&PID_90B6&MI_04
-%QcAdbInterface90B804% = USB_Install, USB\VID_05C6&PID_90B8&MI_04
-%QcAdbInterface90B904% = USB_Install, USB\VID_05C6&PID_90B9&MI_04
-%QcAdbInterface90BB01% = USB_Install, USB\VID_05C6&PID_90BB&MI_01
-%QcAdbInterface90C004% = USB_Install, USB\VID_05C6&PID_90C0&MI_04
-%QcAdbInterface90CA01% = USB_Install, USB\VID_05C6&PID_90CA&MI_01
-%QcAdbInterface90CB01% = USB_Install, USB\VID_05C6&PID_90CB&MI_01
-%QcAdbInterface90CC01% = USB_Install, USB\VID_05C6&PID_90CC&MI_01
-%QcAdbInterface90CD01% = USB_Install, USB\VID_05C6&PID_90CD&MI_01
-%QcAdbInterface90CF01% = USB_Install, USB\VID_05C6&PID_90CF&MI_01
-%QcAdbInterface90D102% = USB_Install, USB\VID_05C6&PID_90D1&MI_02
-%QcAdbInterface90D304% = USB_Install, USB\VID_05C6&PID_90D3&MI_04
-%QcAdbInterface90D501% = USB_Install, USB\VID_05C6&PID_90D5&MI_01
-%QcAdbInterface90D807% = USB_Install, USB\VID_05C6&PID_90D8&MI_07
-%QcAdbInterface90D902% = USB_Install, USB\VID_05C6&PID_90D9&MI_02
-%QcAdbInterface90DB05% = USB_Install, USB\VID_05C6&PID_90DB&MI_05
-%QcAdbInterface90DE08% = USB_Install, USB\VID_05C6&PID_90DE&MI_08
-%QcAdbInterface90E507% = USB_Install, USB\VID_05C6&PID_90E5&MI_07
-%QcAdbInterface90E906% = USB_Install, USB\VID_05C6&PID_90E9&MI_06
-%QcAdbInterface90E708% = USB_Install, USB\VID_05C6&PID_90E7&MI_08
-%QcAdbInterface90E208% = USB_Install, USB\VID_05C6&PID_90E2&MI_08
 %QcAdbInterface911006% = USB_Install, USB\VID_05C6&PID_9110&MI_06
 %QcAdbInterface911303% = USB_Install, USB\VID_05C6&PID_9113&MI_03
 %QcAdbInterface911502% = USB_Install, USB\VID_05C6&PID_9115&MI_02

@@ -5,17 +5,9 @@
       <Configuration>Debug</Configuration>
       <Platform>ARM64</Platform>
     </ProjectConfiguration>
-    <ProjectConfiguration Include="Debug|Win32">
-      <Configuration>Debug</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
     <ProjectConfiguration Include="Release|ARM64">
       <Configuration>Release</Configuration>
       <Platform>ARM64</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Release|Win32">
-      <Configuration>Release</Configuration>
-      <Platform>Win32</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="Debug|x64">
       <Configuration>Debug</Configuration>
@@ -36,21 +28,6 @@
     <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
-    <TargetVersion>Windows10</TargetVersion>
-    <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
-    <ConfigurationType>Driver</ConfigurationType>
-    <DriverType>WDM</DriverType>
-    <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
-    <TargetVersion>Windows10</TargetVersion>
-    <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
-    <ConfigurationType>Driver</ConfigurationType>
-    <DriverType>WDM</DriverType>
-    <Driver_SpectreMitigation>false</Driver_SpectreMitigation>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <TargetVersion>Windows10</TargetVersion>
     <PlatformToolset>WindowsKernelModeDriver10.0</PlatformToolset>
@@ -85,18 +62,6 @@
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
-    <TargetName>qcusbwwan</TargetName>
-    <OutDir>$(SolutionDir)$(Platform)\$(ConfigurationName)\</OutDir>
-    <IntDir>$(Platform)\$(ConfigurationName)\</IntDir>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
-    <TargetName>qcusbwwan</TargetName>
-    <OutDir>$(SolutionDir)$(Platform)\$(ConfigurationName)\</OutDir>
-    <IntDir>$(Platform)\$(ConfigurationName)\</IntDir>
-  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <DebuggerFlavor>DbgengKernelDebugger</DebuggerFlavor>
     <TargetName>qcusbwwan</TargetName>
@@ -150,26 +115,6 @@
       <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories);..\</AdditionalIncludeDirectories>
     </ResourceCompile>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <ClCompile>
-      <PreprocessorDefinitions>_X86_=1;i386=1;STD_CALL;%(PreprocessorDefinitions);NDIS_MINIPORT_DRIVER=1;NDIS_WDM=1;IOCTL_INTERFACE;BINARY_COMPATIBLE=0;QCUSB_MUX_PROTOCOL;NDIS60_MINIPORT=1;NDIS_LEGACY_MINIPORT;NDIS620_MINIPORT=1;QC_IP_MODE;CHECKED_SHIPPABLE;QCQMI_SUPPORT;QCUSB_SHARE_INTERRUPT;QCUSB_PWR;QCSER_SELECTIVE_SUSPEND;MP_QCQOS_ENABLED;QC_IP_MODE;QCQOS_IPV6;QCMP_SUPPORT_CTRL_QMIC;QCMP_MBIM_DL_SUPPORT;QCMP_MBIM_UL_SUPPORT;QCMP_UL_TLP;QCMP_DL_TLP;QCMP_QMAP_V1_SUPPORT;QCMP_QMAP_V2_SUPPORT;QC_DUAL_IP_FC;QCUSB_DBGPRINT;ENABLE_LOGGING;QCUSB_DBGPRINT_BYTES;POOL_NX_OPTIN=1;EVENT_TRACING</PreprocessorDefinitions>
-      <TreatWarningAsError>false</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories);..\transport\usb;.</AdditionalIncludeDirectories>
-      <WppEnabled>true</WppEnabled>
-      <WarningLevel>Level2</WarningLevel>
-      <WppScanConfigurationData>mpwpp.h</WppScanConfigurationData>
-    </ClCompile>
-    <Link>
-      <OutputFile>$(OutDir)qcusbwwan$(TargetExt)</OutputFile>
-      <AdditionalDependencies>%(AdditionalDependencies);$(KernelBufferOverflowLib);$(DDK_LIB_PATH)ntoskrnl.lib;$(DDK_LIB_PATH)hal.lib;$(DDK_LIB_PATH)wmilib.lib;$(DDK_LIB_PATH)\ndis.lib;$(DDK_LIB_PATH)\usbd.lib;$(DDK_LIB_PATH)\ntoskrnl.lib;$(DDK_LIB_PATH)\hal.lib;$(DDK_LIB_PATH)\wmilib.lib;$(DDK_LIB_PATH)\Rtlver.lib;$(DDK_LIB_PATH)\netio.lib</AdditionalDependencies>
-    </Link>
-    <ResourceCompile>
-      <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories);..\</AdditionalIncludeDirectories>
-    </ResourceCompile>
-    <DriverSign>
-      <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
-    </DriverSign>
-  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <PreprocessorDefinitions>_WIN64;_AMD64_;AMD64;%(PreprocessorDefinitions);NDIS_MINIPORT_DRIVER=1;NDIS_WDM=1;IOCTL_INTERFACE;BINARY_COMPATIBLE=0;QCUSB_MUX_PROTOCOL;NDIS60_MINIPORT=1;NDIS_LEGACY_MINIPORT;NDIS620_MINIPORT=1;QC_IP_MODE;CHECKED_SHIPPABLE;QCQMI_SUPPORT;QCUSB_SHARE_INTERRUPT;QCUSB_PWR;QCSER_SELECTIVE_SUSPEND;MP_QCQOS_ENABLED;QC_IP_MODE;QCQOS_IPV6;QCMP_SUPPORT_CTRL_QMIC;QCMP_MBIM_DL_SUPPORT;QCMP_MBIM_UL_SUPPORT;QCMP_UL_TLP;QCMP_DL_TLP;QCMP_QMAP_V1_SUPPORT;QCMP_QMAP_V2_SUPPORT;QC_DUAL_IP_FC;QCUSB_DBGPRINT;ENABLE_LOGGING;QCUSB_DBGPRINT_BYTES;POOL_NX_OPTIN=1;EVENT_TRACING</PreprocessorDefinitions>
@@ -206,26 +151,6 @@
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories);..\</AdditionalIncludeDirectories>
     </ResourceCompile>
-  </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <ClCompile>
-      <PreprocessorDefinitions>_X86_=1;i386=1;STD_CALL;%(PreprocessorDefinitions);NDIS_MINIPORT_DRIVER=1;NDIS_WDM=1;IOCTL_INTERFACE;BINARY_COMPATIBLE=0;QCUSB_MUX_PROTOCOL;NDIS60_MINIPORT=1;NDIS_LEGACY_MINIPORT;NDIS620_MINIPORT=1;QC_IP_MODE;CHECKED_SHIPPABLE;QCQMI_SUPPORT;QCUSB_SHARE_INTERRUPT;QCUSB_PWR;QCSER_SELECTIVE_SUSPEND;MP_QCQOS_ENABLED;QC_IP_MODE;QCQOS_IPV6;QCMP_SUPPORT_CTRL_QMIC;QCMP_MBIM_DL_SUPPORT;QCMP_MBIM_UL_SUPPORT;QCMP_UL_TLP;QCMP_DL_TLP;QCMP_QMAP_V1_SUPPORT;QCMP_QMAP_V2_SUPPORT;QC_DUAL_IP_FC;QCUSB_DBGPRINT;ENABLE_LOGGING;QCUSB_DBGPRINT_BYTES;POOL_NX_OPTIN=1;EVENT_TRACING</PreprocessorDefinitions>
-      <TreatWarningAsError>false</TreatWarningAsError>
-      <AdditionalIncludeDirectories>$(IntDir);%(AdditionalIncludeDirectories);..\transport\usb;.</AdditionalIncludeDirectories>
-      <WppEnabled>true</WppEnabled>
-      <WarningLevel>Level2</WarningLevel>
-      <WppScanConfigurationData>mpwpp.h</WppScanConfigurationData>
-    </ClCompile>
-    <Link>
-      <OutputFile>$(OutDir)qcusbwwan$(TargetExt)</OutputFile>
-      <AdditionalDependencies>%(AdditionalDependencies);$(KernelBufferOverflowLib);$(DDK_LIB_PATH)ntoskrnl.lib;$(DDK_LIB_PATH)hal.lib;$(DDK_LIB_PATH)wmilib.lib;$(DDK_LIB_PATH)\ndis.lib;$(DDK_LIB_PATH)\usbd.lib;$(DDK_LIB_PATH)\ntoskrnl.lib;$(DDK_LIB_PATH)\hal.lib;$(DDK_LIB_PATH)\wmilib.lib;$(DDK_LIB_PATH)\Rtlver.lib;$(DDK_LIB_PATH)\netio.lib</AdditionalDependencies>
-    </Link>
-    <ResourceCompile>
-      <AdditionalIncludeDirectories>$(UM_IncludePath);%(AdditionalIncludeDirectories);..\</AdditionalIncludeDirectories>
-    </ResourceCompile>
-    <DriverSign>
-      <FileDigestAlgorithm>sha256</FileDigestAlgorithm>
-    </DriverSign>
   </ItemDefinitionGroup>
   <ItemGroup>
     <FilesToPackage Include="$(TargetPath)" />
