@@ -795,7 +795,8 @@ NTSTATUS USBPNP_StartDevice
     {
         for (int index = 0; index < pDevExt->pUsbDevDesc->bNumConfigurations; index++)
         {
-            if (NT_SUCCESS(status == USBPNP_ConfigureUsbDevice(DeviceObject, index)))
+            status = USBPNP_ConfigureUsbDevice(DeviceObject, index);
+            if (NT_SUCCESS(status))
             {
                 QCUSB_DbgPrint
                 (
