@@ -29,7 +29,6 @@ NTSTATUS QCRD_CreateReadUrb
 (
     PDEVICE_CONTEXT pDevContext,
     size_t          urbBufferSize,
-    ULONG           readBufferParamTag,
     WDFREQUEST     *outRequest
 );
 
@@ -65,6 +64,7 @@ VOID QCRD_ClearBuffer
 BOOLEAN QCRD_StartReadTimeout
 (
     PDEVICE_CONTEXT pDevContext,
+    BOOLEAN bInternalTimeout,
     ULONG readLength
 );
 
