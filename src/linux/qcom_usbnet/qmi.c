@@ -168,8 +168,7 @@ int ParseQMUX(
 {
    sQMUX *pQMUXHeader;
 
-   if (pBuffer == 0 || buffSize < 12)
-   {
+   if (pBuffer == 0 || buffSize < 12) {
       return -ENOMEM;
    }
 
@@ -178,8 +177,7 @@ int ParseQMUX(
 
    if (pQMUXHeader->mTF != 1
    ||  pQMUXHeader->mLength != buffSize - 1
-   ||  pQMUXHeader->mCtrlFlag != 0x80)
-   {
+   ||  pQMUXHeader->mCtrlFlag != 0x80) {
       return -EINVAL;
    }
 
@@ -213,8 +211,7 @@ int FillQMUX(
 {
    sQMUX *pQMUXHeader;
 
-   if (pBuffer == 0 ||  buffSize < sizeof(sQMUX))
-   {
+   if (pBuffer == 0 ||  buffSize < sizeof(sQMUX)) {
       return -ENOMEM;
    }
 
@@ -267,20 +264,16 @@ int GetTLV(
    u16 tlvSize = 0;
    u16 cpyCount;
 
-   if (pQMIMessage == 0 || pOutDataBuf == 0)
-   {
+   if (pQMIMessage == 0 || pOutDataBuf == 0) {
       return -ENOMEM;
    }
 
    for (pos = 4;
 	pos + 3 < messageLen;
-	pos += tlvSize + 3)
-   {
+	pos += tlvSize + 3) {
       tlvSize = *(u16 *)(pQMIMessage + pos + 1);
-      if (*(u8 *)(pQMIMessage + pos) == type)
-      {
-	 if (bufferLen < tlvSize)
-	 {
+      if (*(u8 *)(pQMIMessage + pos) == type) {
+	 if (bufferLen < tlvSize) {
 	    return -ENOMEM;
 	 }
 
@@ -289,8 +282,7 @@ int GetTLV(
 		    pQMIMessage + pos + 3,
 		    tlvSize ); */
 
-	 for (cpyCount = 0; cpyCount < tlvSize; cpyCount++)
-	 {
+	 for (cpyCount = 0; cpyCount < tlvSize; cpyCount++) {
 	    *((char *)(pOutDataBuf + cpyCount)) = *((char *)(pQMIMessage + pos + 3 + cpyCount));
 	 }
 
@@ -325,18 +317,14 @@ int ValidQMIMessage(
 {
    char mandTLV[4];
 
-   if (GetTLV(pQMIMessage, messageLen, 2, &mandTLV[0], 4) == 4)
-   {
+   if (GetTLV(pQMIMessage, messageLen, 2, &mandTLV[0], 4) == 4) {
       // Found TLV
-      if (*(u16 *)&mandTLV[0] != 0)
-      {
+      if (*(u16 *)&mandTLV[0] != 0) {
 	 return *(u16 *)&mandTLV[2];
-      } else
-      {
+      } else {
 	 return 0;
       }
-   } else
-   {
+   } else {
       return -ENOMSG;
    }
 }
@@ -362,11 +350,9 @@ int GetQMIMessageID(
    void *pQMIMessage,
    u16      messageLen)
 {
-   if (messageLen < 2)
-   {
+   if (messageLen < 2) {
       return -ENODATA;
-   } else
-   {
+   } else {
       return *(u16 *)pQMIMessage;
    }
 }
@@ -398,8 +384,7 @@ int QMICTLGetClientIDReq(
    u8       transactionID,
    u8       serviceType)
 {
-   if (pBuffer == 0 || buffSize < QMICTLGetClientIDReqSize())
-   {
+   if (pBuffer == 0 || buffSize < QMICTLGetClientIDReqSize()) {
       return -ENOMEM;
    }
 
@@ -446,8 +431,7 @@ int QMICTLReleaseClientIDReq(
    u8       transactionID,
    u16      clientID)
 {
-   if (pBuffer == 0 || buffSize < QMICTLReleaseClientIDReqSize())
-   {
+   if (pBuffer == 0 || buffSize < QMICTLReleaseClientIDReqSize()) {
       return -ENOMEM;
    }
 
@@ -455,7 +439,7 @@ int QMICTLReleaseClientIDReq(
    // Request
    *(u8 *)(pBuffer + sizeof(sQMUX))  = 0x00;
    // Transaction ID
-   *(u8 *)(pBuffer + sizeof(sQMUX) + 1 ) = transactionID;
+   *(u8 *)(pBuffer + sizeof(sQMUX) + 1) = transactionID;
    // Message ID
    *(u16 *)(pBuffer + sizeof(sQMUX) + 2) = 0x0023;
    // Size of TLV's
@@ -492,8 +476,7 @@ int QMICTLReadyReq(
    u16      buffSize,
    u8       transactionID)
 {
-   if (pBuffer == 0 || buffSize < QMICTLReadyReqSize())
-   {
+   if (pBuffer == 0 || buffSize < QMICTLReadyReqSize()) {
       return -ENOMEM;
    }
 
@@ -538,8 +521,7 @@ int QMIWDSSetEventReportReq(
    u16      buffSize,
    u16      transactionID)
 {
-   if (pBuffer == 0 || buffSize < QMIWDSSetEventReportReqSize())
-   {
+   if (pBuffer == 0 || buffSize < QMIWDSSetEventReportReqSize()) {
       return -ENOMEM;
    }
 
@@ -569,8 +551,7 @@ int QMIWDASetDataFormatReqSettings(
       u16      buffSize,
       u16      transactionID)
 {
-   if (pBuffer == 0 || buffSize < QMIWDASetDataFormatReqSettingsSize())
-   {
+   if (pBuffer == 0 || buffSize < QMIWDASetDataFormatReqSettingsSize()) {
       return -ENOMEM;
    }
 
@@ -615,8 +596,7 @@ int QMIWDASetDataFormatReq(
       u16      transactionID,
       sGobiUSBNet *pDev)
 {
-   if (pBuffer == 0 || buffSize < QMIWDASetDataFormatReqSize())
-   {
+   if (pBuffer == 0 || buffSize < QMIWDASetDataFormatReqSize()) {
       return -ENOMEM;
    }
 
@@ -721,8 +701,7 @@ int QMIWDSGetPKGSRVCStatusReq(
    u16      buffSize,
    u16      transactionID)
 {
-   if (pBuffer == 0 || buffSize < QMIWDSGetPKGSRVCStatusReqSize())
-   {
+   if (pBuffer == 0 || buffSize < QMIWDSGetPKGSRVCStatusReqSize()) {
       return -ENOMEM;
    }
 
@@ -761,8 +740,7 @@ int QMIDMSGetMEIDReq(
    u16      buffSize,
    u16      transactionID)
 {
-   if (pBuffer == 0 || buffSize < QMIDMSGetMEIDReqSize())
-   {
+   if (pBuffer == 0 || buffSize < QMIDMSGetMEIDReqSize()) {
       return -ENOMEM;
    }
 
@@ -811,8 +789,7 @@ int QMICTLGetClientIDResp(
    //    QMI CTL SDU is 2 bytes, not 3
    offset = sizeof(sQMUX) + 2;
 
-   if (pBuffer == 0 || buffSize < offset)
-   {
+   if (pBuffer == 0 || buffSize < offset) {
       return -ENOMEM;
    }
 
@@ -820,20 +797,17 @@ int QMICTLGetClientIDResp(
    buffSize -= offset;
 
    result = GetQMIMessageID(pBuffer, buffSize);
-   if (result != 0x22)
-   {
+   if (result != 0x22) {
       return -EFAULT;
    }
 
    result = ValidQMIMessage(pBuffer, buffSize);
-   if (result != 0)
-   {
+   if (result != 0) {
       return -EFAULT;
    }
 
    result = GetTLV(pBuffer, buffSize, 0x01, pClientID, 2);
-   if (result != 2)
-   {
+   if (result != 2) {
       return -EFAULT;
    }
 
@@ -865,8 +839,7 @@ int QMICTLReleaseClientIDResp(
    //    QMI CTL SDU is 2 bytes, not 3
    offset = sizeof(sQMUX) + 2;
 
-   if (pBuffer == 0 || buffSize < offset)
-   {
+   if (pBuffer == 0 || buffSize < offset) {
       return -ENOMEM;
    }
 
@@ -874,14 +847,12 @@ int QMICTLReleaseClientIDResp(
    buffSize -= offset;
 
    result = GetQMIMessageID(pBuffer, buffSize);
-   if (result != 0x23)
-   {
+   if (result != 0x23) {
       return -EFAULT;
    }
 
    result = ValidQMIMessage(pBuffer, buffSize);
-   if (result != 0)
-   {
+   if (result != 0) {
       return -EFAULT;
    }
 
@@ -947,8 +918,7 @@ int QMIWDSEventResp(
    || pTXBytesOk == 0
    || pRXBytesOk == 0
    || pbLinkState == 0
-   || pbReconfigure == 0)
-   {
+   || pbReconfigure == 0) {
       return -ENOMEM;
    }
 
@@ -959,8 +929,7 @@ int QMIWDSEventResp(
 
    result = GetQMIMessageID(pBuffer, buffSize);
    // QMI WDS Set Event Report Resp
-   if (result == 0x01)
-   {
+   if (result == 0x01) {
       // TLV's are not mandatory
       GetTLV(pBuffer, buffSize, 0x10, (void *)pTXOk, 4);
       GetTLV(pBuffer, buffSize, 0x11, (void *)pRXOk, 4);
@@ -972,39 +941,30 @@ int QMIWDSEventResp(
       GetTLV(pBuffer, buffSize, 0x1A, (void *)pRXBytesOk, 8);
    }
    // QMI WDS Get PKG SRVC Status Resp
-   else if ((result == 0x22) || (result == 0x20))
-   {
+   else if ((result == 0x22) || (result == 0x20)) {
       result = GetTLV(pBuffer, buffSize, 0x01, &pktStatusRead[0], 2);
       // 1 or 2 bytes may be received
-      if (result >= 1)
-      {
-	 if (pktStatusRead[0] == 0x02)
-	 {
+      if (result >= 1) {
+	 if (pktStatusRead[0] == 0x02) {
 	    *pbLinkState = true;
-         } else
-	 {
+	 } else {
 	    *pbLinkState = false;
 	 }
       }
-      if (result == 2)
-      {
-	 if (pktStatusRead[1] == 0x01)
-	 {
+      if (result == 2) {
+	 if (pktStatusRead[1] == 0x01) {
 	    *pbReconfigure = true;
-         } else
-	 {
+	 } else {
 	    *pbReconfigure = false;
 	 }
       }
 
-      if (result < 0)
-      {
+      if (result < 0) {
 	 return result;
       }
    }
 
-   else
-   {
+   else {
       return -EFAULT;
    }
 
@@ -1039,8 +999,7 @@ int QMIDMSGetMEIDResp(
    // Ignore QMUX and SDU
    offset = sizeof(sQMUX) + 3;
 
-   if (pBuffer == 0 || buffSize < offset || meidSize < 14)
-   {
+   if (pBuffer == 0 || buffSize < offset || meidSize < 14) {
       return -ENOMEM;
    }
 
@@ -1048,20 +1007,17 @@ int QMIDMSGetMEIDResp(
    buffSize -= offset;
 
    result = GetQMIMessageID(pBuffer, buffSize);
-   if (result != 0x25)
-   {
+   if (result != 0x25) {
       return -EFAULT;
    }
 
    result = ValidQMIMessage(pBuffer, buffSize);
-   if (result != 0)
-   {
+   if (result != 0) {
       return -EFAULT;
    }
 
    result = GetTLV(pBuffer, buffSize, 0x12, (void *)pMEID, 14);
-   if (result != 14)
-   {
+   if (result != 14) {
       return -EFAULT;
    }
    return 0;
@@ -1080,8 +1036,7 @@ int QMIWDASetDataFormatResp(
    // Ignore QMUX and SDU
    offset = sizeof(sQMUX) + 3;
 
-   if (pBuffer == 0 || buffSize < offset)
-   {
+   if (pBuffer == 0 || buffSize < offset) {
       return -ENOMEM;
    }
 
@@ -1089,39 +1044,33 @@ int QMIWDASetDataFormatResp(
    buffSize -= offset;
 
    result = GetQMIMessageID(pBuffer, buffSize);
-   if (result != 0x20)
-   {
+   if (result != 0x20) {
       return -EFAULT;
    }
 
    result = ValidQMIMessage(pBuffer, buffSize);
-   if (result != 0)
-   {
+   if (result != 0) {
       return -EFAULT;
    }
 
 #ifdef TX_AGGR
    result = GetTLV(pBuffer, buffSize, 0x15, (void *)DLDatagram, 4);
-   if (result != 4)
-   {
+   if (result != 4) {
       return -EFAULT;
    }
 
    result = GetTLV(pBuffer, buffSize, 0x16, (void *)DLDatagramSize, 4);
-   if (result != 4)
-   {
+   if (result != 4) {
       return -EFAULT;
    }
 
    result = GetTLV(pBuffer, buffSize, 0x17, (void *)ULDatagram, 4);
-   if (result != 4)
-   {
+   if (result != 4) {
       return -EFAULT;
    }
 
    result = GetTLV(pBuffer, buffSize, 0x18, (void *)ULDatagramSize, 4);
-   if (result != 4)
-   {
+   if (result != 4) {
       return -EFAULT;
    }
 
@@ -1129,14 +1078,12 @@ int QMIWDASetDataFormatResp(
    QC_LOG_GLOBAL("\n\n ULDatagram : 0X%X, ULDatagramSize : 0X%X\n\n", *ULDatagram, *ULDatagramSize);
 #else
    result = GetTLV(pBuffer, buffSize, 0x15, (void *)DLDatagram, 4);
-   if (result != 4)
-   {
+   if (result != 4) {
       return -EFAULT;
    }
 
    result = GetTLV(pBuffer, buffSize, 0x16, (void *)DLDatagramSize, 4);
-   if (result != 4)
-   {
+   if (result != 4) {
       return -EFAULT;
    }
 
@@ -1149,8 +1096,7 @@ int QMIWDSStartNetworkReq(
    u16      transactionID,
    u8 profileid)
 {
-   if (pBuffer == 0)
-   {
+   if (pBuffer == 0) {
       return -ENOMEM;
    }
 
@@ -1188,22 +1134,19 @@ int QMIWDSStartNetworkResp(
    buffSize -= offset;
 
    result = GetQMIMessageID(pBuffer, buffSize);
-   if (result != 0x20)
-   {
+   if (result != 0x20) {
       printk("GetQMIMessageID failed\n");
       return -EFAULT;
    }
 
    result = ValidQMIMessage(pBuffer, buffSize);
-   if (result != 0)
-   {
+   if (result != 0) {
       printk("ValidQMIMessage failed\n");
       return -EFAULT;
    }
 
    result = GetTLV(pBuffer, buffSize, 0x1, (void *)pMEID, 4);
-   if (result < 0)
-   {
+   if (result < 0) {
       printk("GetTLV\n");
       return result;
    }
@@ -1217,8 +1160,7 @@ int QMIWDSStopNetworkReq(
    u16      transactionID,
    int      connectid)
 {
-   if (pBuffer == 0)
-   {
+   if (pBuffer == 0) {
       return -ENOMEM;
    }
 
@@ -1256,15 +1198,13 @@ int QMIWDSStopNetworkResp(
    buffSize -= offset;
 
    result = GetQMIMessageID(pBuffer, buffSize);
-   if (result != 0x20)
-   {
+   if (result != 0x20) {
       printk("GetQMIMessageID failed\n");
       return -EFAULT;
    }
 
    result = ValidQMIMessage(pBuffer, buffSize);
-   if (result != 0)
-   {
+   if (result != 0) {
       printk("ValidQMIMessage failed\n");
       return -EFAULT;
    }
@@ -1277,8 +1217,7 @@ int QMIWDSGetRuntimeSettingsReq(
    u16      buffSize,
    u16      transactionID)
 {
-   if (pBuffer == 0)
-   {
+   if (pBuffer == 0) {
       return -ENOMEM;
    }
 
@@ -1305,7 +1244,7 @@ void PrintIPAddr(char *msg, unsigned int addr)
 	addr >> 24,
 	(addr >> 16) & 0xff,
 	(addr >> 8) & 0xff,
-        (addr) &0xff
+	(addr) & 0xff
 	);
 }
 
@@ -1341,15 +1280,13 @@ int QMI_IP_Down(char *InterfaceName)
    char *envp[] = {"PATH=$PATH:/usr/bin:/sbin", NULL};
 
    ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
-   if (ret)
-   {
+   if (ret) {
       kfree(cmdArg1);
       kfree(cmdArg2);
       ret = 0;
       printk("QMI_IP_Down cmd-1 Failed");
       return ret;
-   } else 
-   {
+   } else {
       kfree(cmdArg1);
       ret = 1;
       printk("QMI_IP_Down cmd-1 Successfull");
@@ -1361,13 +1298,11 @@ int QMI_IP_Down(char *InterfaceName)
    char *argv2[] = {"/opt/QTI/QUD/rmnet/IPAssignmentScript.sh", cmdArg2, NULL};
 
    ret = call_usermodehelper(argv[0], argv2, envp, UMH_WAIT_EXEC);
-   if (ret)
-   {
+   if (ret) {
       kfree(cmdArg2);
       ret = 0;
       printk("QMI_IP_Down cmd-2 Failed");
-   } else 
-   {
+   } else {
       kfree(cmdArg2);
       ret = 1;
       printk("QMI_IP_Down cmd-2 Successfull");
@@ -1393,19 +1328,16 @@ int QMIIPAssignment(
    memset(InterfaceName, '\0', IFNAMSIZ);
 
    MuxId = QMIDev->MuxId - 0x81;
-   if (MuxId == 0)
-   {
+   if (MuxId == 0) {
       memcpy(InterfaceName, pDev->mpNetDev->net->name, IFNAMSIZ);
-   } else if (MuxId <= MAX_MUX_DEVICES)
-   {
+   } else if (MuxId <= MAX_MUX_DEVICES) {
       memcpy(InterfaceName, pDev->mpNetMUXDev[MuxId - 1]->net->name, IFNAMSIZ);
    }
 
    printk("\nInside QMIIPAssignment\n");
    //IP Assignment
-   if ((addr>>24) > 0)
-   {
-      sprintf(ip, "%d.%d.%d.%d", (addr>>24), ((addr>>16) & 0xff), ((addr>>8) & 0xff), ((addr) &0xff));
+   if ((addr>>24) > 0) {
+      sprintf(ip, "%d.%d.%d.%d", (addr>>24), ((addr>>16) & 0xff), ((addr>>8) & 0xff), ((addr) & 0xff));
       printk("IP Address :%s", ip);
       printk("Subnet mask :%s", subnetMask);
       sprintf(cmdArg, "%s%s %s%s%s%s", "sudo ifconfig ", InterfaceName, ip, " netmask ", subnetMask, " up");
@@ -1414,13 +1346,11 @@ int QMIIPAssignment(
       char *envp[] = {"PATH=$PATH:/usr/bin:/sbin", NULL};
 
       ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
-      if (ret)
-      {
+      if (ret) {
 	 kfree(ip);
 	 kfree(cmdArg);
 	 ret = 0;
-      } else 
-      {
+      } else {
 	 kfree(ip);
 	 kfree(cmdArg);
 	 ret = 1;
@@ -1440,9 +1370,8 @@ int IPRoute(char *netAddr,
 
    printk("\nInside IPRoute()\n");
 
-   if ((addr>>24) > 0)
-   {
-      sprintf(gatewayIP, "%d.%d.%d.%d", (addr>>24), ((addr>>16) & 0xff), ((addr>>8) & 0xff), ((addr) &0xff));
+   if ((addr>>24) > 0) {
+      sprintf(gatewayIP, "%d.%d.%d.%d", (addr>>24), ((addr>>16) & 0xff), ((addr>>8) & 0xff), ((addr) & 0xff));
       printk("gatewayIP :%s", gatewayIP);
       printk("network address :%s", netAddr);
       sprintf(cmdArg, "%s%s%s%s%s%s", "sudo route add -net ", netAddr, " netmask ", subnetMask, " gw ", gatewayIP);
@@ -1451,13 +1380,11 @@ int IPRoute(char *netAddr,
       char *envp[] = {"PATH=$PATH:/usr/bin:/sbin", NULL};
 
       ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
-      if (ret)
-      {
+      if (ret) {
 	 kfree(gatewayIP);
 	 kfree(cmdArg);
 	 ret = 0;
-      } else 
-      {
+      } else {
 	 kfree(gatewayIP);
 	 kfree(cmdArg);
 	 ret = 1;
@@ -1488,58 +1415,51 @@ int QMIWDSGetRuntimeSettingsResp(
    buffSize -= offset;
 
    result = GetQMIMessageID(pBuffer, buffSize);
-   if (result != 0x2D)
-   {
+   if (result != 0x2D) {
       printk("GetQMIMessageID failed\n");
       return -EFAULT;
    }
 
    result = ValidQMIMessage(pBuffer, buffSize);
-   if (result != 0)
-   {
+   if (result != 0) {
       printk("ValidQMIMessage failed\n");
       return -EFAULT;
    }
 
    result = GetTLV(pBuffer, buffSize, 0x21, (void *)&addr, 4);
-   if (result > 0)
-   {
+   if (result > 0) {
       PrintIPAddr("\nMask : ", addr);
-      if ((addr>>24) > 0) 
-         sprintf(subnetMask, "%d.%d.%d.%d", (addr>>24), ((addr>>16) & 0xff), ((addr>>8) & 0xff), ((addr) &0xff));
+      if ((addr>>24) > 0)
+	 sprintf(subnetMask, "%d.%d.%d.%d", (addr>>24), ((addr>>16) & 0xff), ((addr>>8) & 0xff), ((addr) & 0xff));
       QMIDev->IPv4SubnetMask = addr;
    }
 
    result = GetTLV(pBuffer, buffSize, 0x1E, (void *)&addr, 4);
-   if (result > 0)
-   {
+   if (result > 0) {
       PrintIPAddr("\nIPv4 Addr : ", addr);
       QMIDev->IPv4Addr = addr;
       printk("IP address : %x\n", QMIDev->IPv4Addr);
 
       if (QMIIPAssignment(addr, pDev, subnetMask, QMIDev)) {
 	 printk("IP assignment Successfull");
-      } else
-      {
+      } else {
 	 printk("IP not assigned");
       }
 
    }
 
    result = GetTLV(pBuffer, buffSize, 0x20, (void *)&addr, 4);
-   if (result > 0)
-   {
+   if (result > 0) {
       PrintIPAddr("\nGateway : ", addr);
       QMIDev->IPv4Gateway = addr;
 
       addr_tmp = QMIDev->IPv4Addr & QMIDev->IPv4SubnetMask;
-      if ((addr_tmp>>24) > 0) 
-         sprintf(netAddr, "%d.%d.%d.%d", (addr_tmp>>24), ((addr_tmp>>16) & 0xff), ((addr_tmp>>8) & 0xff), ((addr_tmp) & 0xff));
+      if ((addr_tmp>>24) > 0)
+	 sprintf(netAddr, "%d.%d.%d.%d", (addr_tmp>>24), ((addr_tmp>>16) & 0xff), ((addr_tmp>>8) & 0xff), ((addr_tmp) & 0xff));
 
       if (IPRoute(netAddr, addr, subnetMask)) {
 	 printk("IP route successfull");
-      } else
-      {
+      } else {
 	 printk("IP route not successfull");
       }
 
@@ -1548,68 +1468,58 @@ int QMIWDSGetRuntimeSettingsResp(
    }
 
    result = GetTLV(pBuffer, buffSize, 0x15, (void *)&addr, 4);
-   if (result > 0)
-   {
+   if (result > 0) {
       PrintIPAddr("\nPrimary DNS : ", addr);
       QMIDev->IPv4PrimaryDNS = addr;
    }
 
    result = GetTLV(pBuffer, buffSize, 0x16, (void *)&addr, 4);
-   if (result > 0)
-   {
+   if (result > 0) {
       PrintIPAddr("\nSecondary DNS : ", addr);
       QMIDev->IPv4SecondaryDNS = addr;
    }
 
    result = GetTLV(pBuffer, buffSize, 0x25, (void *)&ipv6, sizeof(ipv6_addr));
-   if (result > 0)
-   {
+   if (result > 0) {
       PrintIPV6Addr("\nIPV6 address : ", &ipv6);
       printk("Prefix : %d\n", ipv6.prefix);
       memcpy(&QMIDev->ipv6_address, &ipv6, sizeof(ipv6_addr));
    }
 
    result = GetTLV(pBuffer, buffSize, 0x26, (void *)&ipv6, sizeof(ipv6_addr));
-   if (result > 0)
-   {
+   if (result > 0) {
       PrintIPV6Addr("\nIPV6 Gateway address : ", &ipv6);
       printk("Prefix : %d\n", ipv6.prefix);
       memcpy(&QMIDev->ipv6_gateway, &ipv6, sizeof(ipv6_addr));
    }
 
    result = GetTLV(pBuffer, buffSize, 0x27, (void *)&ipv6, sizeof(ipv6_addr));
-   if (result > 0)
-   {
+   if (result > 0) {
       PrintIPV6Addr("\nIPV6 Primary DNS address : ", &ipv6);
       printk("Prefix : %d\n", ipv6.prefix);
       memcpy(&QMIDev->ipv6_primaydns, &ipv6, sizeof(ipv6_addr));
    }
 
    result = GetTLV(pBuffer, buffSize, 0x28, (void *)&ipv6, sizeof(ipv6_addr));
-   if (result > 0)
-   {
+   if (result > 0) {
       PrintIPV6Addr("\nIPV6 Secondary DNS address : ", &ipv6);
       printk("Prefix : %d\n", ipv6.prefix);
       memcpy(&QMIDev->ipv6_secondarydns, &ipv6, sizeof(ipv6_addr));
    }
 
    result = GetTLV(pBuffer, buffSize, 0x29, (void *)&mtu, 4);
-   if (result > 0)
-   {
+   if (result > 0) {
       unsigned int MuxId;
 
       printk("\nMTU : %d\n", mtu);
 
       MuxId = QMIDev->MuxId - 0x81;
-      if (MuxId == 0)
-      {
-	  if (pDev->mpNetDev->net->flags & IFF_UP)
-	  {
+      if (MuxId == 0) {
+	  if (pDev->mpNetDev->net->flags & IFF_UP) {
 	      usbnet_change_mtu(pDev->mpNetDev->net, mtu);
 	  }
       } else if (MuxId <= MAX_MUX_DEVICES) {
-	  if (pDev->mpNetMUXDev[MuxId - 1]->net->flags & IFF_UP)
-	  {
+	  if (pDev->mpNetMUXDev[MuxId - 1]->net->flags & IFF_UP) {
 	      usbnet_change_mtu(pDev->mpNetMUXDev[MuxId - 1]->net, mtu);
 	  }
       }
@@ -1624,8 +1534,7 @@ int QMIWDSSetIPFamilyPrefReq(
    u16      transactionID,
    u8       ipType)
 {
-   if (pBuffer == 0)
-   {
+   if (pBuffer == 0) {
       return -ENOMEM;
    }
 
@@ -1654,8 +1563,7 @@ int QMIWDSBindMuxPortReq(
    sGobiUSBNet *pDev,
    sQMIDev *QMIDev)
 {
-   if (pBuffer == 0)
-   {
+   if (pBuffer == 0) {
       return -ENOMEM;
    }
 
@@ -1694,8 +1602,7 @@ unsigned short GetTransactionID(sQMIDev *QMIDev)
 {
    unsigned short transactionID = atomic_add_return(1, (atomic_t *)&QMIDev->mQMITransactionID);
 
-   if (transactionID == 0)
-   {
+   if (transactionID == 0) {
       transactionID = atomic_add_return(1, (atomic_t *)&QMIDev->mQMITransactionID);
    }
    return transactionID;
@@ -1712,8 +1619,7 @@ static int WDSGetRuntimeSettings(sGobiUSBNet *pDev, sQMIDev *QMIDev, u16 clientI
     id = clientID;
     writeBufferSize = QMIWDSGetRuntimeSettingsReqSize();
     pWriteBuffer = kzalloc(writeBufferSize, GFP_KERNEL);
-    if (pWriteBuffer == NULL)
-    {
+    if (pWriteBuffer == NULL) {
 	printk("Mem alloc failed\n");
 	return -ENOMEM;
     }
@@ -1721,8 +1627,7 @@ static int WDSGetRuntimeSettings(sGobiUSBNet *pDev, sQMIDev *QMIDev, u16 clientI
     result = QMIWDSGetRuntimeSettingsReq(pWriteBuffer,
 	    writeBufferSize,
 	    GetTransactionID(QMIDev));
-    if (result < 0)
-    {
+    if (result < 0) {
 	printk("Preparing Request Runttime settings failed\n");
 	kfree(pWriteBuffer);
 	return result;
@@ -1734,8 +1639,7 @@ static int WDSGetRuntimeSettings(sGobiUSBNet *pDev, sQMIDev *QMIDev, u16 clientI
 	    id,
 	    QMIDev);
     kfree(pWriteBuffer);
-    if (result < 0)
-    {
+    if (result < 0) {
 	printk("Request runtime settings  Failed\n");
 	return result;
     }
@@ -1767,8 +1671,7 @@ int QMIWDSGetPktSrvcStatusInd(
    int flags;
    u8 offset = 0;
 
-   if (IsDeviceValid(pDev) == false)
-   {
+   if (IsDeviceValid(pDev) == false) {
       QC_LOG_ERR(GET_QMIDEV(pDev), "Invalid device!\n");
       return -ENXIO;
    }
@@ -1780,20 +1683,17 @@ int QMIWDSGetPktSrvcStatusInd(
    buffSize -= offset;
 
    result = GetQMIMessageID(pBuffer, buffSize);
-   if (result != 0x0022)
-   {
+   if (result != 0x0022) {
       QC_LOG_DBG(QMIDev, "GetQMIMessageID failed\n");
       return -EFAULT;
    }
 
    result = GetTLV(pBuffer, buffSize, 0x01, &Status, sizeof(struct ConnStatusData));
-   if (result > 0)
-   {
+   if (result > 0) {
       MuxId = QMIDev->MuxId - 0x81;
       memset(IFName, '\0', IFNAMSIZ);
 
-      if (MuxId == 0)
-      {
+      if (MuxId == 0) {
 	  net = pDev->mpNetDev->net;
       } else if (MuxId <= MAX_MUX_DEVICES) {
 	  net = pDev->mpNetMUXDev[MuxId - 1]->net;
@@ -1805,11 +1705,9 @@ int QMIWDSGetPktSrvcStatusInd(
       memcpy(IFName, net->name, IFNAMSIZ);
 
       QC_LOG_DBG(QMIDev, "Connection status : %X, recon: %X\n", Status.connection_status, Status.reconfiguration_required);
-      if (Status.connection_status == WDS_CONNECTION_STATUS_CONNECTED)
-      {
+      if (Status.connection_status == WDS_CONNECTION_STATUS_CONNECTED) {
 	  /* To make interface up */
-	  if (!(flags & IFF_UP))
-	  {
+	  if (!(flags & IFF_UP)) {
 
 #ifdef QCUSB_RHEL
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
@@ -1849,21 +1747,18 @@ int QMIWDSGetPktSrvcStatusInd(
 	      WDSGetRuntimeSettings(pDev, QMIDev, clientID);
 	  }
 	  QC_LOG_DBG(QMIDev, "Network connected :%d\n", rtnl_is_locked());
-      } else if (Status.connection_status == WDS_CONNECTION_STATUS_DISCONNECTED)
-      {
+      } else if (Status.connection_status == WDS_CONNECTION_STATUS_DISCONNECTED) {
 
       if (QMI_IP_Down(IFName)) {
 	 printk("IP Down execution successfull");
-      } else
-      {
+      } else {
 	 printk("IP Down execution failed");
       }
 
 #ifdef QCUSB_RHEL
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 18, 0)
 	  /* To make interface down */
-	  if (flags & IFF_UP)
-	  {
+	  if (flags & IFF_UP) {
 	      rtnl_lock();
 	      flags = flags & ~IFF_UP;
 	      QC_LOG_DBG(QMIDev, "flags : %X\n", net->flags);
@@ -1872,8 +1767,7 @@ int QMIWDSGetPktSrvcStatusInd(
 	      rtnl_unlock();
 	  }
 #else
-	  if (flags & IFF_UP)
-	  {
+	  if (flags & IFF_UP) {
 	      rtnl_lock();
 	      flags = flags & ~IFF_UP;
 	      QC_LOG_DBG(QMIDev, "flags : %X\n", net->flags);
@@ -1887,8 +1781,7 @@ int QMIWDSGetPktSrvcStatusInd(
 #ifndef QCUSB_RHEL
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
 	  /* To make interface down */
-	  if (flags & IFF_UP)
-	  {
+	  if (flags & IFF_UP) {
 	      rtnl_lock();
 	      flags = flags & ~IFF_UP;
 	      QC_LOG_DBG(QMIDev, "flags : %X\n", net->flags);
@@ -1897,8 +1790,7 @@ int QMIWDSGetPktSrvcStatusInd(
 	      rtnl_unlock();
 	  }
 #else
-	  if (flags & IFF_UP)
-	  {
+	  if (flags & IFF_UP) {
 	      rtnl_lock();
 	      flags = flags & ~IFF_UP;
 	      QC_LOG_DBG(QMIDev, "flags : %X\n", net->flags);
@@ -1933,8 +1825,7 @@ int QMIWDSExtendedIPConfigInd(
    buffSize -= offset;
 
    result = GetQMIMessageID(pBuffer, buffSize);
-   if (result != 0x008C)
-   {
+   if (result != 0x008C) {
       printk("GetQMIMessageID failed\n");
       return -EFAULT;
    }
@@ -1952,10 +1843,8 @@ int QMIWDSExtendedIPConfigInd(
     */
 
    result = GetTLV(pBuffer, buffSize, 0x10, &status, sizeof(uint32_t));
-   if (result > 0)
-   {
-      if (status & 0x00002000)
-      {
+   if (result > 0) {
+      if (status & 0x00002000) {
 	  WDSGetRuntimeSettings(pDev, QMIDev, clientID);
 	  printk("Change in the MTU indication received\n");
       }
@@ -1981,30 +1870,24 @@ int QMIWDSReverseIPTransportConnInd(
    buffSize -= offset;
 
    result = GetQMIMessageID(pBuffer, buffSize);
-   if (result != 0x008E)
-   {
+   if (result != 0x008E) {
       printk("GetQMIMessageID failed\n");
       return -EFAULT;
    }
 
    result = GetTLV(pBuffer, buffSize, 0x15, (void *)&mtu, sizeof(uint32_t));
-   if (result > 0)
-   {
+   if (result > 0) {
        unsigned int MuxId;
 
        printk("\nMTU : %d\n", mtu);
 
        MuxId = QMIDev->MuxId - 0x81;
-       if (MuxId == 0)
-       {
-	   if (pDev->mpNetDev->net->flags & IFF_UP)
-	   {
+       if (MuxId == 0) {
+	   if (pDev->mpNetDev->net->flags & IFF_UP) {
 	       usbnet_change_mtu(pDev->mpNetDev->net, mtu);
 	   }
-       } else if (MuxId <= MAX_MUX_DEVICES)
-       {
-	   if (pDev->mpNetMUXDev[MuxId - 1]->net->flags & IFF_UP)
-	   {
+       } else if (MuxId <= MAX_MUX_DEVICES) {
+	   if (pDev->mpNetMUXDev[MuxId - 1]->net->flags & IFF_UP) {
 	       usbnet_change_mtu(pDev->mpNetMUXDev[MuxId - 1]->net, mtu);
 	   }
        }

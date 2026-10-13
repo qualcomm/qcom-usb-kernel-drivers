@@ -106,16 +106,13 @@ int GobiInitializeDeviceList(void)
     INIT_LIST_HEAD(&DeviceListIdle);
     INIT_LIST_HEAD(&DeviceListActive);
     DevicesIdle = DevicesActive = 0;
-    for (i = 0; i < GOBI_NUM_DEVICES_DEFAULT; i++)
-    {
-	pGobiDev = kzalloc(sizeof( sGobiUSBNet), GFP_KERNEL );
-	if (pGobiDev == NULL)
-	{
+    for (i = 0; i < GOBI_NUM_DEVICES_DEFAULT; i++) {
+	pGobiDev = kzalloc(sizeof(sGobiUSBNet), GFP_KERNEL);
+	if (pGobiDev == NULL) {
 	    break;
 	}
-	if (GobiInitializeDeviceContext(pGobiDev))
-	{
-            QC_LOG_ERR(GET_QMIDEV(pGobiDev), "Failed to initialize dev context\n");
+	if (GobiInitializeDeviceContext(pGobiDev)) {
+	    QC_LOG_ERR(GET_QMIDEV(pGobiDev), "Failed to initialize dev context\n");
 	    kfree(pGobiDev);
 	    break;
 	}
@@ -123,8 +120,7 @@ int GobiInitializeDeviceList(void)
 	 ++DevicesIdle;
     }
     QC_LOG_GLOBAL("initial device pool size: %d\n", DevicesIdle);
-    if (DevicesIdle != 0)
-    {
+    if (DevicesIdle != 0) {
 	return 0;
     }
     return 1;  // failure
@@ -139,35 +135,28 @@ sGobiUSBNet *GobiAcquireDevice(char *mpKey, struct usbnet *pDev)
    int success = 0;
 
    spin_lock_irqsave(&DevListLock, flags);
-   if (list_empty(&DeviceListIdle) == true)
-   {
+   if (list_empty(&DeviceListIdle) == true) {
       spin_unlock_irqrestore(&DevListLock, flags);
-      pGobiDev = kzalloc(sizeof( sGobiUSBNet), GFP_KERNEL );
-      if (pGobiDev != NULL)
-	{
-	    if (GobiInitializeDeviceContext(pGobiDev))
-	    {
-                QC_LOG_ERR(GET_QMIDEV(pGobiDev), "Failed to initialize dev context\n");
+      pGobiDev = kzalloc(sizeof(sGobiUSBNet), GFP_KERNEL);
+      if (pGobiDev != NULL) {
+	    if (GobiInitializeDeviceContext(pGobiDev)) {
+		QC_LOG_ERR(GET_QMIDEV(pGobiDev), "Failed to initialize dev context\n");
 		kfree(pGobiDev);
 		pGobiDev = NULL;
-            } else
-	    {
+	    } else {
 		list_add_tail(&pGobiDev->node, &DeviceListActive);
 		++DevicesActive;
 		success = 1;
 	    }
 	}
-   } else 
-   {
+   } else {
       snprintf(commonDevName, sizeof(commonDevName), "%s:%d-%s", mpKey, pDev->udev->bus->busnum, pDev->udev->devpath);
 
-      list_for_each_entry(pGobiDev, &DeviceListIdle, node)
-      {
+      list_for_each_entry(pGobiDev, &DeviceListIdle, node) {
 	 char *res = strstr(pGobiDev->mQMIDev.mdeviceName, commonDevName); //pGobiDev->mQMIDev.mdeviceName should contain commonDevName as substring
 
-	 if (res != NULL)
-	 {
-            QC_LOG_DBG(GET_QMIDEV(pGobiDev), "Found matching commonDevName\n");
+	 if (res != NULL) {
+	    QC_LOG_DBG(GET_QMIDEV(pGobiDev), "Found matching commonDevName\n");
 	    found_devName = 1;
 	    list_move_tail(&pGobiDev->node, &DeviceListActive);
 	    --DevicesIdle;
@@ -176,17 +165,14 @@ sGobiUSBNet *GobiAcquireDevice(char *mpKey, struct usbnet *pDev)
 	    break;
 	 }
       }
-      if (found_devName == 0)
-      {
+      if (found_devName == 0) {
 	 int findNULL = 0;
 
-	 list_for_each_entry(pGobiDev, &DeviceListIdle, node)
-	 {
-            int res = strncmp(pGobiDev->mQMIDev.mdeviceName, "", 255);
+	 list_for_each_entry(pGobiDev, &DeviceListIdle, node) {
+	    int res = strncmp(pGobiDev->mQMIDev.mdeviceName, "", 255);
 
-	    if (res == 0)
-	    {
-               QC_LOG_DBG(GET_QMIDEV(pGobiDev), "Found NULL entry\n");
+	    if (res == 0) {
+	       QC_LOG_DBG(GET_QMIDEV(pGobiDev), "Found NULL entry\n");
 	       findNULL = 1;
 	       list_move_tail(&pGobiDev->node, &DeviceListActive);
 	       --DevicesIdle;
@@ -195,19 +181,15 @@ sGobiUSBNet *GobiAcquireDevice(char *mpKey, struct usbnet *pDev)
 	       break;
 	    }
 	 }
-	 if (findNULL == 0)
-	 {
-	    pGobiDev = kzalloc(sizeof( sGobiUSBNet), GFP_KERNEL );
-	    if (pGobiDev != NULL)
-	    {
-		  if (GobiInitializeDeviceContext(pGobiDev))
-		  {
-                     QC_LOG_EXCEPTION(GET_QMIDEV(pGobiDev), "Failed to initialize dev context\n");
+	 if (findNULL == 0) {
+	    pGobiDev = kzalloc(sizeof(sGobiUSBNet), GFP_KERNEL);
+	    if (pGobiDev != NULL) {
+		  if (GobiInitializeDeviceContext(pGobiDev)) {
+			QC_LOG_EXCEPTION(GET_QMIDEV(pGobiDev), "Failed to initialize dev context\n");
 		     kfree(pGobiDev);
 		     pGobiDev = NULL;
-                  } else
-		  {
-                     QC_LOG_DBG(GET_QMIDEV(pGobiDev), "Created a new entry\n");
+		  } else {
+			QC_LOG_DBG(GET_QMIDEV(pGobiDev), "Created a new entry\n");
 		     list_add_tail(&pGobiDev->node, &DeviceListActive);
 		     ++DevicesActive;
 		     success = 1;
@@ -217,8 +199,7 @@ sGobiUSBNet *GobiAcquireDevice(char *mpKey, struct usbnet *pDev)
       }
       spin_unlock_irqrestore(&DevListLock, flags);
    }
-    if (success == 0)
-    {
+    if (success == 0) {
 	QC_LOG_EXCEPTION(GET_QMIDEV(pGobiDev), "QTI-ALERT: failure to qcquire Device (idle-active %d-%d)\n", DevicesIdle, DevicesActive);
     }
     return pGobiDev;
@@ -226,9 +207,8 @@ sGobiUSBNet *GobiAcquireDevice(char *mpKey, struct usbnet *pDev)
 
 void GobiResetDeviceContext(sGobiUSBNet *pGobiDev)
 {
-   if (pGobiDev == NULL)
-    {
-        QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get QMIDevice\n");
+   if (pGobiDev == NULL) {
+	QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get QMIDevice\n");
 	return;
     }
     QC_LOG_INFO(GET_QMIDEV(pGobiDev), "In\n");
@@ -244,17 +224,14 @@ void GobiReleaseDevice(sGobiUSBNet *pGobiDev)
    unsigned long flags;
    int removed = 0;
 
-   if (pGobiDev == NULL)
-    {
-        QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get QMIDevice\n");
+   if (pGobiDev == NULL) {
+	QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get QMIDevice\n");
 	return;
     }
     QC_LOG_INFO(GET_QMIDEV(pGobiDev), "In\n");
     spin_lock_irqsave(&DevListLock, flags);
-    list_for_each_entry(pDevOnRecord, &DeviceListActive, node)
-    {
-	if (pDevOnRecord == pGobiDev)
-	 {
+    list_for_each_entry(pDevOnRecord, &DeviceListActive, node) {
+	if (pDevOnRecord == pGobiDev) {
 		  list_move_tail(&pDevOnRecord->node, &DeviceListIdle);
 		  GobiResetDeviceContext(pGobiDev);
 		  ++DevicesIdle;
@@ -264,9 +241,8 @@ void GobiReleaseDevice(sGobiUSBNet *pGobiDev)
 	 }
     }
     QC_LOG_GLOBAL("Device = 0x%px (idle-active %d-%d)\n", pDevOnRecord, DevicesIdle, DevicesActive);
-    if (removed == 0)
-    {
-        QC_LOG_EXCEPTION(GET_QMIDEV(pGobiDev), "GOBI-ALERT: failure to remove Device = (idle-active %d-%d)\n", DevicesIdle, DevicesActive);
+    if (removed == 0) {
+	QC_LOG_EXCEPTION(GET_QMIDEV(pGobiDev), "GOBI-ALERT: failure to remove Device = (idle-active %d-%d)\n", DevicesIdle, DevicesActive);
     }
     spin_unlock_irqrestore(&DevListLock, flags);
     return;
@@ -282,10 +258,8 @@ void GobiFreeDevices(void)
     QC_LOG_GLOBAL("--> DevActive %d DevIdle %d\n", DevicesActive, DevicesIdle);
     spin_lock_irqsave(&DevListLock, flags);
     QC_LOG_GLOBAL("Now, Idle list freeing");
-    list_for_each_entry_safe(pDevOnRecord, pDevSafe, &DeviceListIdle, node)
-    {
-      if (pDevOnRecord != NULL)
-      {
+    list_for_each_entry_safe(pDevOnRecord, pDevSafe, &DeviceListIdle, node) {
+      if (pDevOnRecord != NULL) {
 	 list_del(&pDevOnRecord->node);
 	 spin_unlock_irqrestore(&DevListLock, flags);
 	 destroy_workqueue(pDevOnRecord->mpWorkQ);
@@ -301,10 +275,8 @@ void GobiFreeDevices(void)
     spin_lock_irqsave(&DevListLock, flags);
     removed = 0;
     QC_LOG_GLOBAL("Now, Active list freeing");
-    list_for_each_entry_safe(pDevOnRecord, pDevSafe, &DeviceListActive, node)
-    {
-       if (pDevOnRecord != NULL)
-       {
+    list_for_each_entry_safe(pDevOnRecord, pDevSafe, &DeviceListActive, node) {
+       if (pDevOnRecord != NULL) {
 	  list_del(&pDevOnRecord->node);
 	  spin_unlock_irqrestore(&DevListLock, flags);
 	  destroy_workqueue(pDevOnRecord->mpWorkQ);
@@ -341,9 +313,8 @@ sEndpoints *GatherEndpoints(struct usb_interface *pIntf)
    sEndpoints *pOut;
    struct usb_host_endpoint *pEndpoint = NULL;
 
-   pOut = kzalloc(sizeof( sEndpoints), GFP_ATOMIC );
-   if (pOut == NULL)
-   {
+   pOut = kzalloc(sizeof(sEndpoints), GFP_ATOMIC);
+   if (pOut == NULL) {
      QC_LOG_GLOBAL("unable to allocate memory\n");
       return NULL;
    }
@@ -352,36 +323,30 @@ sEndpoints *GatherEndpoints(struct usb_interface *pIntf)
 
    // Scan endpoints
    numEndpoints = pIntf->cur_altsetting->desc.bNumEndpoints;
-   for (endpointIndex = 0; endpointIndex < numEndpoints; endpointIndex++)
-   {
+   for (endpointIndex = 0; endpointIndex < numEndpoints; endpointIndex++) {
       pEndpoint = pIntf->cur_altsetting->endpoint + endpointIndex;
-      if (pEndpoint == NULL)
-      {
+      if (pEndpoint == NULL) {
 	QC_LOG_GLOBAL("invalid endpoint %u\n", endpointIndex);
 	 kfree(pOut);
 	 return NULL;
       }
 
       if (usb_endpoint_dir_in(&pEndpoint->desc) == true
-      &&  usb_endpoint_xfer_int(&pEndpoint->desc) == true)
-      {
+      &&  usb_endpoint_xfer_int(&pEndpoint->desc) == true) {
 	 pOut->mIntInEndp = pEndpoint->desc.bEndpointAddress;
 	 pOut->mIntInEndpMaxPacketSize = usb_endpoint_maxp(&pEndpoint->desc);
-      } else if (usb_endpoint_dir_in( &pEndpoint->desc ) == true
-      &&  usb_endpoint_xfer_int(&pEndpoint->desc) == false)
-      {
+      } else if (usb_endpoint_dir_in(&pEndpoint->desc) == true
+      &&  usb_endpoint_xfer_int(&pEndpoint->desc) == false) {
 	 pOut->mBlkInEndp = pEndpoint->desc.bEndpointAddress;
-      } else if (usb_endpoint_dir_in( &pEndpoint->desc ) == false
-      &&  usb_endpoint_xfer_int(&pEndpoint->desc) == false)
-      {
+      } else if (usb_endpoint_dir_in(&pEndpoint->desc) == false
+      &&  usb_endpoint_xfer_int(&pEndpoint->desc) == false) {
 	 pOut->mBlkOutEndp = pEndpoint->desc.bEndpointAddress;
       }
    }
 
    if (pOut->mIntInEndp == 0
    ||  pOut->mBlkInEndp == 0
-   ||  pOut->mBlkOutEndp == 0)
-   {
+   ||  pOut->mBlkOutEndp == 0) {
      QC_LOG_GLOBAL("One or more endpoints missing\n");
       kfree(pOut);
       return NULL;
@@ -417,8 +382,7 @@ int GobiSuspend(
    struct usbnet *pDev;
    sGobiUSBNet *pGobiDev = NULL;
 
-   if (pIntf == 0)
-   {
+   if (pIntf == 0) {
       return -ENOMEM;
    }
 
@@ -428,15 +392,13 @@ int GobiSuspend(
    pDev = (struct usbnet *)pIntf->dev.platform_data;
 #endif
 
-   if (pDev == NULL || pDev->net == NULL)
-   {
+   if (pDev == NULL || pDev->net == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get netdevice\n");
       return -ENXIO;
    }
 
    pGobiDev = (sGobiUSBNet *)pDev->data[0];
-   if (pGobiDev == NULL)
-   {
+   if (pGobiDev == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get QMIDevice\n");
       return -ENXIO;
    }
@@ -453,21 +415,18 @@ int GobiSuspend(
       QC_LOG_WARN(GET_QMIDEV(pGobiDev), "device suspended to power level %d\n",
 	   powerEvent.event);
       GobiSetDownReason(pGobiDev, DRIVER_SUSPENDED);
-   } else
-   {
+   } else {
       QC_LOG_WARN(GET_QMIDEV(pGobiDev), "device autosuspend\n");
    }
 
-   if (powerEvent.event & PM_EVENT_SUSPEND)
-   {
+   if (powerEvent.event & PM_EVENT_SUSPEND) {
       // Stop QMI read callbacks
       KillRead(pGobiDev);
       pDev->udev->reset_resume = 0;
 
       // Store power state to avoid duplicate resumes
       pIntf->dev.power.power_state.event = powerEvent.event;
-   } else
-   {
+   } else {
       // Other power modes cause QMI connection to be lost
       pDev->udev->reset_resume = 1;
    }
@@ -497,8 +456,7 @@ int GobiResume(struct usb_interface *pIntf)
    int nRet;
    int oldPowerState;
 
-   if (pIntf == 0)
-   {
+   if (pIntf == 0) {
       return -ENOMEM;
    }
 
@@ -508,15 +466,13 @@ int GobiResume(struct usb_interface *pIntf)
    pDev = (struct usbnet *)pIntf->dev.platform_data;
 #endif
 
-   if (pDev == NULL || pDev->net == NULL)
-   {
+   if (pDev == NULL || pDev->net == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get netdevice\n");
       return -ENXIO;
    }
 
    pGobiDev = (sGobiUSBNet *)pDev->data[0];
-   if (pGobiDev == NULL)
-   {
+   if (pGobiDev == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get QMIDevice\n");
       return -ENXIO;
    }
@@ -525,30 +481,26 @@ int GobiResume(struct usb_interface *pIntf)
    pIntf->dev.power.power_state.event = PM_EVENT_ON;
    QC_LOG_INFO(GET_QMIDEV(pGobiDev), "resuming from power mode %d\n", oldPowerState);
 
-   if (oldPowerState & PM_EVENT_SUSPEND)
-   {
+   if (oldPowerState & PM_EVENT_SUSPEND) {
       // It doesn't matter if this is autoresume or system resume
       GobiClearDownReason(pGobiDev, DRIVER_SUSPENDED);
 
       nRet = usbnet_resume(pIntf);
-      if (nRet != 0)
-      {
+      if (nRet != 0) {
 	QC_LOG_ERR(GET_QMIDEV(pGobiDev), "usbnet_resume error %d\n", nRet);
 	 return nRet;
       }
 
       // Restart QMI read callbacks
       nRet = StartRead(pGobiDev);
-      if (nRet != 0)
-      {
+      if (nRet != 0) {
 	QC_LOG_ERR(GET_QMIDEV(pGobiDev), "StartRead error %d\n", nRet);
 	 return nRet;
       }
 
       // Kick Auto PM thread to process any queued URBs
       complete(&pGobiDev->mAutoPM.mThreadDoWork);
-   } else
-   {
+   } else {
       QC_LOG_INFO(GET_QMIDEV(pGobiDev), "nothing to resume\n");
       return 0;
    }
@@ -582,43 +534,36 @@ static int GobiNetDriverBind(
    struct usb_host_endpoint *pOut = NULL;
 
    // Verify one altsetting
-   if (pIntf->num_altsetting != 1)
-   {
+   if (pIntf->num_altsetting != 1) {
      QC_LOG_GLOBAL("invalid num_altsetting %u\n", pIntf->num_altsetting);
       return -ENODEV;
    }
 
    // Collect In and Out endpoints
    numEndpoints = pIntf->cur_altsetting->desc.bNumEndpoints;
-   for (endpointIndex = 0; endpointIndex < numEndpoints; endpointIndex++)
-   {
+   for (endpointIndex = 0; endpointIndex < numEndpoints; endpointIndex++) {
       pEndpoint = pIntf->cur_altsetting->endpoint + endpointIndex;
-      if (pEndpoint == NULL)
-      {
+      if (pEndpoint == NULL) {
 	QC_LOG_GLOBAL("invalid endpoint %u\n", endpointIndex);
 	 return -ENODEV;
       }
 
       if (usb_endpoint_dir_in(&pEndpoint->desc) == true
-      &&  usb_endpoint_xfer_int(&pEndpoint->desc) == false)
-      {
+      &&  usb_endpoint_xfer_int(&pEndpoint->desc) == false) {
 	 pIn = pEndpoint;
-      } else if (usb_endpoint_dir_out( &pEndpoint->desc ) == true)
-      {
+      } else if (usb_endpoint_dir_out(&pEndpoint->desc) == true) {
 	 pOut = pEndpoint;
       }
    }
 
-   if (pIn == NULL || pOut == NULL)
-   {
+   if (pIn == NULL || pOut == NULL) {
      QC_LOG_GLOBAL("invalid endpoints\n");
       return -ENODEV;
    }
 
    if (usb_set_interface(pDev->udev,
 			  pIntf->cur_altsetting->desc.bInterfaceNumber,
-			  0) != 0)
-   {
+			  0) != 0) {
      QC_LOG_GLOBAL("unable to set interface\n");
       return -ENODEV;
    }
@@ -666,43 +611,36 @@ static int GobiMUXNetDriverBind(
    struct usb_host_endpoint *pOut = NULL;
 
    // Verify one altsetting
-   if (pIntf->num_altsetting != 1)
-   {
+   if (pIntf->num_altsetting != 1) {
      QC_LOG_GLOBAL("invalid num_altsetting %u\n", pIntf->num_altsetting);
       return -ENODEV;
    }
 
    // Collect In and Out endpoints
    numEndpoints = pIntf->cur_altsetting->desc.bNumEndpoints;
-   for (endpointIndex = 0; endpointIndex < numEndpoints; endpointIndex++)
-   {
+   for (endpointIndex = 0; endpointIndex < numEndpoints; endpointIndex++) {
       pEndpoint = pIntf->cur_altsetting->endpoint + endpointIndex;
-      if (pEndpoint == NULL)
-      {
+      if (pEndpoint == NULL) {
 	QC_LOG_GLOBAL("invalid endpoint %u\n", endpointIndex);
 	 return -ENODEV;
       }
 
       if (usb_endpoint_dir_in(&pEndpoint->desc) == true
-      &&  usb_endpoint_xfer_int(&pEndpoint->desc) == false)
-      {
+      &&  usb_endpoint_xfer_int(&pEndpoint->desc) == false) {
 	 pIn = pEndpoint;
-      } else if (usb_endpoint_dir_out( &pEndpoint->desc ) == true)
-      {
+      } else if (usb_endpoint_dir_out(&pEndpoint->desc) == true) {
 	 pOut = pEndpoint;
       }
    }
 
-   if (pIn == NULL || pOut == NULL)
-   {
+   if (pIn == NULL || pOut == NULL) {
      QC_LOG_GLOBAL("invalid endpoints\n");
       return -ENODEV;
    }
 
    if (usb_set_interface(pDev->udev,
 			  pIntf->cur_altsetting->desc.bInterfaceNumber,
-			  0) != 0)
-   {
+			  0) != 0) {
      QC_LOG_GLOBAL("unable to set interface\n");
       return -ENODEV;
    }
@@ -753,8 +691,7 @@ static void GobiNetDriverUnbind(
 
    QC_LOG_DBG(GET_QMIDEV(pGobiDev), "In\n");
 
-   for (i = 0; i < MAX_MUX_DEVICES; i++)
-   {
+   for (i = 0; i < MAX_MUX_DEVICES; i++) {
        dev = pGobiDev->mpNetMUXDev[i];
        net = dev->net;
        unregister_netdev(net);
@@ -786,8 +723,7 @@ static void GobiNetDriverUnbind(
    kfree(pDev->net->netdev_ops);
    pDev->net->netdev_ops = NULL;
 #ifdef VIRTUAL_USB_CODE
-   for (i = 0; i < MAX_MUX_DEVICES; i++)
-   {
+   for (i = 0; i < MAX_MUX_DEVICES; i++) {
        kfree(pGobiDev->mpNetMUXDev[i]->net->netdev_ops);
        pGobiDev->mpNetMUXDev[i]->net->netdev_ops = NULL;
        kfree(pGobiDev->mpNetMUXDev[i]->padding_pkt);
@@ -801,20 +737,17 @@ static void GobiNetDriverUnbind(
 #endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19))
-   if (usb_autopm_get_interface(pIntf))
-   {
+   if (usb_autopm_get_interface(pIntf)) {
       QC_LOG_GLOBAL("usb_autopm_get_interface failed\n");
        return;
    }
    pIntf->needs_remote_wakeup = 1;
    usb_autopm_put_interface(pIntf);
 #endif
-   if (pGobiDev)
-   {
+   if (pGobiDev) {
 #ifndef VIRTUAL_USB_CODE
-      if (pGobiDev->kobj_gobi)
-      {
-         sysfs_remove_group(pGobiDev->kobj_gobi, &dev_attr_grp);
+      if (pGobiDev->kobj_gobi) {
+	 sysfs_remove_group(pGobiDev->kobj_gobi, &dev_attr_grp);
 	 kobject_put(pGobiDev->kobj_gobi);
 	 pGobiDev->kobj_gobi = NULL;
       }
@@ -845,15 +778,13 @@ void GobiUSBNetURBCallback(struct urb *pURB)
    unsigned long activeURBflags;
    sAutoPM *pAutoPM = (sAutoPM *)pURB->context;
 
-   if (pAutoPM == NULL)
-   {
+   if (pAutoPM == NULL) {
       // Should never happen
      QC_LOG_GLOBAL("bad context\n");
       return;
    }
 
-   if (pURB->status != 0)
-   {
+   if (pURB->status != 0) {
       // Note that in case of an error, the behaviour is no different
      QC_LOG_GLOBAL("urb finished with error %d\n", pURB->status);
    }
@@ -888,20 +819,18 @@ void GobiUSBNetTXTimeout(struct net_device *pNet)
 {
    struct sGobiUSBNet *pGobiDev = NULL;
    sAutoPM *pAutoPM;
-   sURBList * pURBListEntry, *pURBListEntrySafe = NULL;
+   sURBList *pURBListEntry, *pURBListEntrySafe = NULL;
    unsigned long activeURBflags, URBListFlags;
    struct usbnet *pDev = netdev_priv(pNet);
    struct urb *pURB;
 
-   if (pDev == NULL || pDev->net == NULL)
-   {
+   if (pDev == NULL || pDev->net == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get usbnet device\n");
       return;
    }
 
    pGobiDev = (sGobiUSBNet *)pDev->data[0];
-   if (pGobiDev == NULL)
-   {
+   if (pGobiDev == NULL) {
       QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get QMIDevice\n");
       return;
    }
@@ -915,8 +844,7 @@ void GobiUSBNetTXTimeout(struct net_device *pNet)
    spin_unlock_irqrestore(&pAutoPM->mActiveURBLock, activeURBflags);
 
    // Stop active URB
-   if (pURB != NULL)
-   {
+   if (pURB != NULL) {
       usb_kill_urb(pURB);
    }
 
@@ -953,7 +881,7 @@ RETURN VALUE:
 static int GobiUSBNetAutoPMThread(void *pData)
 {
    unsigned long activeURBflags, URBListFlags;
-   sURBList * pURBListEntry, *pURBListEntrySafe = NULL;
+   sURBList *pURBListEntry, *pURBListEntrySafe = NULL;
    sAutoPM *pAutoPMListEntry;
    struct list_head *headPos;
    int status;
@@ -961,8 +889,7 @@ static int GobiUSBNetAutoPMThread(void *pData)
    sAutoPM *pAutoPM = (sAutoPM *)pData;
    struct urb *pURB;
 
-   if (pAutoPM == NULL)
-   {
+   if (pAutoPM == NULL) {
      QC_LOG_GLOBAL("passed null pointer\n");
       return -EINVAL;
    }
@@ -971,21 +898,18 @@ static int GobiUSBNetAutoPMThread(void *pData)
 
    QC_LOG_GLOBAL("traffic thread started\n");
 
-   while (pAutoPM->mbExit == false)
-   {
+   while (pAutoPM->mbExit == false) {
       // Wait for someone to poke us
       wait_for_completion_interruptible(&pAutoPM->mThreadDoWork);
 
       // Time to exit?
-      if (pAutoPM->mbExit == true)
-      {
+      if (pAutoPM->mbExit == true) {
 	 // Stop activeURB
 	 spin_lock_irqsave(&pAutoPM->mActiveURBLock, activeURBflags);
 	 pURB = pAutoPM->mpActiveURB;
 	 spin_unlock_irqrestore(&pAutoPM->mActiveURBLock, activeURBflags);
 
-	 if (pURB != NULL)
-	 {
+	 if (pURB != NULL) {
 	    usb_kill_urb(pURB);
 	 }
 	 // Will be freed in callback function
@@ -993,7 +917,7 @@ static int GobiUSBNetAutoPMThread(void *pData)
 	 // Cleanup URB List
 	 spin_lock_irqsave(&pAutoPM->mURBListLock, URBListFlags);
 
-         list_for_each_entry_safe(pURBListEntry, pURBListEntrySafe, &pAutoPM->mURBList, node) {
+	 list_for_each_entry_safe(pURBListEntry, pURBListEntrySafe, &pAutoPM->mURBList, node) {
 	    atomic_dec(&pAutoPM->mURBListLen);
 	    usb_free_urb(pURBListEntry->mpURB);
 	    list_del(&pURBListEntry->node);
@@ -1009,8 +933,7 @@ static int GobiUSBNetAutoPMThread(void *pData)
 
       // EAGAIN used to signify callback is done
       if (IS_ERR(pAutoPM->mpActiveURB)
-      &&  PTR_ERR(pAutoPM->mpActiveURB) == -EAGAIN )
-      {
+      &&  PTR_ERR(pAutoPM->mpActiveURB) == -EAGAIN) {
 	 pAutoPM->mpActiveURB = NULL;
 
 	 // Restore IRQs so task can sleep
@@ -1023,8 +946,7 @@ static int GobiUSBNetAutoPMThread(void *pData)
 	 spin_lock_irqsave(&pAutoPM->mActiveURBLock, activeURBflags);
       }
 
-      if (pAutoPM->mpActiveURB != NULL)
-      {
+      if (pAutoPM->mpActiveURB != NULL) {
 	 // There is already a URB active, go back to sleep
 	 spin_unlock_irqrestore(&pAutoPM->mActiveURBLock, activeURBflags);
 	 continue;
@@ -1032,8 +954,7 @@ static int GobiUSBNetAutoPMThread(void *pData)
 
       // Is there a URB waiting to be submitted?
       spin_lock_irqsave(&pAutoPM->mURBListLock, URBListFlags);
-      if (pAutoPM->mpURBList == NULL)
-      {
+      if (pAutoPM->mpURBList == NULL) {
 	 // No more URBs to submit, go back to sleep
 	 spin_unlock_irqrestore(&pAutoPM->mURBListLock, URBListFlags);
 	 spin_unlock_irqrestore(&pAutoPM->mActiveURBLock, activeURBflags);
@@ -1051,13 +972,11 @@ static int GobiUSBNetAutoPMThread(void *pData)
 
       // Tell autopm core we need device woken up
       status = usb_autopm_get_interface(pAutoPM->mpIntf);
-      if (status < 0)
-      {
+      if (status < 0) {
 	QC_LOG_GLOBAL("unable to autoresume interface: %d\n", status);
 
 	 // likely caused by device going from autosuspend -> full suspend
-	 if (status == -EPERM)
-	 {
+	 if (status == -EPERM) {
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33))
 	    pUdev->auto_pm = 0;
 #endif
@@ -1079,8 +998,7 @@ static int GobiUSBNetAutoPMThread(void *pData)
 
       // Submit URB
       status = usb_submit_urb(pAutoPM->mpActiveURB, GFP_KERNEL);
-      if (status < 0)
-      {
+      if (status < 0) {
 	 // Could happen for a number of reasons
 	QC_LOG_GLOBAL("Failed to submit URB: %d.  Packet dropped\n", status);
 	 spin_lock_irqsave(&pAutoPM->mActiveURBLock, activeURBflags);
@@ -1124,22 +1042,19 @@ int GobiUSBNetStartXmit(
    void *pURBData;
    struct usbnet *pDev = netdev_priv(pNet);
 
-   if (pDev == NULL || pDev->net == NULL)
-   {
+   if (pDev == NULL || pDev->net == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get usbnet device\n");
       return NETDEV_TX_BUSY;
    }
 
    pGobiDev = (sGobiUSBNet *)pDev->data[0];
-   if (pGobiDev == NULL)
-   {
+   if (pGobiDev == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get QMIDevice\n");
       return NETDEV_TX_BUSY;
    }
    pAutoPM = &pGobiDev->mAutoPM;
 
-   if (GobiTestDownReason(pGobiDev, DRIVER_SUSPENDED) == true)
-   {
+   if (GobiTestDownReason(pGobiDev, DRIVER_SUSPENDED) == true) {
       // Should not happen
       QC_LOG_EXCEPTION(GET_QMIDEV(pGobiDev), "device is suspended\n");
       dump_stack();
@@ -1156,24 +1071,21 @@ int GobiUSBNetStartXmit(
    // Convert the sk_buff into a URB
 
    // Check if buffer is full
-   if (atomic_read((const atomic_t *) &pAutoPM->mURBListLen) >= txQueueLength)
-   {
+   if (atomic_read((const atomic_t *) &pAutoPM->mURBListLen) >= txQueueLength) {
       QC_LOG_ERR(GET_QMIDEV(pGobiDev), "not scheduling request, buffer is full\n");
       return NETDEV_TX_BUSY;
    }
 
    // Allocate URBListEntry
-   pURBListEntry = kzalloc(sizeof( sURBList), GFP_ATOMIC );
-   if (pURBListEntry == NULL)
-   {
+   pURBListEntry = kzalloc(sizeof(sURBList), GFP_ATOMIC);
+   if (pURBListEntry == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "unable to allocate URBList memory\n");
       return NETDEV_TX_BUSY;
    }
 
    // Allocate URB
    pURBListEntry->mpURB = usb_alloc_urb(0, GFP_ATOMIC);
-   if (pURBListEntry->mpURB == NULL)
-   {
+   if (pURBListEntry->mpURB == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "unable to allocate URB\n");
       kfree(pURBListEntry);
       return NETDEV_TX_BUSY;
@@ -1181,8 +1093,7 @@ int GobiUSBNetStartXmit(
 
    // Allocate URB transfer_buffer
    pURBData = kzalloc(pSKB->len, GFP_ATOMIC);
-   if (pURBData == NULL)
-   {
+   if (pURBData == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "unable to allocate URB data\n");
       usb_free_urb(pURBListEntry->mpURB);
       kfree(pURBListEntry);
@@ -1253,15 +1164,13 @@ int GobiUSBNetOpen(struct net_device *pNet)
    struct sGobiUSBNet *pGobiDev = NULL;
    struct usbnet *pDev = netdev_priv(pNet);
 
-   if (pDev == NULL)
-   {
+   if (pDev == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get usbnet device\n");
       return -ENXIO;
    }
 
    pGobiDev = (sGobiUSBNet *)pDev->data[0];
-   if (pGobiDev == NULL)
-   {
+   if (pGobiDev == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get QMIDevice\n");
       return -ENXIO;
    }
@@ -1278,8 +1187,7 @@ int GobiUSBNetOpen(struct net_device *pNet)
    pGobiDev->mAutoPM.mpThread = kthread_run(GobiUSBNetAutoPMThread,
 					       &pGobiDev->mAutoPM,
 					       "GobiUSBNetAutoPMThread");
-   if (IS_ERR(pGobiDev->mAutoPM.mpThread))
-   {
+   if (IS_ERR(pGobiDev->mAutoPM.mpThread)) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "AutoPM thread creation error\n");
       return PTR_ERR(pGobiDev->mAutoPM.mpThread);
    }
@@ -1288,21 +1196,18 @@ int GobiUSBNetOpen(struct net_device *pNet)
    GobiClearDownReason(pGobiDev, NET_IFACE_STOPPED);
 
    // Pass to usbnet_open if defined
-   if (pGobiDev->mpUSBNetOpen != NULL)
-   {
+   if (pGobiDev->mpUSBNetOpen != NULL) {
       status = pGobiDev->mpUSBNetOpen(pNet);
 
       // If usbnet_open was successful enable Auto PM
-      if (status == 0)
-      {
+      if (status == 0) {
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 33))
 	 usb_autopm_enable(pGobiDev->mpIntf);
 #else
 	 usb_autopm_put_interface(pGobiDev->mpIntf);
 #endif
       }
-   } else
-   {
+   } else {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "no USBNetOpen defined\n");
    }
 
@@ -1328,15 +1233,13 @@ int GobiUSBNetStop(struct net_device *pNet)
    struct sGobiUSBNet *pGobiDev = NULL;
    struct usbnet *pDev = netdev_priv(pNet);
 
-   if (pDev == NULL || pDev->net == NULL)
-   {
+   if (pDev == NULL || pDev->net == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get netdevice\n");
       return -ENXIO;
    }
 
    pGobiDev = (sGobiUSBNet *)pDev->data[0];
-   if (pGobiDev == NULL)
-   {
+   if (pGobiDev == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get QMIDevice\n");
       return -ENXIO;
    }
@@ -1349,18 +1252,15 @@ int GobiUSBNetStop(struct net_device *pNet)
    complete(&pGobiDev->mAutoPM.mThreadDoWork);
 
    // Wait for it to exit
-   while (pGobiDev->mAutoPM.mpThread != NULL)
-   {
+   while (pGobiDev->mAutoPM.mpThread != NULL) {
       msleep(100);
    }
    QC_LOG_INFO(GET_QMIDEV(pGobiDev), "thread stopped\n");
 
    // Pass to usbnet_stop, if defined
-   if (pGobiDev->mpUSBNetStop != NULL)
-   {
+   if (pGobiDev->mpUSBNetStop != NULL) {
        return pGobiDev->mpUSBNetStop(pNet);
-   } else
-   {
+   } else {
       return 0;
    }
 }
@@ -1385,15 +1285,13 @@ int GobiMUXUSBNetOpen(struct net_device *pNet)
    struct sGobiUSBNet *pGobiDev = NULL;
    struct usbnet *pDev = netdev_priv(pNet);
 
-   if (pDev == NULL)
-   {
+   if (pDev == NULL) {
       QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get usbnet device\n");
       return -ENXIO;
    }
 
    pGobiDev = (sGobiUSBNet *)pDev->data[0];
-   if (pGobiDev == NULL)
-   {
+   if (pGobiDev == NULL) {
       QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get QMIDevice\n");
       return -ENXIO;
    }
@@ -1420,15 +1318,13 @@ int GobiMUXUSBNetStop(struct net_device *pNet)
    struct sGobiUSBNet *pGobiDev = NULL;
    struct usbnet *pDev = netdev_priv(pNet);
 
-   if (pDev == NULL)
-   {
+   if (pDev == NULL) {
       QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get usbnet device\n");
       return -ENXIO;
    }
 
    pGobiDev = (sGobiUSBNet *)pDev->data[0];
-   if (pGobiDev == NULL)
-   {
+   if (pGobiDev == NULL) {
       QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get QMIDevice\n");
       return -ENXIO;
    }
@@ -1452,28 +1348,27 @@ int PreparePacket(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
    QC_LOG_GLOBAL("IPO: -->_PreparePacket: EtherType 0x%04X\n", ethHdr->EtherType);
 
    // examine Ethernet header
-   switch (ntohs(ethHdr->EtherType))
-   {
-      case ETH_TYPE_ARP:  // && IPV4
+   switch (ntohs(ethHdr->EtherType)) {
+   case ETH_TYPE_ARP:  // && IPV4
       {
 	 // locally process ARP under IPV4
 	 ProcessARP(dev, skb);
 	 return 0;
       }
-      case ETH_TYPE_IPV4:
+   case ETH_TYPE_IPV4:
       {
 	 QC_LOG_GLOBAL("IPO: _PreparePacket: IP 0x%04X\n", ntohs(ethHdr->EtherType));
 	 skb_pull(skb, ETH_HLEN);
 	 return 1;
       }
 
-      case ETH_TYPE_IPV6:
+   case ETH_TYPE_IPV6:
       {
 	 QC_LOG_GLOBAL("IPO: _PreparePacket: IP 0x%04X\n", ntohs(ethHdr->EtherType));
 	 skb_pull(skb, ETH_HLEN);
 	 return 1;
       }
-      default:
+   default:
       {
 	 QC_LOG_GLOBAL("IPO: _PreparePacket: IP 0x%04X\n", ntohs(ethHdr->EtherType));
 	 return 0;
@@ -1496,52 +1391,44 @@ void ProcessARP(struct usbnet *dev, struct sk_buff *skb)
    arpHdr = (PQTI_ARP_HDR)(EthPkt + sizeof(QTI_ETH_HDR));
 
    // Ignore non-Ethernet HW type and non-request Operation
-   if ((ntohs(arpHdr->HardwareType) != 1) || (ntohs(arpHdr->Operation) != 1))
-   {
+   if ((ntohs(arpHdr->HardwareType) != 1) || (ntohs(arpHdr->Operation) != 1)) {
       QC_LOG_GLOBAL("IPO: ProcessARP: ignore HW %d OP %d\n", arpHdr->HardwareType, arpHdr->Operation);
       return;
    }
 
    // Ignore non-IPV4 protocol type
-   if (ntohs(arpHdr->ProtocolType) != ETH_TYPE_IPV4)
-   {
+   if (ntohs(arpHdr->ProtocolType) != ETH_TYPE_IPV4) {
       QC_LOG_GLOBAL("IPO: ProcessARP: ignore protocol %d\n", arpHdr->ProtocolType);
       return;
    }
 
    // Validate HLEN and PLEN
-   if (arpHdr->HLEN != ETH_ALEN)
-   {
+   if (arpHdr->HLEN != ETH_ALEN) {
       QC_LOG_GLOBAL("IPO: ProcessARP: wrong HLEN %d\n", arpHdr->HLEN);
       return;
    }
-   if (arpHdr->PLEN != 4)
-   {
+   if (arpHdr->PLEN != 4) {
       QC_LOG_GLOBAL("IPO: ProcessARP: wrong PLEN %d\n", arpHdr->PLEN);
       return;
    }
 
    // Ignore gratuitous ARP
-   if (arpHdr->SenderIP == arpHdr->TargetIP)
-   {
-      QC_LOG_GLOBAL("IPO: ProcessARP: ignore gratuitous ARP (IP 0x%d)\n", (int)arpHdr->TargetIP);
+   if (arpHdr->SenderIP == arpHdr->TargetIP) {
+      QC_LOG_GLOBAL("IPO: ProcessARP: ignore gratuitous ARP (IP 0x%x)\n", (int)arpHdr->TargetIP);
       return;
    }
 
    // Request for HA
    sz = memcmp(arpHdr->TargetHA, tempHA, ETH_ALEN);
 
-   if ((arpHdr->SenderIP != 0) && (sz == ETH_ALEN))
-   {
+   if ((arpHdr->SenderIP != 0) && (sz == ETH_ALEN)) {
       QC_LOG_GLOBAL(" IPO: ProcessARP: req for HA\n");
       bRespond = 1;
-   } else
-   {
+   } else {
       QC_LOG_GLOBAL("IPO: ProcessARP: Ignore\n");
    }
 
-   if (bRespond == 1)
-   {
+   if (bRespond == 1) {
       // respond with canned ARP
       ArpResponse(dev, skb);
    }
@@ -1560,9 +1447,8 @@ void ArpResponse(struct usbnet *dev, struct sk_buff *skb)
    unsigned long Length = skb->len;
 
    pGobiDev = (sGobiUSBNet *)dev->data[0];
-   if (IsDeviceValid(pGobiDev) == false)
-    {
-        QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get QMIDevice\n");
+   if (IsDeviceValid(pGobiDev) == false) {
+	QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get QMIDevice\n");
 	return;
     }
    QC_LOG_DBG(GET_QMIDEV(pGobiDev), "IPO: -->MPUSB_ArpResponse: ETH_Len %dB\n", (int)Length);
@@ -1636,11 +1522,9 @@ struct sk_buff *aggr_tx_frame(struct usbnet *dev, struct sk_buff *skb)
 
 
     /* if there is a remaining skb, it gets priority */
-    if (skb != NULL)
-    {
+    if (skb != NULL) {
 	swap(skb, ctx->tx_rem_skb);
-    } else 
-    {
+    } else {
 	ready2send = 1;
     }
 
@@ -1671,13 +1555,11 @@ struct sk_buff *aggr_tx_frame(struct usbnet *dev, struct sk_buff *skb)
 
     }
 
-    for (n = ctx->tx_curr_frame_num; n < ctx->tx_max_datagrams ; n++)
-    {
+    for (n = ctx->tx_curr_frame_num; n < ctx->tx_max_datagrams ; n++) {
        void *tmp;
 
        /* send any remaining skb first */
-       if (skb == NULL)
-       {
+       if (skb == NULL) {
 	   skb = ctx->tx_rem_skb;
 	   ctx->tx_rem_skb = NULL;
 
@@ -1687,8 +1569,7 @@ struct sk_buff *aggr_tx_frame(struct usbnet *dev, struct sk_buff *skb)
        }
 
 /* no more time for waiting for more frames if tx current size buffer becomes less than current packet length.*/
-       if (ctx->tx_curr_size < skb->len)
-       {
+       if (ctx->tx_curr_size < skb->len) {
 	 /* no room for skb - store for later */
 	 if (ctx->tx_rem_skb != NULL) {
 	    dev_kfree_skb_any(ctx->tx_rem_skb);
@@ -1742,15 +1623,13 @@ struct sk_buff *aggr_tx_frame(struct usbnet *dev, struct sk_buff *skb)
     }
 
     ctx->tx_curr_frame_num = n;
-    if (n == 0)
-    {
+    if (n == 0) {
       /* wait for more frames */
       /* push variables */
       ctx->tx_curr_skb = skb_out;
       goto exit_no_skb;
    }
-   if ((n < ctx->tx_max_datagrams) && (ready2send == 0) && (ctx->timer_interval > 0) /*&& (ctx->tx_curr_size > (sizeof(qmap_t) + 4+ MIN_PACKET_SIZE))*/)
-   {
+   if ((n < ctx->tx_max_datagrams) && (ready2send == 0) && (ctx->timer_interval > 0) /*&& (ctx->tx_curr_size > (sizeof(qmap_t) + 4+ MIN_PACKET_SIZE))*/) {
       /* wait for more frames */
       /* push variables */
       ctx->tx_curr_skb = skb_out;
@@ -1879,16 +1758,13 @@ static struct sk_buff *GobiNetDriver_tx_fixup(struct usbnet *dev, struct sk_buff
 #endif
    sGobiUSBNet *pGobiDev = (sGobiUSBNet *)dev->data[0];
 
-    if (pGobiDev->mbQMIReadyStatus == false)
-    {
+    if (pGobiDev->mbQMIReadyStatus == false) {
        QC_LOG_GLOBAL("Device is not ready\n");
        return NULL;
     }
 
-if (skb != NULL)
-{
-   if (enableDhcp == 1)
-   {
+if (skb != NULL) {
+   if (enableDhcp == 1) {
        skb_pull(skb, ETH_HLEN);
    }
 #ifdef VIRTUAL_USB_CODE
@@ -1977,23 +1853,18 @@ static int GobiNetDriver_rx_fixup(struct usbnet *dev_in, struct sk_buff *skb_in)
    //else
    //  PrintHex( skb_in->data, 32);
 
-   while (offset < skb_in->len)
-   {
+   while (offset < skb_in->len) {
      qhdr = (qmap_p) (skb_in->data + offset);
      pad_len = qhdr->cd_rsvd_pad & 0x3f;
      packet_len = ntohs(qhdr->pkt_len);
 
 #ifdef VIRTUAL_USB_CODE
      dev = dev_in;
-     if (qhdr->mux_id != dev->data[1])
-     {
-	 if (qhdr->mux_id <= 0x84 && qhdr->mux_id >= 0x81)
-	 {
-	    if (qhdr->mux_id == 0x81)
-	    {
+     if (qhdr->mux_id != dev->data[1]) {
+	 if (qhdr->mux_id <= 0x84 && qhdr->mux_id >= 0x81) {
+	    if (qhdr->mux_id == 0x81) {
 	       dev = pGobiDev->mpNetDev;
-            } else
-	    {
+	    } else {
 	       dev = pGobiDev->mpNetMUXDev[qhdr->mux_id - 0x81 - 1];
 	    }
 	 }
@@ -2006,8 +1877,7 @@ static int GobiNetDriver_rx_fixup(struct usbnet *dev_in, struct sk_buff *skb_in)
 	 return 1;
      }
 
-     if ((packet_len - pad_len) > 0)
-     {
+     if ((packet_len - pad_len) > 0) {
 
 	skbn = netdev_alloc_skb(dev->net, packet_len - pad_len);
 	skb_put(skbn, packet_len - pad_len);
@@ -2015,22 +1885,18 @@ static int GobiNetDriver_rx_fixup(struct usbnet *dev_in, struct sk_buff *skb_in)
 	Protocol = qmap_ip_ethertype(skbn);
 
    #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 5, 7))
-	 if (Protocol == __cpu_to_be16(ETH_P_IP))
-	 {
+	 if (Protocol == __cpu_to_be16(ETH_P_IP)) {
 	    skbn->protocol = __cpu_to_be16(ETH_P_IP);
-         } else
-	 {
+	 } else {
 	    skbn->protocol = __cpu_to_be16(ETH_P_IPV6);
 	 }
    #else
-         eth = (struct ethhdr *)skb_push(skbn, ETH_HLEN);
+	 eth = (struct ethhdr *)skb_push(skbn, ETH_HLEN);
 	 memcpy(eth->h_dest, dev->net->dev_addr, ETH_ALEN);
 	 memset(eth->h_source, 0, ETH_ALEN);
-	 if (Protocol == __cpu_to_be16(ETH_P_IP))
-	 {
+	 if (Protocol == __cpu_to_be16(ETH_P_IP)) {
 	    eth->h_proto = __cpu_to_be16(ETH_P_IP);
-         } else
-	 {
+	 } else {
 	    eth->h_proto = __cpu_to_be16(ETH_P_IPV6);
 	 }
    #endif
@@ -2049,7 +1915,7 @@ static int GobiNetDriver_rx_fixup(struct usbnet *dev_in, struct sk_buff *skb_in)
 	CheckSeqNo(prevSeqNo, currSeqNo, 1);
 	prevUpdate = 0;
 	prevSeqNo = currSeqNo;
-      } else if ( skbn->len <= 1400 ) {
+      } else if (skbn->len <= 1400) {
 	int tmpSeqNo = ntohs(*((unsigned short *)(skbn->data+4)));
 
 	if ((tmpSeqNo - prevSeqNo) == 1) {
@@ -2109,19 +1975,15 @@ gobi_store(struct device *dev, struct device_attribute *attr,
    sscanf(buf, "%d", &value);
    gobi_sys = value;
 
-   if (value == 1)
-   {
+   if (value == 1) {
       // connect
       id0 = WDSConnect(gpGobiDev, &gpGobiDev->mQMIDev, profileid, &ipv6id0, &connectid0, &connectipv6id0);
-      if (id0 < 0)
-      {
+      if (id0 < 0) {
 	 printk("Error Connecting\n");
-      } else
-      {
+      } else {
 	 printk("Client ID is %d\n", id0);
       }
-   } else
-   {
+   } else {
       if (id0 != -1)
 	 WDSDisConnect(id0, gpGobiDev, &gpGobiDev->mQMIDev, ipv6id0, connectid0, connectipv6id0);
       id0 = -1;
@@ -2152,19 +2014,15 @@ gobi_store_1(struct device *dev, struct device_attribute *attr,
    sscanf(buf, "%d", &value);
    gobi_sys = value;
 
-   if (value == 1)
-   {
+   if (value == 1) {
       // connect
       id1 = WDSConnect(gpGobiDev, &gpGobiDev->mQMIMUXDev[0], profileid, &ipv6id1, &connectid1, &connectipv6id1);
-      if (id1 < 0)
-      {
+      if (id1 < 0) {
 	 printk("Error Connecting\n");
-      } else
-      {
+      } else {
 	 printk("Client ID is %d\n", id1);
       }
-   } else
-   {
+   } else {
       if (id1 != -1)
 	 WDSDisConnect(id1, gpGobiDev, &gpGobiDev->mQMIMUXDev[0], ipv6id1, connectid1, connectipv6id1);
       id1 = -1;
@@ -2195,19 +2053,15 @@ gobi_store_2(struct device *dev, struct device_attribute *attr,
    sscanf(buf, "%d", &value);
    gobi_sys = value;
 
-   if (value == 1)
-   {
+   if (value == 1) {
       // connect
       id2 = WDSConnect(gpGobiDev, &gpGobiDev->mQMIMUXDev[1], profileid, &ipv6id2, &connectid2, &connectipv6id2);
-      if (id2 < 0)
-      {
+      if (id2 < 0) {
 	 printk("Error Connecting\n");
-      } else
-      {
+      } else {
 	 printk("Client ID is %d\n", id2);
       }
-   } else
-   {
+   } else {
       if (id2 != -1)
 	 WDSDisConnect(id2, gpGobiDev, &gpGobiDev->mQMIMUXDev[1], ipv6id2, connectid2, connectipv6id2);
       id2 = -1;
@@ -2275,7 +2129,7 @@ static const struct driver_info GobiMUXNetInfo = {
 /*=========================================================================*/
 // QTI VID/PIDs
 /*=========================================================================*/
-static const struct usb_device_id GobiConfigVIDPIDTable [] = {
+static const struct usb_device_id GobiConfigVIDPIDTable[] = {
 
    // Gobi 3000
    {
@@ -2298,7 +2152,7 @@ static const struct usb_device_id GobiConfigMUXVIDPID = {
 /*=========================================================================*/
 // QTI VID/PIDs
 /*=========================================================================*/
-static const struct usb_device_id GobiVIDPIDTable [] = {
+static const struct usb_device_id GobiVIDPIDTable[] = {
 
    // Gobi 3000
    {
@@ -2329,7 +2183,7 @@ MODULE_DEVICE_TABLE(usb, GobiVIDPIDTable);
 /*=========================================================================*/
 // QTI VID/PIDs Binding info is different for Muxed adapters
 /*=========================================================================*/
-static const struct usb_device_id GobiMUXVIDPIDTable [] = {
+static const struct usb_device_id GobiMUXVIDPIDTable[] = {
 
    // Gobi 3000
    {
@@ -2361,30 +2215,26 @@ static int UpdateDeviceInfo(fileInfo_t **pFileInfo, char *pFilePath)
 {
     int ret;
 
-    if (!pFilePath || !pFileInfo)
-    {
+    if (!pFilePath || !pFileInfo) {
 	QC_LOG_GLOBAL("Invalid data\n");
 	return -EINVAL;
     }
 
     ret = QTIDevInfEntrySize(pFilePath);
-    if (ret < 0)
-    {
+    if (ret < 0) {
 	QC_LOG_GLOBAL("Failed to get the devices info\n");
 	return ret;
     }
 
     *pFileInfo = kzalloc(sizeof(fileInfo_t) + ret * sizeof(devInfo_t), GFP_KERNEL);
-    if (!pFileInfo)
-    {
+    if (!pFileInfo) {
 	QC_LOG_GLOBAL("error in allocating memory\n");
 	return -ENOMEM;
     }
 
     (*pFileInfo)->mLength = ret;
 
-    if (QTIDevInfParse(pFilePath, *pFileInfo) < 0)
-    {
+    if (QTIDevInfParse(pFilePath, *pFileInfo) < 0) {
 	QC_LOG_GLOBAL("Error in parsing INF file\n");
 	kfree(*pFileInfo);
 	*pFileInfo = NULL;
@@ -2436,29 +2286,27 @@ static ssize_t debug_show(struct kobject *kobj,
 
 	QC_LOG_GLOBAL("Sysfs - Read!!!\n");
 
-	list_for_each_entry(pDevOnRecord, &DeviceListActive, node)
-	{
-         QC_LOG_INFO(GET_QMIDEV(pDevOnRecord), "Read gobi value %px and %px and %s\n", pDevOnRecord->kobj_gobi, kobj,
+	list_for_each_entry(pDevOnRecord, &DeviceListActive, node) {
+	    QC_LOG_INFO(GET_QMIDEV(pDevOnRecord), "Read gobi value %px and %px and %s\n", pDevOnRecord->kobj_gobi, kobj,
 	 pDevOnRecord->mDevInfo.mDevInfInfo.mpKey);
 
-            if (pDevOnRecord->kobj_gobi == kobj)
-	    {
+	    if (pDevOnRecord->kobj_gobi == kobj) {
 	       logLvl = (pDevOnRecord->mQMIDev.logLevel)/10;
 	       if (pDevOnRecord->mQMIDev.debug == 0xFF) {
-                  qmi_sys = pDevOnRecord->mQMIDev.debug;
-               } else if (pDevOnRecord->mQMIDev.debug == 1) {
+		  qmi_sys = pDevOnRecord->mQMIDev.debug;
+	       } else if (pDevOnRecord->mQMIDev.debug == 1) {
 		  qmi_sys = pDevOnRecord->mQMIDev.debug;
 
 		  QC_LOG_GLOBAL("For QMI adapter-0 debug= %d, logLevel=%d\n",
-                   pDevOnRecord->mQMIDev.debug, pDevOnRecord->mQMIDev.logLevel);
+		   pDevOnRecord->mQMIDev.debug, pDevOnRecord->mQMIDev.logLevel);
 	       }
-               for (i = 0; i < MAX_MUX_DEVICES; i++) {
+	       for (i = 0; i < MAX_MUX_DEVICES; i++) {
 		  if (pDevOnRecord->mQMIMUXDev[i].debug == 1) {
 		     logLvl = (pDevOnRecord->mQMIMUXDev[i].logLevel)/10;
 		     qmi_sys |= pDevOnRecord->mQMIMUXDev[i].debug << (i+1);
 
 		     QC_LOG_GLOBAL("For QMIMUX adapter-%d debug= %d, logLevel=%d\n", i+1,
-                     pDevOnRecord->mQMIMUXDev[i].debug, pDevOnRecord->mQMIMUXDev[i].logLevel);
+		     pDevOnRecord->mQMIMUXDev[i].debug, pDevOnRecord->mQMIMUXDev[i].logLevel);
 		  }
 	       }
 	       qmi_sys = (qmi_sys<<8) + logLvl;
@@ -2468,7 +2316,7 @@ static ssize_t debug_show(struct kobject *kobj,
 }
 
 static ssize_t debug_store(struct kobject *kobj,
-                struct kobj_attribute *attr, const char *buf, size_t count)
+		struct kobj_attribute *attr, const char *buf, size_t count)
 {
 	unsigned short qmi_sys = 0, tmp_sys = 0;
 	unsigned short sys_val = 0;
@@ -2478,36 +2326,34 @@ static ssize_t debug_store(struct kobject *kobj,
 
 	QC_LOG_GLOBAL("Sysfs - Write!!!\n");
 
-        sscanf(buf, "%hx", &sys_val);
+	sscanf(buf, "%hx", &sys_val);
 
-        tmp_sys = qmi_sys = findDebugAndLogLevel(sys_val, 0);
-        logLvl = findDebugAndLogLevel(sys_val, 1);
+	tmp_sys = qmi_sys = findDebugAndLogLevel(sys_val, 0);
+	logLvl = findDebugAndLogLevel(sys_val, 1);
 
-        QC_LOG_GLOBAL("Sysfs write sys_val=%hu,qmi_sys=%hu,logLvl=%hu\n", sys_val, qmi_sys, logLvl);
+	QC_LOG_GLOBAL("Sysfs write sys_val=%hu,qmi_sys=%hu,logLvl=%hu\n", sys_val, qmi_sys, logLvl);
 
 	pos = findPosition(qmi_sys);
 
-	list_for_each_entry(pDevOnRecord, &DeviceListActive, node)
-	{
-            QC_LOG_INFO(GET_QMIDEV(pDevOnRecord), "Write gobi value %px and %px and %s\n", pDevOnRecord->kobj_gobi,
-         kobj, pDevOnRecord->mDevInfo.mDevInfInfo.mpKey);
+	list_for_each_entry(pDevOnRecord, &DeviceListActive, node) {
+	    QC_LOG_INFO(GET_QMIDEV(pDevOnRecord), "Write gobi value %px and %px and %s\n", pDevOnRecord->kobj_gobi,
+		 kobj, pDevOnRecord->mDevInfo.mDevInfInfo.mpKey);
 
-            if (pDevOnRecord->kobj_gobi == kobj)
-	    {
+	    if (pDevOnRecord->kobj_gobi == kobj) {
 		if (qmi_sys == 0xFF) {
 		   pDevOnRecord->mQMIDev.debug = 1;
 		   pDevOnRecord->mQMIDev.logLevel = logLvl;
 
 		   QC_LOG_GLOBAL("(0xFF) QMI adapter-0 debug= %d, logLevel=%d\n",
-                   pDevOnRecord->mQMIDev.debug, pDevOnRecord->mQMIDev.logLevel);
+		   pDevOnRecord->mQMIDev.debug, pDevOnRecord->mQMIDev.logLevel);
 
-                   for (i = 0; i < MAX_MUX_DEVICES; i++) {
+		   for (i = 0; i < MAX_MUX_DEVICES; i++) {
 		     pDevOnRecord->mQMIMUXDev[i].debug = 1;
 		     pDevOnRecord->mQMIMUXDev[i].logLevel = logLvl;
 		   }
 
-                   QC_LOG_GLOBAL("(0xFF) QMIMUX adapter-%d debug= %d, logLevel=%d\n", i+1, pDevOnRecord->mQMIMUXDev[i].debug, pDevOnRecord->mQMIMUXDev[i].logLevel);
-                } else if (pos >= 0) {
+		   QC_LOG_GLOBAL("(0xFF) QMIMUX adapter-%d debug= %d, logLevel=%d\n", i+1, pDevOnRecord->mQMIMUXDev[i].debug, pDevOnRecord->mQMIMUXDev[i].logLevel);
+		} else if (pos >= 0) {
 
 		  if (pos == 0) {
 		     pDevOnRecord->mQMIDev.debug = 1;
@@ -2515,10 +2361,10 @@ static ssize_t debug_store(struct kobject *kobj,
 		  }
 
 		  QC_LOG_GLOBAL("For QMI adapter-0 debug= %d, logLevel=%d\n",
-                  pDevOnRecord->mQMIDev.debug, pDevOnRecord->mQMIDev.logLevel);
+		  pDevOnRecord->mQMIDev.debug, pDevOnRecord->mQMIDev.logLevel);
 
 		  if (pos >= 1) {
-                     for (i = 0; i < MAX_MUX_DEVICES; i++) {
+			for (i = 0; i < MAX_MUX_DEVICES; i++) {
 			if ((tmp_sys & (tmp_sys - 1)) != 0) {
 			   tmp_sys &= ~(1 << i);
 			   pos = findPosition(tmp_sys);
@@ -2529,7 +2375,7 @@ static ssize_t debug_store(struct kobject *kobj,
 			}
 
 		     QC_LOG_GLOBAL("For QMIMUX adapter-%d debug= %d, logLevel=%d\n", i+1,
-                     pDevOnRecord->mQMIMUXDev[i].debug, pDevOnRecord->mQMIMUXDev[i].logLevel);
+		     pDevOnRecord->mQMIMUXDev[i].debug, pDevOnRecord->mQMIMUXDev[i].logLevel);
 		     }
 		  }
 
@@ -2547,14 +2393,12 @@ static ssize_t gobiQMITimer_show(struct kobject *kobj,
    sGobiUSBNet *pDevOnRecord = NULL;
    struct rm_cdc_ncm_ctx *ctx = NULL;
 
-   list_for_each_entry(pDevOnRecord, &DeviceListActive, node)
-   {
+   list_for_each_entry(pDevOnRecord, &DeviceListActive, node) {
       QC_LOG_INFO(GET_QMIDEV(pDevOnRecord), "Write gobi value %px and %px and %s\n", pDevOnRecord->kobj_gobi,
-         kobj, pDevOnRecord->mDevInfo.mDevInfInfo.mpKey);
+	 kobj, pDevOnRecord->mDevInfo.mDevInfInfo.mpKey);
 
-      if (pDevOnRecord->kobj_gobi == kobj)
-      {
-         QC_LOG_INFO(GET_QMIDEV(pDevOnRecord), "Sysfs - Read!!!\n");
+      if (pDevOnRecord->kobj_gobi == kobj) {
+	 QC_LOG_INFO(GET_QMIDEV(pDevOnRecord), "Sysfs - Read!!!\n");
       #ifdef TX_AGGR
 	 ctx = &pDevOnRecord->tx_aggr_ctx;
 	 if (ctx->timer_interval)
@@ -2567,20 +2411,18 @@ static ssize_t gobiQMITimer_show(struct kobject *kobj,
 }
 
 static ssize_t gobiQMITimer_store(struct kobject *kobj,
-               struct kobj_attribute *attr, const char *buf, size_t count)
+		struct kobj_attribute *attr, const char *buf, size_t count)
 {
    sGobiUSBNet *pDevOnRecord = NULL;
    struct rm_cdc_ncm_ctx *ctx = NULL;
 
    QC_LOG_GLOBAL("Sysfs - Write!!!\n");
 
-   list_for_each_entry(pDevOnRecord, &DeviceListActive, node)
-   {
+   list_for_each_entry(pDevOnRecord, &DeviceListActive, node) {
       QC_LOG_INFO(GET_QMIDEV(pDevOnRecord), "Write gobi value %px and %px and %s\n", pDevOnRecord->kobj_gobi,
-         kobj, pDevOnRecord->mDevInfo.mDevInfInfo.mpKey);
+	 kobj, pDevOnRecord->mDevInfo.mDevInfInfo.mpKey);
 
-      if (pDevOnRecord->kobj_gobi == kobj)
-      {
+      if (pDevOnRecord->kobj_gobi == kobj) {
       #ifdef TX_AGGR
 	 if (pDevOnRecord->tx_aggr_ctx.timer_interval) {
 
@@ -2589,11 +2431,11 @@ static ssize_t gobiQMITimer_store(struct kobject *kobj,
 
 	    ret = kstrtoul(buf, 0, &val);
 	    if (ret) {
-               QC_LOG_ERR(GET_QMIDEV(pDevOnRecord), "Failed from buff\n");
+	       QC_LOG_ERR(GET_QMIDEV(pDevOnRecord), "Failed from buff\n");
 	       return ret;
 	    }
 	    if (val && (val < 1UL || val > CDC_NCM_TIMER_INTERVAL_MAX)) {
-               QC_LOG_ERR(GET_QMIDEV(pDevOnRecord), "failed. send value more than 1");
+	       QC_LOG_ERR(GET_QMIDEV(pDevOnRecord), "failed. send value more than 1");
 	       return -EINVAL;
 	    }
 	    ctx = &pDevOnRecord->tx_aggr_ctx;
@@ -2604,8 +2446,8 @@ static ssize_t gobiQMITimer_store(struct kobject *kobj,
 	       ctx->tx_timer_pending = 0;
 	    spin_unlock_bh(&ctx->mtx);
 
-            QC_LOG_INFO(GET_QMIDEV(pDevOnRecord), "Sysfs - Write!!!\n");
-            QC_LOG_INFO(GET_QMIDEV(pDevOnRecord), "updated timer: %lld\n", ctx->timer_interval);
+	    QC_LOG_INFO(GET_QMIDEV(pDevOnRecord), "Sysfs - Write!!!\n");
+	    QC_LOG_INFO(GET_QMIDEV(pDevOnRecord), "updated timer: %lld\n", ctx->timer_interval);
 	 }
       #endif
       }
@@ -2636,12 +2478,11 @@ int sysfs_entry(sGobiUSBNet *dev, char *device_name)
     if (!dev->kobj_gobi)
       return -ENOMEM;
     retval = sysfs_create_group(dev->kobj_gobi, &gobinet_sysfs_attr_group);
-    if (retval && dev->kobj_gobi)
-    {
+    if (retval && dev->kobj_gobi) {
 	sysfs_remove_group(dev->kobj_gobi, &gobinet_sysfs_attr_group);
 	kobject_put(dev->kobj_gobi);
 	dev->kobj_gobi = NULL;
-        QC_LOG_ERR(GET_QMIDEV(dev), "sysfs_create_file failed\n");
+	QC_LOG_ERR(GET_QMIDEV(dev), "sysfs_create_file failed\n");
 	return retval;
     }
 
@@ -2651,8 +2492,7 @@ int sysfs_entry(sGobiUSBNet *dev, char *device_name)
 void sysfs_destroy(sGobiUSBNet *dev)
 {
    if (dev) {
-	if (dev->kobj_gobi)
-	{
+	if (dev->kobj_gobi) {
 	    sysfs_remove_group(dev->kobj_gobi, &gobinet_sysfs_attr_group);
 	    kobject_put(dev->kobj_gobi);
 	    dev->kobj_gobi = NULL;
@@ -2707,31 +2547,25 @@ int GobiUSBNetProbe(
    path = (gQTIRmnetInfFilePath != NULL) ? gQTIRmnetInfFilePath : QTI_RMNET_INF_PATH;
    retval = QTIDevInfCheckFileStatus(gQTIRmnetFileInfo, path);
 
-   if (retval == false)
-   {
+   if (retval == false) {
        QC_LOG_GLOBAL("No update required\n");
-   } else if (retval == true)
-   {
+   } else if (retval == true) {
        QC_LOG_GLOBAL("Update required\n");
-       if (gQTIRmnetFileInfo)
-       {
+       if (gQTIRmnetFileInfo) {
 	   kfree(gQTIRmnetFileInfo);
 	   gQTIRmnetFileInfo = NULL;
        }
-       if (UpdateDeviceInfo(&gQTIRmnetFileInfo, path) < 0)
-       {
-           QC_LOG_ERR(GET_QMIDEV(pGobiDev), "Error in parsing INF file\n");
+       if (UpdateDeviceInfo(&gQTIRmnetFileInfo, path) < 0) {
+	   QC_LOG_ERR(GET_QMIDEV(pGobiDev), "Error in parsing INF file\n");
 	   return -ENXIO;
        }
-   } else
-   {
+   } else {
       QC_LOG_ERR(GET_QMIDEV(pGobiDev), "Unable to get the status of VID/PID Info\n");
       return -EIO;
    }
 
    devInfo = QTIDevInfGetDevInfo(pIntf, gQTIRmnetFileInfo);
-   if (!devInfo)
-   {
+   if (!devInfo) {
        QC_LOG_ERR(GET_QMIDEV(pGobiDev), "USB corresponds to other Iface, (Supports only: %s)\n", path);
        return -EIO;
    }
@@ -2739,22 +2573,19 @@ int GobiUSBNetProbe(
 #endif
 
    pEndpoints = GatherEndpoints(pIntf);
-   if (pEndpoints == NULL)
-   {
+   if (pEndpoints == NULL) {
       return -ENODEV;
    }
 
    status = usbnet_probe(pIntf, pVIDPIDs);
-   if (status < 0)
-   {
+   if (status < 0) {
       QC_LOG_ERR(GET_QMIDEV(pGobiDev), "usbnet_probe failed %d\n", status);
       return status;
    }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19))
    status = usb_autopm_get_interface(pIntf);
-   if (status < 0)
-   {
+   if (status < 0) {
       QC_LOG_ERR(GET_QMIDEV(pGobiDev), "usb_autopm_get_interface failed %d\n", status);
        return status;
    }
@@ -2768,8 +2599,7 @@ int GobiUSBNetProbe(
    pDev = (struct usbnet *)pIntf->dev.platform_data;
 #endif
 
-   if (pDev == NULL || pDev->net == NULL)
-   {
+   if (pDev == NULL || pDev->net == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to get netdevice\n");
       usbnet_disconnect(pIntf);
       kfree(pEndpoints);
@@ -2782,14 +2612,12 @@ int GobiUSBNetProbe(
 
 #ifdef VIRTUAL_USB_CODE
    pGobiDev = GobiAcquireDevice(devInfo->mpKey, pDev);
-   if (pGobiDev == NULL)
-   {
+   if (pGobiDev == NULL) {
       QC_LOG_ERR(GET_QMIDEV(pGobiDev), "failed to allocate device buffers");
       return -ENOMEM;
    }
    memcpy(&(pGobiDev->mDevInfo.mDevInfInfo), devInfo, sizeof(devInfo_t));
-   for (i = 0; i < MAX_MUX_DEVICES; i++)
-   {
+   for (i = 0; i < MAX_MUX_DEVICES; i++) {
 #ifdef CONFIG_USB_CODE
       //To create the Muxed adapters, with the different driver info
       QC_LOG_DBG(GET_QMIDEV(pGobiDev), "(%d) creating the Muxed adapters, with the different driver info", i+1);
@@ -2798,16 +2626,14 @@ int GobiUSBNetProbe(
       //To create the Muxed adapters, with the different driver info
       status = usbnet_probe(pIntf, GobiMUXVIDPIDTable);
 #endif
-      if (status < 0)
-      {
+      if (status < 0) {
 	 QC_LOG_ERR(GET_QMIDEV(pGobiDev), "usbnet_probe failed %d\n", status);
 	 return status;
       }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 19))
    status = usb_autopm_get_interface(pIntf);
-   if (status < 0)
-   {
+   if (status < 0) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "usb_autopm_get_interface failed %d\n", status);
        return status;
    }
@@ -2871,8 +2697,7 @@ int GobiUSBNetProbe(
 #ifdef VIRTUAL_USB_CODE
    pDev->data[1] = 0X81UL;
 
-   for (i = 0; i < MAX_MUX_DEVICES; i++)
-   {
+   for (i = 0; i < MAX_MUX_DEVICES; i++) {
        pMUXDev[i]->data[0] = (unsigned long)pGobiDev;
        pMUXDev[i]->data[1] = pDev->data[1] + i + 1;
        pGobiDev->mpNetMUXDev[i] = pMUXDev[i];
@@ -2906,7 +2731,7 @@ int GobiUSBNetProbe(
    retval = usb_control_msg(pGobiDev->mpNetDev->udev,
       usb_sndctrlpipe(pGobiDev->mpNetDev->udev, 0), 0x22,
 	 USB_RECIP_INTERFACE | USB_TYPE_CLASS,
-         0, pGobiDev->mpEndpoints->mIntfNum, NULL, 0, USB_CTRL_SET_TIMEOUT);
+	 0, pGobiDev->mpEndpoints->mIntfNum, NULL, 0, USB_CTRL_SET_TIMEOUT);
 
    retval = usb_control_msg(pGobiDev->mpNetDev->udev,
       usb_sndctrlpipe(pGobiDev->mpNetDev->udev, 0), 0x22,
@@ -2922,8 +2747,7 @@ int GobiUSBNetProbe(
    pDev->net->hard_start_xmit = GobiUSBNetStartXmit;
    pDev->net->tx_timeout = GobiUSBNetTXTimeout;
 #ifdef VIRTUAL_USB_CODE
-   for (i = 0; i < MAX_MUX_DEVICES; i++)
-   {
+   for (i = 0; i < MAX_MUX_DEVICES; i++) {
        pGobiDev->mpNetMUXDev[i] = pMUXDev[i];
        pMUXDev[i]->net->open = GobiMUXUSBNetOpen;
        pMUXDev[i]->net->stop = GobiMUXUSBNetStop;
@@ -2933,14 +2757,13 @@ int GobiUSBNetProbe(
 #endif
 #else
 
-   pNetDevOps = kzalloc(sizeof( struct net_device_ops), GFP_KERNEL );
-   if (pNetDevOps == NULL)
-   {
+   pNetDevOps = kzalloc(sizeof(struct net_device_ops), GFP_KERNEL);
+   if (pNetDevOps == NULL) {
      QC_LOG_ERR(GET_QMIDEV(pGobiDev), "falied to allocate net device ops");
       usbnet_disconnect(pIntf);
       return -ENOMEM;
    }
-   memcpy(pNetDevOps, pDev->net->netdev_ops, sizeof( struct net_device_ops) );
+   memcpy(pNetDevOps, pDev->net->netdev_ops, sizeof(struct net_device_ops));
 
    pGobiDev->mpUSBNetOpen = pNetDevOps->ndo_open;
    pNetDevOps->ndo_open = GobiUSBNetOpen;
@@ -2953,30 +2776,26 @@ int GobiUSBNetProbe(
 	//pDev->net->sysfs_groups[0] = &gobinet_sysfs_attr_group;
 
    // set ETHER
-   if (enableDhcp == 0)
-   {
+   if (enableDhcp == 0) {
    pDev->net->header_ops = 0;  /* No header */
    pDev->net->type = ARPHRD_ETHER;
    }
    pDev->net->needed_headroom = sizeof(qmap_t);
    pDev->net->needed_tailroom = SKB_TAIL_ROOM;
 
-   if (enableDhcp == 1)
-   {
+   if (enableDhcp == 1) {
       pDev->net->flags = IFF_NOARP;
    }
 
 #ifdef VIRTUAL_USB_CODE
-   for (i = 0; i < MAX_MUX_DEVICES; i++)
-   {
-       pNetMUXDevOps = kzalloc(sizeof( struct net_device_ops), GFP_KERNEL );
-       if (pNetMUXDevOps == NULL)
-       {
+   for (i = 0; i < MAX_MUX_DEVICES; i++) {
+       pNetMUXDevOps = kzalloc(sizeof(struct net_device_ops), GFP_KERNEL);
+       if (pNetMUXDevOps == NULL) {
 	   QC_LOG_ERR(GET_QMIDEV(pGobiDev), "falied to allocate net device ops");
 	   return -ENOMEM;
        }
 
-       memcpy(pNetMUXDevOps, pMUXDev[i]->net->netdev_ops, sizeof( struct net_device_ops) );
+       memcpy(pNetMUXDevOps, pMUXDev[i]->net->netdev_ops, sizeof(struct net_device_ops));
 
        pNetMUXDevOps->ndo_open = GobiMUXUSBNetOpen;
        pNetMUXDevOps->ndo_stop = GobiMUXUSBNetStop;
@@ -2984,16 +2803,14 @@ int GobiUSBNetProbe(
        pMUXDev[i]->net->netdev_ops = pNetMUXDevOps;
 
        // set ETHER
-       if (enableDhcp == 0)
-       {
+       if (enableDhcp == 0) {
 	   pMUXDev[i]->net->header_ops = 0;  /* No header */
 	   pMUXDev[i]->net->type = ARPHRD_ETHER;
        }
        pMUXDev[i]->net->needed_headroom = sizeof(qmap_t);
        pMUXDev[i]->net->needed_tailroom = SKB_TAIL_ROOM;
 
-       if (enableDhcp == 1)
-       {
+       if (enableDhcp == 1) {
 	   pMUXDev[i]->net->flags = IFF_NOARP;
        }
    }
@@ -3002,9 +2819,9 @@ int GobiUSBNetProbe(
 #endif
 
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 31))
-   memset(&(pGobiDev->mpNetDev->stats), 0, sizeof( struct net_device_stats) );
+   memset(&(pGobiDev->mpNetDev->stats), 0, sizeof(struct net_device_stats));
 #else
-   memset(&(pGobiDev->mpNetDev->net->stats), 0, sizeof( struct net_device_stats) );
+   memset(&(pGobiDev->mpNetDev->net->stats), 0, sizeof(struct net_device_stats));
 #endif
 
    pGobiDev->mpIntf = pIntf;
@@ -3018,8 +2835,7 @@ int GobiUSBNetProbe(
    pGobiDev->mQMIDev.mbCdevIsInitialized = false;
    pGobiDev->mQMIDev.mpDevClass = qcom_usbnet_class;
 
-   if (pGobiDev->mQMIDev.mdeviceName[0] == '\0')
-   {
+   if (pGobiDev->mQMIDev.mdeviceName[0] == '\0') {
       pGobiDev->mQMIDev.debug = 1; //Setting default adapter set value
       pGobiDev->mQMIDev.logLevel = QC_LOG_LVL_INFO;//Setting the default loglevel
    }
@@ -3030,12 +2846,10 @@ int GobiUSBNetProbe(
    spin_lock_init(&pGobiDev->mQMIDev.mClientMemLock);
 
 
-   for (i = 0; i < MAX_MUX_DEVICES; i++)
-   {
+   for (i = 0; i < MAX_MUX_DEVICES; i++) {
        pGobiDev->mQMIMUXDev[i].mbCdevIsInitialized = false;
        pGobiDev->mQMIMUXDev[i].mpDevClass = qcom_usbnet_class;
-       if (pGobiDev->mQMIMUXDev[i].mdeviceName[0] == '\0')
-       {
+       if (pGobiDev->mQMIMUXDev[i].mdeviceName[0] == '\0') {
 	 pGobiDev->mQMIMUXDev[i].debug = 1;
 	 pGobiDev->mQMIMUXDev[i].logLevel = QC_LOG_LVL_INFO;
        }
@@ -3049,8 +2863,7 @@ int GobiUSBNetProbe(
 
    // Register QMI
    status = RegisterQMIDevice(pGobiDev);
-   if (status != 0)
-   {
+   if (status != 0) {
       // usbnet_disconnect() will call GobiNetDriverUnbind() which will call
       // DeregisterQMIDevice() to clean up any partially created QMI device
       usbnet_disconnect(pIntf);
@@ -3061,8 +2874,7 @@ int GobiUSBNetProbe(
    pDev->rx_urb_size = RX_URB_SIZE;
 
 #ifdef VIRTUAL_USB_CODE
-   for (i = 0; i < MAX_MUX_DEVICES; i++)
-   {
+   for (i = 0; i < MAX_MUX_DEVICES; i++) {
       /* need to sub rx URBs for the aggregation size negotiated */
       pMUXDev[i]->rx_urb_size = RX_URB_SIZE;
    }
@@ -3138,8 +2950,7 @@ static ssize_t GobiUSBprocWrite(struct file *file, const char __user *ubuf, size
 	return -EFAULT;
 
     QC_LOG_GLOBAL("write handler debug : %ld, timer : %ld ms\n", x, y);
-    if (y < 2)
-    {
+    if (y < 2) {
 	QC_LOG_GLOBAL("Invalid timer value\n");
 	return -EFAULT;
     }
@@ -3183,8 +2994,7 @@ static int GobiUSBNetModInit(void)
 #ifdef CONFIG_USB_CODE
    gQTIRmnetInfFilePath = (gQTIRmnetInfFilePath != NULL) ? gQTIRmnetInfFilePath : QTI_RMNET_INF_PATH;
 
-   if (UpdateDeviceInfo(&gQTIRmnetFileInfo, gQTIRmnetInfFilePath) < 0)
-   {
+   if (UpdateDeviceInfo(&gQTIRmnetFileInfo, gQTIRmnetInfFilePath) < 0) {
        QC_LOG_GLOBAL("Error in parsing INF file\n");
        return -ENXIO;
    }
@@ -3195,12 +3005,10 @@ static int GobiUSBNetModInit(void)
 #else
    qcom_usbnet_class = class_create("qcom_usbnet");
 #endif
-   if (IS_ERR(qcom_usbnet_class) == true)
-   {
+   if (IS_ERR(qcom_usbnet_class) == true) {
      QC_LOG_GLOBAL("error at class_create %ld\n", PTR_ERR(qcom_usbnet_class));
 #ifdef CONFIG_USB_CODE
-     if (gQTIRmnetFileInfo)
-     {
+     if (gQTIRmnetFileInfo) {
 	 kfree(gQTIRmnetFileInfo);
 	 gQTIRmnetFileInfo = NULL;
      }
@@ -3210,12 +3018,10 @@ static int GobiUSBNetModInit(void)
 
 #ifdef PROC_CREATE
    gpProcEnt = proc_create("GobiQMI_debug_timer", 0777, NULL, &procOps);
-   if (gpProcEnt == NULL)
-   {
+   if (gpProcEnt == NULL) {
        QC_LOG_GLOBAL("error at proc_create\n");
 #ifdef CONFIG_USB_CODE
-      if (gQTIRmnetFileInfo)
-      {
+      if (gQTIRmnetFileInfo) {
 	  kfree(gQTIRmnetFileInfo);
 	  gQTIRmnetFileInfo = NULL;
       }
@@ -3224,14 +3030,11 @@ static int GobiUSBNetModInit(void)
 #endif
 
    retVal = GobiInitializeDeviceList();
-    if (retVal)
-    {
+    if (retVal) {
 	QC_LOG_GLOBAL("QtiInitializeDeviceList failure\n");
-    } else
-    {
+    } else {
 	retVal = usb_register(&GobiNet);
-	if (retVal)
-	{
+	if (retVal) {
 	   QC_LOG_GLOBAL("usb_register failure\n");
 	   GobiFreeDevices();
 	}
@@ -3262,8 +3065,7 @@ static void __exit GobiUSBNetModExit(void)
    class_destroy(qcom_usbnet_class);
    proc_remove(gpProcEnt);
 #ifdef CONFIG_USB_CODE
-   if (gQTIRmnetFileInfo)
-   {
+   if (gQTIRmnetFileInfo) {
        kfree(gQTIRmnetFileInfo);
        gQTIRmnetFileInfo = NULL;
    }

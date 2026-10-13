@@ -29,17 +29,17 @@ void PrintHex_RX(
 
 // Sets mDownReason and turns carrier off
 void GobiSetDownReason(
-   sGobiUSBNet *    pDev,
+   sGobiUSBNet * pDev,
    u8                 reason);
 
 // Clear mDownReason and may turn carrier on
 void GobiClearDownReason(
-   sGobiUSBNet *    pDev,
+   sGobiUSBNet * pDev,
    u8                 reason);
 
 // Tests mDownReason and returns whether reason is set
 bool GobiTestDownReason(
-   sGobiUSBNet *    pDev,
+   sGobiUSBNet * pDev,
    u8                 reason);
 
 /*=========================================================================*/
@@ -58,10 +58,10 @@ void ReadCallback(struct urb *pReadURB);
 void IntCallback(struct urb *pIntURB);
 
 // Start continuous read "thread"
-int StartRead(sGobiUSBNet * pDev);
+int StartRead(sGobiUSBNet *pDev);
 
 // Kill continuous read "thread"
-void KillRead(sGobiUSBNet * pDev);
+void KillRead(sGobiUSBNet *pDev);
 
 /*=========================================================================*/
 // Internal read/write functions
@@ -70,7 +70,7 @@ void KillRead(sGobiUSBNet * pDev);
 // Start asynchronous read
 //     Reading client's data store, not device
 int ReadAsync(
-   sGobiUSBNet *    pDev,
+   sGobiUSBNet *pDev,
    u16                clientID,
    u16                transactionID,
    void               (*pCallback)(sGobiUSBNet *, u16, void *, sQMIDev *),
@@ -79,7 +79,7 @@ int ReadAsync(
 
 // Notification function for synchronous read
 void UpSem(
-   sGobiUSBNet *    pDev,
+   sGobiUSBNet *pDev,
    u16                clientID,
    void *pData,
    sQMIDev *QMIDev);
@@ -87,7 +87,7 @@ void UpSem(
 // Start synchronous read
 //     Reading client's data store, not device
 int ReadSync(
-   sGobiUSBNet *    pDev,
+   sGobiUSBNet *pDev,
    void **ppOutBuffer,
    u16                clientID,
    u16                transactionID,
@@ -96,7 +96,7 @@ int ReadSync(
 // Start synchronous read with timeout
 //     Reading client's data store, not device
 int ReadSyncTimeout(
-   sGobiUSBNet *    pDev,
+   sGobiUSBNet *pDev,
    void **ppOutBuffer,
    u16                clientID,
    u16                transactionID,
@@ -108,7 +108,7 @@ void WriteSyncCallback(struct urb *pWriteURB);
 
 // Start synchronous write
 int WriteSync(
-   sGobiUSBNet *    pDev,
+   sGobiUSBNet *pDev,
    char *pInWriteBuffer,
    int                size,
    u16                clientID,
@@ -120,25 +120,25 @@ int WriteSync(
 
 // Create client and allocate memory
 int GetClientID(
-   sGobiUSBNet *      pDev,
+   sGobiUSBNet *pDev,
    u8                 serviceType,
    sQMIDev *QMIDev);
 
 // Release client and free memory
 void ReleaseClientID(
-   sGobiUSBNet *      pDev,
+   sGobiUSBNet *pDev,
    u16                  clientID,
    sQMIDev *QMIDev);
 
 // Find this client's memory
 sClientMemList *FindClientMem(
-   sGobiUSBNet *      pDev,
+   sGobiUSBNet *pDev,
    u16                  clientID,
    sQMIDev *QMIDev);
 
 // Add Data to this client's ReadMem list
 bool AddToReadMemList(
-   sGobiUSBNet *      pDev,
+   sGobiUSBNet *pDev,
    u16                  clientID,
    u16                  transactionID,
    void *pData,
@@ -148,7 +148,7 @@ bool AddToReadMemList(
 // Remove data from this client's ReadMem list if it matches
 // the specified transaction ID.
 bool PopFromReadMemList(
-   sGobiUSBNet *      pDev,
+   sGobiUSBNet *pDev,
    u16                  clientID,
    u16                  transactionID,
    void **ppData,
@@ -157,7 +157,7 @@ bool PopFromReadMemList(
 
 // Add Notify entry to this client's notify List
 bool AddToNotifyList(
-   sGobiUSBNet *      pDev,
+   sGobiUSBNet *pDev,
    u16                  clientID,
    u16                  transactionID,
    void                 (*pNotifyFunct)(sGobiUSBNet *, u16, void *, sQMIDev *QMIDev),
@@ -167,21 +167,21 @@ bool AddToNotifyList(
 // Remove first Notify entry from this client's notify list
 //    and Run function
 bool NotifyAndPopNotifyList(
-   sGobiUSBNet *      pDev,
+   sGobiUSBNet *pDev,
    u16                  clientID,
    u16                  transactionID,
    sQMIDev *QMIDev);
 
 // Add URB to this client's URB list
 bool AddToURBList(
-   sGobiUSBNet *      pDev,
+   sGobiUSBNet *pDev,
    u16                  clientID,
    struct urb *pURB,
    sQMIDev *QMIDev);
 
 // Remove URB from this client's URB list
 struct urb *PopFromURBList(
-   sGobiUSBNet *      pDev,
+   sGobiUSBNet *pDev,
    u16                  clientID,
    sQMIDev *QMIDev);
 
@@ -229,10 +229,10 @@ unsigned int UserspacePoll(
 /*=========================================================================*/
 
 // QMI Device initialization function
-int RegisterQMIDevice(sGobiUSBNet * pDev);
+int RegisterQMIDevice(sGobiUSBNet *pDev);
 
 // QMI Device cleanup function
-void DeregisterQMIDevice(sGobiUSBNet * pDev);
+void DeregisterQMIDevice(sGobiUSBNet *pDev);
 
 int sysfs_entry(sGobiUSBNet *dev, char *device_name);
 void sysfs_destroy(sGobiUSBNet *dev);
@@ -260,8 +260,8 @@ int SetupQMIWDSCallback(sGobiUSBNet *pDev, sQMIDev *QMIDev);
 int QMIDMSGetMEID(sGobiUSBNet *pDev, sQMIDev *QMIDev);
 
 // Register client, Set QMAP req and parse response, release client
-int QMIWDASetQMAP(sGobiUSBNet * pDev, u16 ClientID, sQMIDev *QMIDev);
-int QMIWDASetQMAPSettings(sGobiUSBNet * pDev, u16 ClientID, sQMIDev *QMIDev);
+int QMIWDASetQMAP(sGobiUSBNet *pDev, u16 ClientID, sQMIDev *QMIDev);
+int QMIWDASetQMAPSettings(sGobiUSBNet *pDev, u16 ClientID, sQMIDev *QMIDev);
 
 int WDSConnect(sGobiUSBNet *pDev, sQMIDev *QMIDev, u8 profileid, int *ipv6id, u32 *connectid, u32 *connectipv6id);
 void WDSDisConnect(int id, sGobiUSBNet *pDev, sQMIDev *QMIDev, int ipv6id, int connectid, int connectipv6id);

@@ -52,16 +52,16 @@ typedef enum {
  */
 
 #define QC_LOG(KERN_LVL, DEV_CONTEXT, format, lvl, ver_num, args...)  { \
-            if (DEV_CONTEXT && (DEV_CONTEXT->debug == 1 || DEV_CONTEXT->debug == 0xFF) && (DEV_CONTEXT->logLevel <= lvl)) {\
-                printk(KERN_LVL "%s: %s:%d %s "format, DEV_CONTEXT->mdeviceName, __func__, __LINE__, ver_num, ##args) ;\
+	    if (DEV_CONTEXT && (DEV_CONTEXT->debug == 1 || DEV_CONTEXT->debug == 0xFF) && (DEV_CONTEXT->logLevel <= lvl)) {\
+		printk(KERN_LVL "%s: %s:%d %s "format, DEV_CONTEXT->mdeviceName, __func__, __LINE__, ver_num, ##args) ;\
 	    } \
 	    else if (DEV_CONTEXT == NULL) {\
-                printk(KERN_ERR "%s:%d %s "format, __func__, __LINE__, ver_num, ##args) ; } \
+		printk(KERN_ERR "%s:%d %s "format, __func__, __LINE__, ver_num, ##args) ; } \
 	    }
 
 #define QC_GLOBAL(format, args...)    { \
 	if (debug_g == 1) \
-            printk(KERN_INFO "%s:%d "format, __func__, __LINE__, ##args) ;\
+	    printk(KERN_INFO "%s:%d "format, __func__, __LINE__, ##args) ;\
     }
 
 #define QC_LOG_GLOBAL(format, args...)    QC_GLOBAL(format, ## args)

@@ -59,8 +59,8 @@
 #define DL_AGGREGATION_MAX_DATAGRAMS   0x20
 #define RX_URB_SIZE                  DL_AGGREGATION_MAX_SIZE
 
-#define READ_TIMEOUT 60*30 //(30 seconds)
-#define WRITE_TIMEOUT 60*30 //(30 seconds)
+#define READ_TIMEOUT (60*30) //(30 seconds)
+#define WRITE_TIMEOUT (60*30) //(30 seconds)
 
 /* Restart the timer, if amount of datagrams is less than given value */
 #define	CDC_NCM_RESTART_TIMER_DATAGRAM_CNT	3
@@ -561,7 +561,7 @@ typedef struct qtidev_aio_data {
 
 static inline __always_inline sQMIDev *_GET_QMIDEV(sGobiUSBNet *DEV_CONTEXT)
 {
-    if (DEV_CONTEXT == NULL) 
+    if (DEV_CONTEXT == NULL)
 	return NULL;
     else
 	return ((sQMIDev *)&(DEV_CONTEXT->mQMIDev));
@@ -571,7 +571,7 @@ static inline __always_inline sQMIDev *_GET_QMIDEV(sGobiUSBNet *DEV_CONTEXT)
 
 static inline __always_inline sQMIDev *_GET_QMIMUXDEV(sGobiUSBNet *DEV_CONTEXT, int i)
 {
-    if (DEV_CONTEXT == NULL) 
+    if (DEV_CONTEXT == NULL)
 	return NULL;
     else
 	return ((sQMIDev *)&(DEV_CONTEXT->mQMIMUXDev[i]));
@@ -579,9 +579,9 @@ static inline __always_inline sQMIDev *_GET_QMIMUXDEV(sGobiUSBNet *DEV_CONTEXT, 
 
 #define GET_QMIDEV_QMIFILP(DEV_CONTEXT)  _GET_QMIDEV_QMIFILP(DEV_CONTEXT)
 
-static inline __always_inline sQMIDev *_GET_QMIDEV_QMIFILP(sQMIFilpStorage * DEV_CONTEXT)
+static inline __always_inline sQMIDev *_GET_QMIDEV_QMIFILP(sQMIFilpStorage *DEV_CONTEXT)
 {
-    if (DEV_CONTEXT == NULL) 
+    if (DEV_CONTEXT == NULL)
 	return NULL;
     else
 	return ((sQMIDev *)(DEV_CONTEXT->QMIDev));
@@ -594,15 +594,12 @@ static inline __always_inline void *RMNET_KZALLOC(sQMIDev *DEV_CONTEXT, size_t s
 {
     void *PTR = kzalloc(size, flag);
 
-    if ((DEV_CONTEXT->debug == 1 || DEV_CONTEXT->debug == 0xFF) && (PTR != NULL))
-    {
+    if ((DEV_CONTEXT->debug == 1 || DEV_CONTEXT->debug == 0xFF) && (PTR != NULL)) {
 	printk(KERN_INFO "%s %s:%d rmnet_kzallocAddr = 0x%px and ksize = %ld ", DEV_CONTEXT->mdeviceName, func, lineNo, PTR, ksize(PTR));
-    } else if (DEV_CONTEXT == NULL && PTR != NULL)
-    {
+    } else if (DEV_CONTEXT == NULL && PTR != NULL) {
 	printk(KERN_INFO "%s:%d rmnet_kzallocAddr = 0x%px and ksize = %ld ", func, lineNo, PTR, ksize(PTR));
-    } else 
-    {
-        printk(KERN_ERR "%s:%d PTR is NULL.", func, lineNo);
+    } else {
+	printk(KERN_ERR "%s:%d PTR is NULL.", func, lineNo);
     }
 
     return PTR;
@@ -613,15 +610,12 @@ static inline __always_inline void *RMNET_KZALLOC(sQMIDev *DEV_CONTEXT, size_t s
 
 static inline __always_inline void RMNET_KFREE(sQMIDev *DEV_CONTEXT, void *PTR, const char *func, int lineNo)
 {
-    if ((DEV_CONTEXT->debug == 1 || DEV_CONTEXT->debug == 0xFF) && (PTR != NULL))
-    {
+    if ((DEV_CONTEXT->debug == 1 || DEV_CONTEXT->debug == 0xFF) && (PTR != NULL)) {
 	printk(KERN_INFO "%s %s:%d rmnet_kfreeAddr = 0x%px and ksize = %ld", DEV_CONTEXT->mdeviceName, func, lineNo, PTR, ksize(PTR));
-    } else if (DEV_CONTEXT == NULL && PTR != NULL)
-    {
+    } else if (DEV_CONTEXT == NULL && PTR != NULL) {
 	printk(KERN_INFO "%s:%d rmnet_kfreeAddr = 0x%px and ksize = %ld ", func, lineNo, PTR, ksize(PTR));
-    } else
-    {
-        printk(KERN_ERR "%s:%d PTR is NULL.", func, lineNo);
+    } else {
+	printk(KERN_ERR "%s:%d PTR is NULL.", func, lineNo);
     }
     kfree(PTR);
 }
