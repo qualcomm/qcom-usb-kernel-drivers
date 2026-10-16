@@ -334,7 +334,7 @@ BOOLEAN QCPWR_Prelude
 // ========================================================
 //          System Query Power
 // ========================================================
-NTSTATUS QCPWR_QuerySystemPowerState
+static NTSTATUS QCPWR_QuerySystemPowerStateUnsafe
 (
     PDEVICE_EXTENSION  pDevExt,
     SYSTEM_POWER_STATE PowerState
@@ -413,6 +413,35 @@ NTSTATUS QCPWR_QuerySystemPowerState
     return nts;
 
 }  // QCPWR_QuerySystemPowerState
+
+/*
+ * Power IRPs can race device teardown.  Keep this boundary deliberately
+ * small: if a stale/corrupt device extension faults while handling a power
+ * query, fail the request instead of allowing the exception to bugcheck the
+ * machine.  The teardown path remains responsible for draining callbacks
+ * before freeing the extension.
+ */
+NTSTATUS QCPWR_QuerySystemPowerState
+(
+    PDEVICE_EXTENSION  pDevExt,
+    SYSTEM_POWER_STATE PowerState
+)
+{
+    __try
+    {
+        return QCPWR_QuerySystemPowerStateUnsafe(pDevExt, PowerState);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        QCUSB_DbgPrint
+        (
+            QCUSB_DBG_MASK_POWER,
+            QCUSB_DBG_LEVEL_ERROR,
+            ("QuerySystemPowerState: invalid device extension; rejecting power request\n")
+        );
+        return STATUS_DEVICE_REMOVED;
+    }
+}
 
 NTSTATUS QCPWR_SystemPowerRequestCompletion
 (
@@ -2443,7 +2472,7 @@ VOID QCPWR_ProcessWaitWake(PDEVICE_EXTENSION pDevExt, PIRP Irp)
     PoStartNextPowerIrp(Irp);
 }  // QCPWR_ProcessWaitWake
 
-NTSTATUS QCPWR_WaitWakeCompletion
+static NTSTATUS QCPWR_WaitWakeCompletionUnsafe
 (
     PDEVICE_OBJECT    DeviceObject,
     PIRP              Irp,
@@ -2507,6 +2536,36 @@ NTSTATUS QCPWR_WaitWakeCompletion
     return ntStatus;
 
 }  // QCPWR_WaitWakeCompletion
+
+/*
+ * Do not let a malformed completion context take down the system.  This is a
+ * containment guard only; normal lifetime synchronization must still ensure
+ * that pDevExt is alive until all completions have returned.
+ */
+NTSTATUS QCPWR_WaitWakeCompletion
+(
+    PDEVICE_OBJECT    DeviceObject,
+    PIRP              Irp,
+    PDEVICE_EXTENSION pDevExt
+)
+{
+    __try
+    {
+        return QCPWR_WaitWakeCompletionUnsafe(DeviceObject, Irp, pDevExt);
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        QCUSB_DbgPrint
+        (
+            QCUSB_DBG_MASK_POWER,
+            QCUSB_DBG_LEVEL_ERROR,
+            ("WaitWakeCompletion: invalid completion context; stopping completion path\n")
+        );
+
+        /* Do not touch pDevExt here.  The context is precisely what faulted. */
+        return STATUS_MORE_PROCESSING_REQUIRED;
+    }
+}
 
 VOID QCPWR_RegisterWaitWakeIrp(PDEVICE_EXTENSION  pDevExt, UCHAR Cookie)
 {
