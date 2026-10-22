@@ -27,7 +27,7 @@
 #include <linux/usb/cdc.h>
 #include <linux/proc_fs.h>  /* Necessary because we use the proc fs */
 
-#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,11,0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0))
 #include <linux/sched.h>
 #else
 #include <linux/sched/signal.h>
@@ -44,7 +44,7 @@
  * For example:
  * RHEL_RELEASE_VERSION(9,1) = (9<<8)|1 = 2305
  * so  0 >= 2305  evaluates to FALSE on Ubuntu/Debian/etc. */
-#define RHEL_RELEASE_VERSION(x,y) (((x) << 8) | (y))
+#define RHEL_RELEASE_VERSION(x, y) (((x) << 8) | (y))
 #endif
 
 #define MAX_MUX_DEVICES 3
@@ -59,21 +59,21 @@
 #define DL_AGGREGATION_MAX_DATAGRAMS   0x20
 #define RX_URB_SIZE                  DL_AGGREGATION_MAX_SIZE
 
-#define READ_TIMEOUT 60*30 //(30 seconds)    
-#define WRITE_TIMEOUT 60*30 //(30 seconds)    
+#define READ_TIMEOUT (60*30) //(30 seconds)
+#define WRITE_TIMEOUT (60*30) //(30 seconds)
 
 /* Restart the timer, if amount of datagrams is less than given value */
 #define	CDC_NCM_RESTART_TIMER_DATAGRAM_CNT	3
 #define	CDC_NCM_TIMER_PENDING_CNT		2
 #define CDC_NCM_TIMER_INTERVAL_MAX		(U32_MAX / NSEC_PER_MSEC)
 
-#if (LINUX_VERSION_CODE <= KERNEL_VERSION( 2,6,24 ))
+#if (LINUX_VERSION_CODE <= KERNEL_VERSION(2, 6, 24))
    #include "usbnet.h"
 #else
    #include <linux/usb/usbnet.h>
 #endif
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION( 2,6,25 ))
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 25))
    #include <linux/fdtable.h>
 #else
    #include <linux/file.h>
@@ -86,11 +86,10 @@ struct sGobiUSBNet;
 
 struct sQMIDev;
 
-typedef struct ipv6_addr
-{
+typedef struct ipv6_addr {
    u8         ipv6addr[16];
    u8         prefix;
-}__attribute__((__packed__)) ipv6_addr;
+} __packed ipv6_addr;
 
 
 /*=========================================================================*/
@@ -98,11 +97,10 @@ typedef struct ipv6_addr
 //
 //    Structure that defines an entry in a Read Memory linked list
 /*=========================================================================*/
-typedef struct sReadMemList
-{
+typedef struct sReadMemList {
    /* Data buffer */
-   void *                     mpData;
-   
+   void *mpData;
+
    /* Transaction ID */
    u16                        mTransactionID;
 
@@ -119,17 +117,16 @@ typedef struct sReadMemList
 //
 //    Structure that defines an entry in a Notification linked list
 /*=========================================================================*/
-typedef struct sNotifyList
-{
+typedef struct sNotifyList {
    /* Function to be run when data becomes available */
-   void                  (* mpNotifyFunct)(struct sGobiUSBNet *, u16, void *, struct sQMIDev *);
-   
+   void                  (*mpNotifyFunct)(struct sGobiUSBNet *, u16, void *, struct sQMIDev *);
+
    /* Transaction ID */
    u16                   mTransactionID;
 
    /* Data to provide as parameter to mpNotifyFunct */
-   void *                mpData;
-   
+   void *mpData;
+
    /* Next entry in linked list */
    struct list_head   node;
 
@@ -140,10 +137,9 @@ typedef struct sNotifyList
 //
 //    Structure that defines an entry in a URB linked list
 /*=========================================================================*/
-typedef struct sURBList
-{
+typedef struct sURBList {
    /* The current URB */
-   struct urb *       mpURB;
+   struct urb *mpURB;
 
    /* Next entry in linked list */
    struct list_head   node;
@@ -156,34 +152,33 @@ typedef struct sURBList
 //    Structure that defines an entry in a Client Memory linked list
 //      Stores data specific to a Service Type and Client ID
 /*=========================================================================*/
-typedef struct sClientMemList
-{
+typedef struct sClientMemList {
    /* Client ID for this Client */
    u16                          mClientID;
 
    /* Linked list of Read entries */
    /*    Stores data read from device before sending to client */
-   sReadMemList *               mpList;
+   sReadMemList *mpList;
 
    /* list head for sReadMemList */
    struct list_head            mList;
-   
+
    /* Linked list of Notification entries */
-   /*    Stores notification functions to be run as data becomes 
-         available or the device is removed */
-   sNotifyList *                mpReadNotifyList;
+   /*    Stores notification functions to be run as data becomes
+	 available or the device is removed */
+   sNotifyList *mpReadNotifyList;
 
    /* list head for sNotifyList */
    struct list_head            mReadNotifyList;
 
    /* Linked list of URB entries */
-   /*    Stores pointers to outstanding URBs which need canceled 
-         when the client is deregistered or the device is removed */
-   sURBList *                   mpURBList;
+   /*    Stores pointers to outstanding URBs which need canceled
+	 when the client is deregistered or the device is removed */
+   sURBList *mpURBList;
 
    /* list head for sURBList */
    struct list_head            mURBList;
-   
+
    /* Next entry in linked list */
    struct list_head   node;
 
@@ -200,8 +195,7 @@ typedef struct sClientMemList
 //    Structure that defines a USB Setup packet for Control URBs
 //    Taken from USB CDC specifications
 /*=========================================================================*/
-typedef struct sURBSetupPacket
-{
+typedef struct sURBSetupPacket {
    /* Request type */
    u8    mRequestType;
 
@@ -227,15 +221,14 @@ typedef struct sURBSetupPacket
 // Struct sAutoPM
 //
 //    Structure used to manage AutoPM thread which determines whether the
-//    device is in use or may enter autosuspend.  Also submits net 
+//    device is in use or may enter autosuspend.  Also submits net
 //    transmissions asynchronously.
 /*=========================================================================*/
-typedef struct sAutoPM
-{
+typedef struct sAutoPM {
    struct list_head node;
 
    /* Thread for atomic autopm function */
-   struct task_struct *       mpThread;
+   struct task_struct *mpThread;
 
    /* Signal for completion when it's time for the thread to work */
    struct completion          mThreadDoWork;
@@ -244,7 +237,7 @@ typedef struct sAutoPM
    bool                       mbExit;
 
    /* List of URB's queued to be sent to the device */
-   sURBList *                 mpURBList;
+   sURBList *mpURBList;
 
    /* list head for sURBList */
    struct list_head            mURBList;
@@ -254,15 +247,15 @@ typedef struct sAutoPM
 
    /* Length of the URB list */
    atomic_t                   mURBListLen;
-   
+
    /* Active URB */
-   struct urb *               mpActiveURB;
+   struct urb *mpActiveURB;
 
    /* Active URB lock (for adding and removing elements) */
    spinlock_t                 mActiveURBLock;
-   
+
    /* Duplicate pointer to USB device interface */
-   struct usb_interface *     mpIntf;
+   struct usb_interface *mpIntf;
 
 } sAutoPM;
 
@@ -271,15 +264,14 @@ typedef struct sAutoPM
 //
 //    Structure that defines the data for the QMI device
 /*=========================================================================*/
-typedef struct sQMIDev
-{
+typedef struct sQMIDev {
    struct list_head   node;
-   
+
    /* Device number */
    dev_t                      mDevNum;
 
    /* Device class */
-   struct class *             mpDevClass;
+   struct class *mpDevClass;
 
    /* cdev struct */
    struct cdev                mCdev;
@@ -288,27 +280,27 @@ typedef struct sQMIDev
    bool                       mbCdevIsInitialized;
 
    /* Pointer to read URB */
-   struct urb *               mpReadURB;
+   struct urb *mpReadURB;
 
    /* Read setup packet */
-   sURBSetupPacket *          mpReadSetupPacket;
+   sURBSetupPacket *mpReadSetupPacket;
 
    /* Read buffer attached to current read URB */
-   void *                     mpReadBuffer;
-   
+   void *mpReadBuffer;
+
    /* Inturrupt URB */
    /*    Used to asynchronously notify when read data is available */
-   struct urb *               mpIntURB;
+   struct urb *mpIntURB;
 
    /* Buffer used by Inturrupt URB */
-   void *                     mpIntBuffer;
-   
+   void *mpIntBuffer;
+
    /* Pointer to memory linked list for all clients */
-   sClientMemList *           mpClientMemList;
+   sClientMemList *mpClientMemList;
 
    /* list head for ClientMemList */
    struct list_head            mClientMemList;
-   
+
    /* Spinlock for client Memory entries */
    spinlock_t                 mClientMemLock;
 
@@ -352,8 +344,7 @@ typedef struct sQMIDev
 //
 //    Structure that holds the data for Indication
 /*=========================================================================*/
-typedef struct sIndDataInfo
-{
+typedef struct sIndDataInfo {
     /* Pointer to the Response data */
     char                *mpData;
 
@@ -361,10 +352,10 @@ typedef struct sIndDataInfo
     int                 mDataLen;
 
     /* value of message Id  */
-    int                 mMsgId; 
+    int                 mMsgId;
 
     /* Store the ClientId for WDS transactions */
-    u16                 mClientId; 
+    u16                 mClientId;
 
     /* QMI "device" memory */
     sQMIDev             *mQMIDev;
@@ -379,8 +370,7 @@ typedef struct sIndDataInfo
 //
 //    Structure that holds the data for Indication
 /*=========================================================================*/
-typedef struct sProcessInd
-{
+typedef struct sProcessInd {
    /* Semaphore */
    struct semaphore     *mpResponseReadSem;
 
@@ -397,22 +387,21 @@ typedef struct sProcessInd
 //
 //    Structure that defines the endpoints of the device
 /*=========================================================================*/
-typedef struct sEndpoints
-{
+typedef struct sEndpoints {
    /* Interface number */
-   unsigned               mIntfNum;
+   unsigned int mIntfNum;
 
    /* Interrupt in endpoint */
-   unsigned               mIntInEndp;
+   unsigned int mIntInEndp;
 
    /* Interrupt in endpoint max buff size*/
-   unsigned               mIntInEndpMaxPacketSize;
+   unsigned int mIntInEndpMaxPacketSize;
 
    /* Bulk in endpoint */
-   unsigned               mBlkInEndp;
+   unsigned int mBlkInEndp;
 
    /* Bulk out endpoint */
-   unsigned               mBlkOutEndp;
+   unsigned int mBlkOutEndp;
 
 } sEndpoints;
 
@@ -446,15 +435,14 @@ typedef struct sDevinfInfo {
     deviceClass         mClassType;     /* INF/Config file class  */
     struct class        *mpDevClass;    /* Store the class */
     devInfo_t           mDevInfInfo;    /* Device info got from INF parser */
-}sDevinfInfo;
+} sDevinfInfo;
 
 /*=========================================================================*/
 // Struct sGobiUSBNet
 //
 //    Structure that defines the data associated with the QTI USB device
 /*=========================================================================*/
-typedef struct sGobiUSBNet
-{
+typedef struct sGobiUSBNet {
 #define TX_AGGR
 //#define SEQNO_TESTING
 #ifdef TX_AGGR
@@ -464,21 +452,21 @@ typedef struct sGobiUSBNet
    sDevinfInfo         mDevInfo;
 
    /* Net device structure */
-   struct usbnet *        mpNetDev;
+   struct usbnet *mpNetDev;
 #define VIRTUAL_USB_CODE
 #ifdef VIRTUAL_USB_CODE
-   struct usbnet *        mpNetMUXDev[MAX_MUX_DEVICES];
+   struct usbnet *mpNetMUXDev[MAX_MUX_DEVICES];
 #endif
    struct list_head   node;
    /* Usb device interface */
-   struct usb_interface * mpIntf;
+   struct usb_interface *mpIntf;
 
    /* Endpoint numbers */
-   sEndpoints *           mpEndpoints;
+   sEndpoints *mpEndpoints;
 
    /* Pointers to usbnet_open and usbnet_stop functions */
-   int                  (* mpUSBNetOpen)(struct net_device *);
-   int                  (* mpUSBNetStop)(struct net_device *);
+   int                  (*mpUSBNetOpen)(struct net_device *);
+   int                  (*mpUSBNetStop)(struct net_device *);
 
    /* Reason(s) why interface is down */
    /* Used by Gobi*DownReason */
@@ -523,7 +511,7 @@ typedef struct sGobiUSBNet
    struct task_struct     *pGobiWaitThread;
 
    spinlock_t             responeListLock;
-   
+
    struct semaphore       responseReadSem;
 
 } sGobiUSBNet;
@@ -534,21 +522,19 @@ typedef struct sGobiUSBNet
 //    Structure that defines the storage each file handle contains
 //       Relates the file handle to a client
 /*=========================================================================*/
-typedef struct sQMIFilpStorage
-{  
+typedef struct sQMIFilpStorage {
    /* Client ID */
    u16                  mClientID;
 
    /* Device pointer */
-   sGobiUSBNet *        mpDev;
-   
+   sGobiUSBNet *mpDev;
+
    /* QMIDevice */
    sQMIDev *QMIDev;
 
 } sQMIFilpStorage;
 
-typedef struct qtidev_aio_data
-{
+typedef struct qtidev_aio_data {
     bool    aio;
     bool    read;
     //bool    toCancel;
@@ -573,72 +559,63 @@ typedef struct qtidev_aio_data
 
 #define GET_QMIDEV(DEV_CONTEXT)  _GET_QMIDEV(DEV_CONTEXT)
 
-static inline __attribute__((always_inline)) sQMIDev * _GET_QMIDEV(sGobiUSBNet * DEV_CONTEXT)
+static inline __always_inline sQMIDev *_GET_QMIDEV(sGobiUSBNet *DEV_CONTEXT)
 {
-    if(DEV_CONTEXT==NULL) 
-        return NULL;
-    else 
-        return ((sQMIDev *)&(DEV_CONTEXT->mQMIDev));
+    if (DEV_CONTEXT == NULL)
+	return NULL;
+    else
+	return ((sQMIDev *)&(DEV_CONTEXT->mQMIDev));
 }
 
 #define GET_QMIMUXDEV(DEV_CONTEXT, i)  _GET_QMIMUXDEV(DEV_CONTEXT, i)
 
-static inline __attribute__((always_inline)) sQMIDev * _GET_QMIMUXDEV(sGobiUSBNet * DEV_CONTEXT, int i)
+static inline __always_inline sQMIDev *_GET_QMIMUXDEV(sGobiUSBNet *DEV_CONTEXT, int i)
 {
-    if(DEV_CONTEXT==NULL) 
-        return NULL;
-    else 
-        return ((sQMIDev *)&(DEV_CONTEXT->mQMIMUXDev[i]));
+    if (DEV_CONTEXT == NULL)
+	return NULL;
+    else
+	return ((sQMIDev *)&(DEV_CONTEXT->mQMIMUXDev[i]));
 }
 
 #define GET_QMIDEV_QMIFILP(DEV_CONTEXT)  _GET_QMIDEV_QMIFILP(DEV_CONTEXT)
 
-static inline __attribute__((always_inline)) sQMIDev * _GET_QMIDEV_QMIFILP(sQMIFilpStorage * DEV_CONTEXT)
+static inline __always_inline sQMIDev *_GET_QMIDEV_QMIFILP(sQMIFilpStorage *DEV_CONTEXT)
 {
-    if(DEV_CONTEXT==NULL) 
-        return NULL;
-    else 
-        return ((sQMIDev *)(DEV_CONTEXT->QMIDev));
+    if (DEV_CONTEXT == NULL)
+	return NULL;
+    else
+	return ((sQMIDev *)(DEV_CONTEXT->QMIDev));
 }
 
 // Note: Use QC_KZALLOC macro for tracking memory address and allocated size. Useful to find memory leaks
-#define QC_KZALLOC(DEV_CONTEXT, size, flags, args...) RMNET_KZALLOC(DEV_CONTEXT, size, flags, __FUNCTION__, __LINE__)
+#define QC_KZALLOC(DEV_CONTEXT, size, flags, args...) RMNET_KZALLOC(DEV_CONTEXT, size, flags, __func__, __LINE__)
 
-static inline __attribute__((always_inline)) void *RMNET_KZALLOC(sQMIDev *DEV_CONTEXT, size_t size, gfp_t flag, const char *func, int lineNo)
+static inline __always_inline void *RMNET_KZALLOC(sQMIDev *DEV_CONTEXT, size_t size, gfp_t flag, const char *func, int lineNo)
 {
-    void* PTR = kzalloc(size, flag);
-    if((DEV_CONTEXT->debug == 1 || DEV_CONTEXT->debug == 0xFF) && (PTR != NULL))
-    {
-        printk( KERN_INFO "%s %s:%d rmnet_kzallocAddr = 0x%px and ksize = %ld ", DEV_CONTEXT->mdeviceName, func, lineNo, PTR, ksize(PTR));
-    }
-    else if (DEV_CONTEXT == NULL && PTR != NULL)
-    {
-        printk( KERN_INFO "%s:%d rmnet_kzallocAddr = 0x%px and ksize = %ld ", func, lineNo, PTR, ksize(PTR));
-    }
-    else 
-    {
-        printk( KERN_ERR "%s:%d PTR is NULL." ,func, lineNo);
+    void *PTR = kzalloc(size, flag);
+
+    if ((DEV_CONTEXT->debug == 1 || DEV_CONTEXT->debug == 0xFF) && (PTR != NULL)) {
+	printk(KERN_INFO "%s %s:%d rmnet_kzallocAddr = 0x%px and ksize = %ld ", DEV_CONTEXT->mdeviceName, func, lineNo, PTR, ksize(PTR));
+    } else if (DEV_CONTEXT == NULL && PTR != NULL) {
+	printk(KERN_INFO "%s:%d rmnet_kzallocAddr = 0x%px and ksize = %ld ", func, lineNo, PTR, ksize(PTR));
+    } else {
+	printk(KERN_ERR "%s:%d PTR is NULL.", func, lineNo);
     }
 
     return PTR;
 }
 
 // Note: Replace kfree API with QC_KFREE for tracking memory address and allocated size.
-#define QC_KFREE(DEV_CONTEXT, PTR, args...) RMNET_KFREE(DEV_CONTEXT, PTR, __FUNCTION__, __LINE__)
+#define QC_KFREE(DEV_CONTEXT, PTR, args...) RMNET_KFREE(DEV_CONTEXT, PTR, __func__, __LINE__)
 
-static inline __attribute__((always_inline)) void RMNET_KFREE(sQMIDev *DEV_CONTEXT, void *PTR, const char *func, int lineNo)
+static inline __always_inline void RMNET_KFREE(sQMIDev *DEV_CONTEXT, void *PTR, const char *func, int lineNo)
 {
-    if((DEV_CONTEXT->debug == 1 || DEV_CONTEXT->debug == 0xFF) && (PTR != NULL))
-    {
-        printk( KERN_INFO "%s %s:%d rmnet_kfreeAddr = 0x%px and ksize = %ld", DEV_CONTEXT->mdeviceName, func, lineNo, PTR, ksize(PTR));
-    }
-    else if (DEV_CONTEXT == NULL && PTR != NULL)
-    {
-        printk( KERN_INFO "%s:%d rmnet_kfreeAddr = 0x%px and ksize = %ld ", func, lineNo, PTR, ksize(PTR));
-    }
-    else
-    {
-        printk( KERN_ERR "%s:%d PTR is NULL." , func, lineNo);
+    if ((DEV_CONTEXT->debug == 1 || DEV_CONTEXT->debug == 0xFF) && (PTR != NULL)) {
+	printk(KERN_INFO "%s %s:%d rmnet_kfreeAddr = 0x%px and ksize = %ld", DEV_CONTEXT->mdeviceName, func, lineNo, PTR, ksize(PTR));
+    } else if (DEV_CONTEXT == NULL && PTR != NULL) {
+	printk(KERN_INFO "%s:%d rmnet_kfreeAddr = 0x%px and ksize = %ld ", func, lineNo, PTR, ksize(PTR));
+    } else {
+	printk(KERN_ERR "%s:%d PTR is NULL.", func, lineNo);
     }
     kfree(PTR);
 }

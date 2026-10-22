@@ -36,8 +36,7 @@
 //
 //    Structure that defines a QMUX header
 /*=========================================================================*/
-typedef struct sQMUX
-{
+typedef struct sQMUX {
    /* T\F, always 1 */
    u8         mTF;
 
@@ -46,14 +45,14 @@ typedef struct sQMUX
 
    /* Control flag */
    u8         mCtrlFlag;
-   
+
    /* Service Type */
    u8         mQMIService;
-   
+
    /* Client ID */
    u8         mQMIClientID;
 
-}__attribute__((__packed__)) sQMUX;
+} __packed sQMUX;
 
 /*=========================================================================*/
 // Generic QMUX functions
@@ -61,15 +60,15 @@ typedef struct sQMUX
 
 // Remove QMUX headers from a buffer
 int ParseQMUX(
-   u16 *    pClientID,
-   void *   pBuffer,
-   u16      buffSize );
+   u16 *pClientID,
+   void *pBuffer,
+   u16      buffSize);
 
 // Fill buffer with QMUX headers
 int FillQMUX(
    u16      clientID,
-   void *   pBuffer,
-   u16      buffSize );
+   void *pBuffer,
+   u16      buffSize);
 
 /*=========================================================================*/
 // Generic QMI functions
@@ -77,50 +76,50 @@ int FillQMUX(
 
 // Get data bufffer of a specified TLV from a QMI message
 int GetTLV(
-   void *   pQMIMessage,
+   void *pQMIMessage,
    u16      messageLen,
    u8       type,
-   void *   pOutDataBuf,
-   u16      bufferLen );
+   void *pOutDataBuf,
+   u16      bufferLen);
 
 // Check mandatory TLV in a QMI message
 int ValidQMIMessage(
-   void *   pQMIMessage,
-   u16      messageLen );
+   void *pQMIMessage,
+   u16      messageLen);
 
 // Get the message ID of a QMI message
 int GetQMIMessageID(
-   void *   pQMIMessage,
-   u16      messageLen );
+   void *pQMIMessage,
+   u16      messageLen);
 
 /*=========================================================================*/
 // Get sizes of buffers needed by QMI requests
 /*=========================================================================*/
 
 // Get size of buffer needed for QMUX
-u16 QMUXHeaderSize( void );
+u16 QMUXHeaderSize(void);
 
 // Get size of buffer needed for QMUX + QMICTLGetClientIDReq
-u16 QMICTLGetClientIDReqSize( void );
+u16 QMICTLGetClientIDReqSize(void);
 
 // Get size of buffer needed for QMUX + QMICTLReleaseClientIDReq
-u16 QMICTLReleaseClientIDReqSize( void );
+u16 QMICTLReleaseClientIDReqSize(void);
 
 // Get size of buffer needed for QMUX + QMICTLReadyReq
-u16 QMICTLReadyReqSize( void );
+u16 QMICTLReadyReqSize(void);
 
 // Get size of buffer needed for QMUX + QMIWDSSetEventReportReq
-u16 QMIWDSSetEventReportReqSize( void );
+u16 QMIWDSSetEventReportReqSize(void);
 
 // Get size of buffer needed for QMUX + QMIWDSGetPKGSRVCStatusReq
-u16 QMIWDSGetPKGSRVCStatusReqSize( void );
+u16 QMIWDSGetPKGSRVCStatusReqSize(void);
 
 // Get size of buffer needed for QMUX + QMIDMSGetMEIDReq
-u16 QMIDMSGetMEIDReqSize( void );
+u16 QMIDMSGetMEIDReqSize(void);
 
 // Get size of buffer needed for QMUX + QMIWDASetDataFormatReq
-u16 QMIWDASetDataFormatReqSize( void );
-u16 QMIWDASetDataFormatReqSettingsSize( void );
+u16 QMIWDASetDataFormatReqSize(void);
+u16 QMIWDASetDataFormatReqSettingsSize(void);
 
 u16 QMIWDSStartNetworkReqSize(void);
 u16 QMIWDSGetRuntimeSettingsReqSize(void);
@@ -129,95 +128,95 @@ u16 QMIWDSGetRuntimeSettingsReqSize(void);
 // Fill Buffers with QMI requests
 /*=========================================================================*/
 int IPRoute(char *netAddr,
-            unsigned int addr,
-            char *subnetMask);
+	    unsigned int addr,
+	    char *subnetMask);
 
 //Function for assigning IP address from kernel space
 int QMIIPAssignment(
    unsigned int addr,
    sGobiUSBNet *pDev,
    char *subnetMask,
-   sQMIDev *QMIDev
+   sQMIDev * QMIDev
 );
 
 // Fill buffer with QMI CTL Get Client ID Request
 int QMICTLGetClientIDReq(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
    u8       transactionID,
-   u8       serviceType );
+   u8       serviceType);
 
 // Fill buffer with QMI CTL Release Client ID Request
 int QMICTLReleaseClientIDReq(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
    u8       transactionID,
-   u16      clientID );
+   u16      clientID);
 
 // Fill buffer with QMI CTL Get Version Info Request
 int QMICTLReadyReq(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
-   u8       transactionID );
+   u8       transactionID);
 
 // Fill buffer with QMI WDS Set Event Report Request
 int QMIWDSSetEventReportReq(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
-   u16      transactionID );
+   u16      transactionID);
 
 // Fill buffer with QMI WDS Get PKG SRVC Status Request
 int QMIWDSGetPKGSRVCStatusReq(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
-   u16      transactionID );
+   u16      transactionID);
 
 // Fill buffer with QMI DMS Get Serial Numbers Request
 int QMIDMSGetMEIDReq(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
-   u16      transactionID );
+   u16      transactionID);
 
 // Fill buffer with QMI WDA QMAP Request
 int QMIWDASetDataFormatReq(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
    u16      transactionID,
-   sGobiUSBNet * pDev);
+   sGobiUSBNet *pDev);
 
 int QMIWDASetDataFormatReqSettings(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
-   u16      transactionID );
+   u16      transactionID);
 
 
 
 int QMIWDSStartNetworkReq(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
    u16      transactionID,
    u8       profileid);
 
 int QMIWDSGetRuntimeSettingsReq(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
-   u16      transactionID );
+   u16      transactionID);
 
 int QMIWDSSetIPFamilyPrefReq(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
    u16      transactionID,
    u8       ipType);
 
 int QMIWDSBindMuxPortReq(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
    u16      transactionID,
    sGobiUSBNet *pDev,
    sQMIDev *QMIDev);
 
 int QMIWDSStopNetworkReq(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
    u16      transactionID,
    int      connectid);
@@ -229,83 +228,83 @@ int QMIWDSStopNetworkReq(
 
 // Parse the QMI CTL Get Client ID Resp
 int QMICTLGetClientIDResp(
-   void * pBuffer,
+   void *pBuffer,
    u16    buffSize,
-   u16 *  pClientID );
+   u16 *pClientID);
 
 // Verify the QMI CTL Release Client ID Resp is valid
 int QMICTLReleaseClientIDResp(
-   void *   pBuffer,
-   u16      buffSize );
+   void *pBuffer,
+   u16      buffSize);
 
 // Parse the QMI WDS Set Event Report Resp/Indication or
 //    QMI WDS Get PKG SRVC Status Resp/Indication
 int QMIWDSEventResp(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
-   u32 *    pTXOk,
-   u32 *    pRXOk,
-   u32 *    pTXErr,
-   u32 *    pRXErr,
-   u32 *    pTXOfl,
-   u32 *    pRXOfl,
-   u64 *    pTXBytesOk,
-   u64 *    pRXBytesOk,
-   bool *   pbLinkState,
-   bool *   pbReconfigure );
+   u32 *pTXOk,
+   u32 *pRXOk,
+   u32 *pTXErr,
+   u32 *pRXErr,
+   u32 *pTXOfl,
+   u32 *pRXOfl,
+   u64 *pTXBytesOk,
+   u64 *pRXBytesOk,
+   bool *pbLinkState,
+   bool *pbReconfigure);
 
 int QMIWDASetDataFormatResp(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
-   u32 *    DLDatagram,
-   u32 *    DLDatagramSize,
-   u32 *    ULDatagram,
-   u32 *    ULDatagramSize );
+   u32 *DLDatagram,
+   u32 *DLDatagramSize,
+   u32 *ULDatagram,
+   u32 *ULDatagramSize);
 
 // Parse the QMI DMS Get Serial Numbers Resp
 int QMIDMSGetMEIDResp(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
-   char *   pMEID,
-   int      meidSize );
+   char *pMEID,
+   int      meidSize);
 
 int QMIWDSStartNetworkResp(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
-   char *   pMEID,
-   int      meidSize );
+   char *pMEID,
+   int      meidSize);
 
 int QMIWDSGetRuntimeSettingsResp(
    sGobiUSBNet *pDev,
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
    sQMIDev *QMIDev);
 
-int QMIWDSGetPktSrvcStatusInd (
+int QMIWDSGetPktSrvcStatusInd(
    sGobiUSBNet *pDev,
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
    sQMIDev *QMIDev,
    u16      clientID);
 
-int QMIWDSExtendedIPConfigInd (
+int QMIWDSExtendedIPConfigInd(
    sGobiUSBNet *pDev,
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
    sQMIDev *QMIDev,
    u16      clientID);
 
-int QMIWDSReverseIPTransportConnInd (
+int QMIWDSReverseIPTransportConnInd(
    sGobiUSBNet *pDev,
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
    sQMIDev *QMIDev);
 
 int QMIWDSStopNetworkResp(
-   void *   pBuffer,
+   void *pBuffer,
    u16      buffSize,
-   char *   pMEID,
-   int      meidSize );
+   char *pMEID,
+   int      meidSize);
 
 int ConfigureQMAP(sGobiUSBNet *pDev);
 
@@ -317,5 +316,5 @@ void ArpResponse(struct usbnet *dev, struct sk_buff *skb);
 
 unsigned short GetTransactionID(sQMIDev *QMIDev);
 
-void PrintIPV6Addr(char *msg, ipv6_addr * addr);
+void PrintIPV6Addr(char *msg, ipv6_addr *addr);
 
