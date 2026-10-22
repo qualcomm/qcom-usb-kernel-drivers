@@ -252,22 +252,28 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
 
     if (!NT_SUCCESS(ntStatus))
     {
-        // register a wdfDevice IF for apps
-        ntStatus = WdfDeviceCreateDeviceInterface
+        QDB_DbgPrintG
         (
-            wdfDevice,
-            (LPGUID)&QDBUSB_GUID,
-            NULL    // Reference String
+            0, 0,
+            ("QDBPNP_CreateSymbolicName failed ST 0x%X\n", ntStatus)
         );
-        if (!NT_SUCCESS(ntStatus))
-        {
-            QDB_DbgPrintG
-            (
-                0, 0,
-                ("WdfDeviceCreateDeviceInterface failed ST 0x%X\n", ntStatus)
-            );
-            return ntStatus;
-        }
+    }
+
+    // register a wdfDevice IF for apps
+    ntStatus = WdfDeviceCreateDeviceInterface
+    (
+        wdfDevice,
+        (LPGUID)&QDBUSB_GUID,
+        NULL    // Reference String
+    );
+    if (!NT_SUCCESS(ntStatus))
+    {
+        QDB_DbgPrintG
+        (
+            0, 0,
+            ("WdfDeviceCreateDeviceInterface failed ST 0x%X\n", ntStatus)
+        );
+        return ntStatus;
     }
 
     // 9. Anything else
