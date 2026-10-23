@@ -83,6 +83,7 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
     // 1. PnP, power, and power policy callback functions
     WDF_PNPPOWER_EVENT_CALLBACKS_INIT(&pnpPowerEventCB);
     pnpPowerEventCB.EvtDevicePrepareHardware = QDBPNP_EvtDevicePrepareHW;
+    pnpPowerEventCB.EvtDeviceReleaseHardware = QDBPNP_EvtDeviceReleaseHardware;
     WdfDeviceInitSetPnpPowerEventCallbacks(DeviceInit, &pnpPowerEventCB);
 
     // 2. File event callback functions
@@ -596,6 +597,57 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
 
     return ntStatus;
 }  // QDBPNP_EvtDevicePrepareHW
+
+/****************************************************************************
+ *
+ * function: QDBPNP_EvtDeviceReleaseHardware
+ *
+ * purpose:  WDF callback invoked when hardware resources are being released
+ *           (device remove/surprise-remove/restart). Marks the device as
+ *           being removed and actively cancels all requests already sent
+ *           to the USB I/O target (DPL drain reads, foreground reads, and
+ *           writes), so that pending I/O does not block IRP_MN_REMOVE_DEVICE.
+ *
+ * arguments:Device              = WDF device handle
+ *           ResourcesTranslated = translated hardware resource list (unused)
+ *
+ * returns:  NT status
+ *
+ ****************************************************************************/
+NTSTATUS QDBPNP_EvtDeviceReleaseHardware
+(
+    WDFDEVICE    Device,
+    WDFCMRESLIST ResourcesTranslated
+)
+{
+    PDEVICE_CONTEXT pDevContext;
+
+    UNREFERENCED_PARAMETER(ResourcesTranslated);
+
+    pDevContext = QdbDeviceGetContext(Device);
+
+    QDB_DbgPrint
+    (
+        0, 0,
+        ("<%s> -->QDBPNP_EvtDeviceReleaseHardware: 0x%p\n", pDevContext->PortName, Device)
+    );
+
+    pDevContext->DeviceRemoval = TRUE;
+    pDevContext->PipeDrain = FALSE;
+
+    if (pDevContext->MyIoTarget != NULL)
+    {
+        WdfIoTargetStop(pDevContext->MyIoTarget, WdfIoTargetCancelSentIo);
+    }
+
+    QDB_DbgPrint
+    (
+        0, 0,
+        ("<%s> <--QDBPNP_EvtDeviceReleaseHardware: 0x%p\n", pDevContext->PortName, Device)
+    );
+
+    return STATUS_SUCCESS;
+}  // QDBPNP_EvtDeviceReleaseHardware
 
 /****************************************************************************
  *
