@@ -3,7 +3,7 @@
 
 param(
     [string]$OutputName = "installer.exe",
-    [ValidateSet("x64", "x86", "arm64")]
+    [ValidateSet("x64", "arm64")]
     [string]$Arch = "x64",   # default value (adjust if needed)
     [switch]$SkipSignCheck
 )

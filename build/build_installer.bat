@@ -11,7 +11,7 @@ for %%A in (%*) do (
     if /i "%%A"=="--no_sign_required" set "NO_SIGN=1"
 )
 
-for %%A in (x86 x64 arm64) do (
+for %%A in (x64 arm64) do (
     REM Build tools for this architecture
     powershell -ExecutionPolicy Bypass -File "%SCRIPT_DIR%build_tools.ps1" -Platform %%A
     if !ERRORLEVEL! neq 0 exit /b !ERRORLEVEL!
