@@ -70,7 +70,10 @@ jobs:
   block-upstream-pr:
     name: Block PR From Upstream Repository
     runs-on: ubuntu-latest
-    if: github.base_ref == 'develop'
+    # linux-prepare (release.yml) pushes ci/release-lnx-<ver> into this repo
+    # (not a fork) for a maintainer to open as a PR - exempt it from the
+    # upstream-branch rule. See docs/linux/RELEASING.md.
+    if: github.base_ref == 'develop' && !startsWith(github.head_ref, 'ci/release-lnx-')
     permissions:
       pull-requests: write
       issues: write

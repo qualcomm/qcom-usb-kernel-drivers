@@ -8,8 +8,18 @@ on:
     inputs:
       linux_version:
         description: >
-          Linux driver version to release (e.g. 1.0.6.5).
-          Leave empty to skip the Linux release.
+          Linux driver version to prepare for release (e.g. 1.0.6.8).
+          Leave empty to skip. Must be newer than the latest
+          release-lnx-v* tag. Pushes ci/release-lnx-<version> for you to
+          open as a PR into develop - see docs/linux/RELEASING.md.
+        required: false
+        type: string
+        default: ''
+      promote_linux:
+        description: >
+          Linux version whose existing GitHub pre-release should be
+          promoted to final + Latest (e.g. 1.0.6.8). Leave empty to skip.
+          Gated by the 'release' environment's required reviewers.
         required: false
         type: string
         default: ''
@@ -56,39 +66,30 @@ on:
         type: string
         default: ''
       base_branch:
-        description: 'Base branch to cut the release from'
+        description: 'Base branch to cut the Windows release from'
         required: false
         type: string
         default: 'main'
       release_notes:
-        description: 'Release notes (Markdown). Defaults to auto-generated notes.'
+        description: 'Windows release notes (Markdown). Defaults to auto-generated notes.'
         required: false
         type: string
         default: ''
-      draft:
-        description: 'Create as draft release (publish manually afterwards)'
-        required: false
-        type: boolean
-        default: false
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Shared helpers
-# ─────────────────────────────────────────────────────────────────────────────
-env:
-  GIT_AUTHOR_NAME: github-actions[bot]
-  GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
-  GIT_COMMITTER_NAME: github-actions[bot]
-  GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
+  workflow_run:
+    workflows: ["Build"]
+    types: [completed]
 
 jobs:
   # ───────────────────────────────────────────────────────────────────────────
-  # Validate inputs before doing any real work
+  # Validate dispatch inputs before doing any real work
   # ───────────────────────────────────────────────────────────────────────────
   validate:
     name: Validate inputs
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
-      do_linux: ${{ steps.check.outputs.do_linux }}
+      do_prepare: ${{ steps.check.outputs.do_prepare }}
+      do_promote: ${{ steps.check.outputs.do_promote }}
       do_windows: ${{ steps.check.outputs.do_windows }}
     steps:
       - name: Check actor is a maintainer
@@ -102,7 +103,7 @@ jobs:
           echo "Actor '${ACTOR}' permission: ${PERMISSION}"
           case "$PERMISSION" in
             admin|maintain|write)
-              echo "✅ Authorized — proceeding with release."
+              echo "Authorized - proceeding."
               ;;
             *)
               echo "ERROR: Only maintainers (write/maintain/admin) may trigger this workflow."
@@ -111,31 +112,75 @@ jobs:
               ;;
           esac
 
-      - name: Check that at least one version was supplied
+      - name: Validate inputs and set flags
         id: check
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
           LNX: ${{ inputs.linux_version }}
+          PROMOTE: ${{ inputs.promote_linux }}
           WIN: ${{ inputs.windows_version }}
         run: |
-          if [ -z "$LNX" ] && [ -z "$WIN" ]; then
-            echo "ERROR: At least one of linux_version or windows_version must be provided."
+          if [ -z "$LNX" ] && [ -z "$PROMOTE" ] && [ -z "$WIN" ]; then
+            echo "ERROR: At least one of linux_version, promote_linux, or windows_version must be provided."
             exit 1
           fi
 
-          # Validate Linux version format  X.X.X.X
+          VERSION_RE='^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'
+
+          # ── linux_version (prepare) ─────────────────────────────────────
           if [ -n "$LNX" ]; then
-            if ! echo "$LNX" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            if ! echo "$LNX" | grep -qE "$VERSION_RE"; then
               echo "ERROR: linux_version '$LNX' does not match expected format X.X.X.X"
               exit 1
             fi
-            echo "do_linux=true" >> "$GITHUB_OUTPUT"
+
+            BRANCH="ci/release-lnx-${LNX}"
+            TAG="release-lnx-v${LNX}"
+
+            BRANCH_EXISTS=$(gh api "repos/${REPO}/git/matching-refs/heads/${BRANCH}" \
+              --jq ".[] | select(.ref == \"refs/heads/${BRANCH}\") | .ref")
+            if [ -n "$BRANCH_EXISTS" ]; then
+              echo "ERROR: branch '${BRANCH}' already exists."
+              exit 1
+            fi
+
+            TAG_EXISTS=$(gh api "repos/${REPO}/git/matching-refs/tags/${TAG}" \
+              --jq ".[] | select(.ref == \"refs/tags/${TAG}\") | .ref")
+            if [ -n "$TAG_EXISTS" ]; then
+              echo "ERROR: tag '${TAG}' already exists."
+              exit 1
+            fi
+
+            LATEST=$(gh api "repos/${REPO}/git/matching-refs/tags/release-lnx-v" \
+              --jq '.[].ref' | sed 's#refs/tags/release-lnx-v##' | sort -V | tail -1)
+            if [ -n "$LATEST" ]; then
+              TOP=$(printf '%s\n%s\n' "$LATEST" "$LNX" | sort -V | tail -1)
+              if [ "$TOP" != "$LNX" ] || [ "$LNX" = "$LATEST" ]; then
+                echo "ERROR: linux_version '$LNX' must be newer than the latest tag release-lnx-v${LATEST}."
+                exit 1
+              fi
+            fi
+
+            echo "do_prepare=true" >> "$GITHUB_OUTPUT"
           else
-            echo "do_linux=false" >> "$GITHUB_OUTPUT"
+            echo "do_prepare=false" >> "$GITHUB_OUTPUT"
           fi
 
-          # Validate Windows version format  X.XX.XX.X
+          # ── promote_linux (promote) ─────────────────────────────────────
+          if [ -n "$PROMOTE" ]; then
+            if ! echo "$PROMOTE" | grep -qE "$VERSION_RE"; then
+              echo "ERROR: promote_linux '$PROMOTE' does not match expected format X.X.X.X"
+              exit 1
+            fi
+            echo "do_promote=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "do_promote=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # ── windows_version ───────────────────────────────────────────
           if [ -n "$WIN" ]; then
-            if ! echo "$WIN" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+            if ! echo "$WIN" | grep -qE "$VERSION_RE"; then
               echo "ERROR: windows_version '$WIN' does not match expected format X.XX.XX.X"
               exit 1
             fi
@@ -145,37 +190,41 @@ jobs:
           fi
 
   # ───────────────────────────────────────────────────────────────────────────
-  # Linux release
+  # Stage: prepare a Linux release branch on top of develop, for a maintainer
+  # to open as a PR. Never opens the PR itself (a GITHUB_TOKEN-opened PR
+  # would not trigger required checks). See docs/linux/RELEASING.md.
   # ───────────────────────────────────────────────────────────────────────────
-  release-linux:
-    name: Linux release ${{ inputs.linux_version }}
+  linux-prepare:
+    name: Prepare Linux release ${{ inputs.linux_version }}
     needs: validate
-    if: needs.validate.outputs.do_linux == 'true'
+    if: needs.validate.outputs.do_prepare == 'true'
     runs-on: ubuntu-latest
-    environment: release
     permissions:
       contents: write
-
     steps:
-      - name: Checkout base branch
+      - name: Checkout develop
         uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.base_branch }}
+          ref: develop
           fetch-depth: 0
+          fetch-tags: true
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure git identity
+      - name: Configure git identity as triggering actor
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
         run: |
-          git config user.name  "$GIT_AUTHOR_NAME"
-          git config user.email "$GIT_AUTHOR_EMAIL"
+          ACTOR_ID=$(gh api "users/${ACTOR}" --jq '.id')
+          git config user.name  "${ACTOR}"
+          git config user.email "${ACTOR_ID}+${ACTOR}@users.noreply.github.com"
 
-      # ── 1. Create release branch ──────────────────────────────────────────
       - name: Create release branch
         id: branch
         env:
           VERSION: ${{ inputs.linux_version }}
         run: |
-          BRANCH="release-lnx-${VERSION}"
+          BRANCH="ci/release-lnx-${VERSION}"
 
           if git ls-remote --exit-code --heads origin "refs/heads/${BRANCH}" >/dev/null 2>&1; then
             echo "ERROR: Branch '${BRANCH}' already exists on remote."
@@ -185,29 +234,88 @@ jobs:
           git checkout -b "$BRANCH"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
 
-      # ── 2. Bump version in version.h ──────────────────────────────────────
       - name: Update src/linux/version.h
         env:
           VERSION: ${{ inputs.linux_version }}
         run: |
           FILE="src/linux/version.h"
-
           sed -i "s/#define DRIVER_VERSION \".*\"/#define DRIVER_VERSION \"${VERSION}\"/" "$FILE"
-
+          grep -q "\"${VERSION}\"" "$FILE" || \
+            { echo "ERROR: version.h was not updated correctly"; exit 1; }
           echo "Updated $FILE:"
           cat "$FILE"
 
-          # Verify the change landed
-          grep -q "\"${VERSION}\"" "$FILE" || \
-            { echo "ERROR: version.h was not updated correctly"; exit 1; }
+      - name: Ensure RELEASES.md has a section for this version
+        id: notes
+        env:
+          VERSION: ${{ inputs.linux_version }}
+        run: |
+          FILE="src/linux/RELEASES.md"
 
-      # ── 3. Commit & push release branch ───────────────────────────────────
+          if grep -qF "## [${VERSION}]" "$FILE"; then
+            echo "RELEASES.md already has a section for ${VERSION} - leaving it untouched."
+            echo "inserted=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          PREV_TAG=$(git tag -l 'release-lnx-v*' | sed 's/^release-lnx-v//' | sort -V | tail -1)
+          if [ -n "$PREV_TAG" ]; then
+            LOG_RANGE="release-lnx-v${PREV_TAG}..HEAD"
+          else
+            LOG_RANGE="HEAD"
+          fi
+
+          python3 - "$FILE" "$VERSION" "$LOG_RANGE" <<'PYEOF'
+          import subprocess
+          import sys
+          from datetime import date
+
+          file_path, version, log_range = sys.argv[1], sys.argv[2], sys.argv[3]
+
+          with open(file_path, "rb") as f:
+              raw = f.read()
+
+          crlf = b"\r\n" in raw
+          nl = "\r\n" if crlf else "\n"
+          text = raw.decode("utf-8")
+          lines = text.split("\r\n" if crlf else "\n")
+
+          log_args = ["git", "log", "--pretty=format:%s", log_range,
+                      "--", "src/linux", "scripts/linux"]
+          subjects = subprocess.run(log_args, capture_output=True, text=True, check=True) \
+              .stdout.splitlines()
+          subjects = [s for s in subjects if s.strip()]
+          if not subjects:
+              subjects = ["Version bump to " + version]
+
+          today = date.today().isoformat()
+          section = [f"## [{version}] - {today}"]
+          section += [f"{i + 1}. {s}" for i, s in enumerate(subjects)]
+          section.append("")
+
+          insert_at = None
+          for i, line in enumerate(lines):
+              if line.strip() == "---":
+                  insert_at = i + 1
+                  break
+          if insert_at is None:
+              insert_at = len(lines)
+
+          new_lines = lines[:insert_at] + section + lines[insert_at:]
+          with open(file_path, "wb") as f:
+              f.write(nl.join(new_lines).encode("utf-8"))
+          PYEOF
+
+          echo "Inserted draft RELEASES.md section for ${VERSION}:"
+          grep -A 5 -F "## [${VERSION}]" "$FILE"
+          echo "inserted=true" >> "$GITHUB_OUTPUT"
+
       - name: Commit version bump
         env:
           VERSION: ${{ inputs.linux_version }}
         run: |
-          git add src/linux/version.h
-          git commit -m "Update Linux driver version to ${VERSION}"
+          git add src/linux/version.h src/linux/RELEASES.md
+          git commit -s -m "ci/release-lnx-${VERSION}: prepare Linux release ${VERSION}"
 
       - name: Push release branch
         env:
@@ -215,141 +323,294 @@ jobs:
         run: |
           git push origin "$BRANCH"
 
-      # ── 4. Build .deb package ─────────────────────────────────────────────
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends dpkg-dev
-
-      - name: Build deb package
-        id: build
-        run: |
-          cd src/linux
-          set -o pipefail
-          bash build-deb.sh 2>&1 | tee /tmp/build.log
-          echo "Build output:"
-          ls -lh build/
-
-      - name: Job summary
-        if: always()
+      - name: Print PR link in job summary
         env:
           VERSION: ${{ inputs.linux_version }}
           BRANCH: ${{ steps.branch.outputs.branch }}
-          BUILD_RESULT: ${{ steps.build.outcome }}
+          REPO: ${{ github.repository }}
+          INSERTED: ${{ steps.notes.outputs.inserted }}
+        run: |
+          TITLE="${BRANCH}: prepare Linux release ${VERSION}"
+          BODY="## Linux release ${VERSION}
+
+          Bumps \`src/linux/version.h\` to ${VERSION}."
+          if [ "$INSERTED" = "true" ]; then
+            BODY="${BODY}
+
+          A draft \`RELEASES.md\` section was generated from the commits since the
+          previous tag - please review and finalize the notes before merging,
+          since they ship inside the \`.deb\`."
+          fi
+          BODY="${BODY}
+
+          ### QA
+          - [ ] Download the \`linux-deb-package\` artifact from this PR's Build run.
+          - [ ] Install the \`.deb\` on each supported distribution/kernel combination.
+          - [ ] Merge into \`develop\` once QA passes."
+
+          ENC_TITLE=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$TITLE")
+          ENC_BODY=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1]))" "$BODY")
+          COMPARE_URL="https://github.com/${REPO}/compare/develop...${BRANCH}?quick_pull=1&title=${ENC_TITLE}&body=${ENC_BODY}"
+
+          {
+            echo "## Linux Release Prepared - v${VERSION}"
+            echo ""
+            echo "Branch \`${BRANCH}\` has been pushed."
+            echo ""
+            echo "**[Open the release PR into develop](${COMPARE_URL})**"
+            echo ""
+            echo "> Open it from this link (not a fresh PR) so the PR is attributed to"
+            echo "> you - a bot-opened PR would not trigger required checks."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Stage: automatically tag + pre-release when Build succeeds on main.
+  # Never rebuilds - downloads the exact artifact Build produced.
+  # ───────────────────────────────────────────────────────────────────────────
+  linux-prerelease:
+    name: Linux pre-release
+    if: >
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Checkout built commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Determine version and tag state
+        id: state
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          VERSION=$(grep -E '^[[:space:]]*#define[[:space:]]+DRIVER_VERSION' src/linux/version.h \
+            | sed -E 's/.*"([^"]+)".*/\1/')
+          TAG="release-lnx-v${VERSION}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          TAG_SHA=$(git ls-remote origin "refs/tags/${TAG}" "refs/tags/${TAG}^{}" \
+            | awk '{print $1}' | tail -1)
+
+          if [ -z "$TAG_SHA" ]; then
+            echo "case=new" >> "$GITHUB_OUTPUT"
+          elif [ "$TAG_SHA" = "$SHA" ]; then
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              echo "case=done" >> "$GITHUB_OUTPUT"
+            else
+              echo "case=recover" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "case=no-bump" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "Version: $VERSION  Tag: $TAG  Case: (see output)"
+
+      - name: No-op (no version bump / already released)
+        if: steps.state.outputs.case == 'done' || steps.state.outputs.case == 'no-bump'
+        env:
+          CASE: ${{ steps.state.outputs.case }}
+          TAG: ${{ steps.state.outputs.tag }}
         run: |
           {
-            echo "## Linux Release Summary — v${VERSION}"
-            echo ""
-            echo "| Step | Result |"
-            echo "|------|--------|"
-            echo "| Release branch | \`${BRANCH}\` |"
-            if [ "$BUILD_RESULT" = "success" ]; then
-              echo "| Build .deb | ✅ Success |"
+            echo "## Linux Pre-release - no action"
+            if [ "$CASE" = "done" ]; then
+              echo "\`${TAG}\` is already tagged and released - nothing to do."
             else
-              echo "| Build .deb | ❌ **Failed** |"
-              echo ""
-              echo "### Build log"
-              echo "\`\`\`"
-              tail -50 /tmp/build.log 2>/dev/null || echo "(no log captured)"
-              echo "\`\`\`"
-              echo ""
-              echo "> **Action required:** Fix the build error, then re-run the workflow."
-              echo "> The release branch \`${BRANCH}\` has been pushed — delete it before re-running."
+              echo "No Linux version bump on this push - nothing to do."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # ── 5. Package release artifact ───────────────────────────────────────
-      - name: Create release zip
-        id: zip
-        env:
-          VERSION: ${{ inputs.linux_version }}
-        run: |
-          DIR_NAME="qud_${VERSION}_all"
-          ZIP_NAME="${DIR_NAME}.zip"
-          DEB_FILE="src/linux/build/qud_${VERSION}_all.deb"
-
-          if [ ! -f "$DEB_FILE" ]; then
-            echo "ERROR: Expected deb not found: $DEB_FILE"
-            ls src/linux/build/ || true
-            exit 1
-          fi
-
-          mkdir -p "release_staging/${DIR_NAME}"
-          cp "$DEB_FILE"              "release_staging/${DIR_NAME}/"
-          cp "src/linux/RELEASES.md"  "release_staging/${DIR_NAME}/"
-
-          # Prefer src/linux/README.md, fall back to repo root README.md
-          if [ -f "src/linux/README.md" ]; then
-            cp "src/linux/README.md" "release_staging/${DIR_NAME}/"
-          elif [ -f "README.md" ]; then
-            cp "README.md" "release_staging/${DIR_NAME}/"
-          fi
-
-          (cd release_staging && zip -r "../${ZIP_NAME}" "${DIR_NAME}/")
-
-          echo "zip_name=$ZIP_NAME" >> "$GITHUB_OUTPUT"
-          echo "zip_path=${ZIP_NAME}" >> "$GITHUB_OUTPUT"
-          echo "Release zip contents:"
-          unzip -l "$ZIP_NAME"
-
-      # ── 6. Create tag ─────────────────────────────────────────────────────
-      - name: Create and push tag
-        id: tag
-        env:
-          VERSION: ${{ inputs.linux_version }}
-        run: |
-          TAG="release-lnx-v${VERSION}"
-
-          if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
-            echo "ERROR: Tag '${TAG}' already exists on remote."
-            exit 1
-          fi
-
-          git tag -a "$TAG" -m "Linux release v${VERSION}"
-          git push origin "$TAG"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-
-      # ── 7. Create GitHub release ──────────────────────────────────────────
-      - name: Create GitHub release
+      - name: Validate version and release notes
+        if: steps.state.outputs.case == 'new'
+        id: notes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ inputs.linux_version }}
-          TAG: ${{ steps.tag.outputs.tag }}
-          BRANCH: ${{ steps.branch.outputs.branch }}
-          RELEASE_NOTES: ${{ inputs.release_notes }}
-          IS_DRAFT: ${{ inputs.draft }}
-          ZIP_PATH: ${{ steps.zip.outputs.zip_path }}
+          REPO: ${{ github.repository }}
+          VERSION: ${{ steps.state.outputs.version }}
         run: |
-          NOTES="$RELEASE_NOTES"
-
-          if [ -z "$NOTES" ]; then
-            NOTES="## Linux driver release v${VERSION}
-
-          Built from branch \`${BRANCH}\`.
-
-          ### Installation
-          \`\`\`bash
-          sudo dpkg -i qud_${VERSION}_all.deb
-          \`\`\`
-
-          ### Uninstall
-          \`\`\`bash
-          sudo dpkg -r qud
-          \`\`\`"
+          LATEST=$(gh api "repos/${REPO}/git/matching-refs/tags/release-lnx-v" \
+            --jq '.[].ref' | sed 's#refs/tags/release-lnx-v##' | sort -V | tail -1)
+          if [ -n "$LATEST" ]; then
+            TOP=$(printf '%s\n%s\n' "$LATEST" "$VERSION" | sort -V | tail -1)
+            if [ "$TOP" != "$VERSION" ] || [ "$VERSION" = "$LATEST" ]; then
+              echo "ERROR: DRIVER_VERSION '$VERSION' is not newer than the latest tag release-lnx-v${LATEST}."
+              exit 1
+            fi
           fi
 
-          DRAFT_FLAG=""
-          if [ "$IS_DRAFT" = "true" ]; then
-            DRAFT_FLAG="--draft"
+          SECTION=$(awk -v ver="$VERSION" '
+            $0 ~ ("^## \\[" ver "\\]") {found=1; next}
+            found && /^## \[/ {exit}
+            found && /^---/ {exit}
+            found {print}
+          ' src/linux/RELEASES.md)
+
+          if [ -z "$(echo "$SECTION" | tr -d '[:space:]')" ]; then
+            echo "ERROR: RELEASES.md has no (or an empty) section for ${VERSION}."
+            exit 1
           fi
+
+          {
+            echo "$SECTION"
+          } > /tmp/release_notes_body.md
+          echo "Release notes section:"
+          cat /tmp/release_notes_body.md
+
+      - name: Create and push tag
+        if: steps.state.outputs.case == 'new'
+        env:
+          TAG: ${{ steps.state.outputs.tag }}
+          VERSION: ${{ steps.state.outputs.version }}
+          REPO: ${{ github.repository }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Linux release v${VERSION}"
+          git push "https://x-access-token:${TOKEN}@github.com/${REPO}.git" "$TAG"
+
+      - name: Download build artifact
+        if: steps.state.outputs.case == 'new' || steps.state.outputs.case == 'recover'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          mkdir -p /tmp/assets
+          gh run download "$RUN_ID" --name linux-deb-package --dir /tmp/assets
+          ls -lh /tmp/assets
+
+      - name: Verify artifact and write checksums
+        if: steps.state.outputs.case == 'new' || steps.state.outputs.case == 'recover'
+        env:
+          VERSION: ${{ steps.state.outputs.version }}
+        run: |
+          cd /tmp/assets
+          DEB=$(find . -name "*.deb" | head -n 1)
+          test -n "$DEB" || { echo "ERROR: no .deb in artifact"; exit 1; }
+          sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends dpkg-dev
+          dpkg-deb -I "$DEB" | grep -qE "^ Version: ${VERSION}\$" || \
+            { echo "ERROR: artifact .deb version does not match ${VERSION}"; exit 1; }
+          sha256sum *.deb *.zip > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Build release notes (recover case)
+        if: steps.state.outputs.case == 'recover'
+        env:
+          VERSION: ${{ steps.state.outputs.version }}
+        run: |
+          awk -v ver="$VERSION" '
+            $0 ~ ("^## \\[" ver "\\]") {found=1; next}
+            found && /^## \[/ {exit}
+            found && /^---/ {exit}
+            found {print}
+          ' src/linux/RELEASES.md > /tmp/release_notes_body.md
+
+      - name: Create pre-release
+        if: steps.state.outputs.case == 'new' || steps.state.outputs.case == 'recover'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.state.outputs.tag }}
+          VERSION: ${{ steps.state.outputs.version }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          REPO: ${{ github.repository }}
+        run: |
+          {
+            cat /tmp/release_notes_body.md
+            echo ""
+            echo "### Installation"
+            echo '```bash'
+            echo "sudo dpkg -i qud_${VERSION}_all.deb"
+            echo '```'
+            echo ""
+            echo "### Uninstall"
+            echo '```bash'
+            echo "sudo dpkg -r qud"
+            echo '```'
+            echo ""
+            echo "### SHA-256"
+            echo '```'
+            cat /tmp/assets/SHA256SUMS
+            echo '```'
+            echo ""
+            echo "Built from run: https://github.com/${REPO}/actions/runs/${RUN_ID}"
+          } > /tmp/release_notes.md
 
           gh release create "$TAG" \
-            "$ZIP_PATH" \
+            /tmp/assets/*.deb /tmp/assets/*.zip /tmp/assets/SHA256SUMS \
             --title "$TAG" \
-            --notes "$NOTES" \
-            $DRAFT_FLAG
+            --notes-file /tmp/release_notes.md \
+            --prerelease
 
-          echo "✅ Linux release created: $TAG"
+          echo "## Linux Pre-release created - ${TAG}" >> "$GITHUB_STEP_SUMMARY"
+          echo "QA: install the pre-release assets, then promote via the Release workflow's \`promote_linux\` input once verified." >> "$GITHUB_STEP_SUMMARY"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Stage: promote an existing Linux pre-release to final + Latest.
+  # Gated by the 'release' environment's required reviewers. Nothing is
+  # rebuilt or re-tagged here.
+  # ───────────────────────────────────────────────────────────────────────────
+  linux-promote:
+    name: Promote Linux release ${{ inputs.promote_linux }}
+    needs: validate
+    if: needs.validate.outputs.do_promote == 'true'
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - name: Verify release exists and is a pre-release
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ inputs.promote_linux }}
+        run: |
+          TAG="release-lnx-v${VERSION}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          if ! gh release view "$TAG" --json isPrerelease >/tmp/release.json 2>/dev/null; then
+            echo "ERROR: release '${TAG}' does not exist."
+            exit 1
+          fi
+
+          IS_PRERELEASE=$(jq -r '.isPrerelease' /tmp/release.json)
+          if [ "$IS_PRERELEASE" != "true" ]; then
+            echo "Release '${TAG}' is already final - nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Verify asset checksums
+        if: steps.check.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.check.outputs.tag }}
+        run: |
+          mkdir -p /tmp/promote
+          gh release download "$TAG" -D /tmp/promote
+          cd /tmp/promote
+          sha256sum -c SHA256SUMS
+
+      - name: Mark release final and Latest
+        if: steps.check.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.check.outputs.tag }}
+        run: |
+          gh release edit "$TAG" --prerelease=false --latest
+          echo "Promoted ${TAG} to final + Latest."
+          echo "## Linux release promoted - ${TAG}" >> "$GITHUB_STEP_SUMMARY"
 
   # ───────────────────────────────────────────────────────────────────────────
   # Windows release
@@ -366,6 +627,8 @@ jobs:
   #      before the release is published.
   #
   # To build locally:  .\build\build_drivers.ps1  (requires VS + WDK)
+  # Out of scope for the Linux release redesign - unchanged. See decision #11
+  # in docs/linux/RELEASING.md.
   # ───────────────────────────────────────────────────────────────────────────
   release-windows:
     name: Windows release ${{ inputs.windows_version }}
@@ -375,6 +638,12 @@ jobs:
     environment: release
     permissions:
       contents: write
+
+    env:
+      GIT_AUTHOR_NAME: github-actions[bot]
+      GIT_AUTHOR_EMAIL: github-actions[bot]@users.noreply.github.com
+      GIT_COMMITTER_NAME: github-actions[bot]
+      GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
 
     steps:
       - name: Checkout base branch
@@ -513,5 +782,5 @@ jobs:
             --notes "$NOTES" \
             --draft
 
-          echo "✅ Windows draft release created: $TAG"
+          echo "Windows draft release created: $TAG"
           echo "   Attach signed build artifacts and publish when ready."
