@@ -2,7 +2,7 @@
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
 */
-
+// qcom_usbnet kernel module
 #include "qmidevice.h"
 #include "qmi.h"
 #include "qmap.h"
