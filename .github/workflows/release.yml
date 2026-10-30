@@ -379,6 +379,11 @@ jobs:
       contents: write
       actions: read
     steps:
+      # Safe against "pwn request": the job `if:` above restricts this to
+      # workflow_run.event == 'push' on head_branch == 'main', so head_sha
+      # is always a commit already on main (merged/reviewed or a trusted
+      # maintainer push) - never an untrusted fork PR's head commit. See
+      # https://securitylab.github.com/research/github-actions-preventing-pwn-requests/
       - name: Checkout built commit
         uses: actions/checkout@v7
         with:
