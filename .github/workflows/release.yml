@@ -3,6 +3,11 @@
 
 name: Release
 
+# zizmor: ignore[dangerous-triggers] workflow_run is restricted to
+# event == 'push' on head_branch == 'main' in the linux-prerelease job's
+# `if:` (never a fork pull_request run), and only reads head_sha (a fixed
+# 40-hex-char SHA, not attacker-controlled free text) from the event
+# payload - see the comment above the checkout step in that job.
 on:
   workflow_dispatch:
     inputs:
