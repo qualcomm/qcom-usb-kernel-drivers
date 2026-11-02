@@ -209,10 +209,12 @@ jobs:
       - name: Checkout develop
         uses: actions/checkout@v7
         with:
+          # Always prepare from develop, regardless of which branch this
+          # workflow_dispatch was run from.
           ref: develop
           fetch-depth: 0
           fetch-tags: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - name: Configure git identity as triggering actor
         env:
@@ -323,9 +325,11 @@ jobs:
 
       - name: Push release branch
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: ${{ steps.branch.outputs.branch }}
+          REPO: ${{ github.repository }}
         run: |
-          git push origin "$BRANCH"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "$BRANCH"
 
       - name: Print PR link in job summary
         env:
