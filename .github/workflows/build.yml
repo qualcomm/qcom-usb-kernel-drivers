@@ -5,6 +5,8 @@ name: Build
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
@@ -14,7 +16,7 @@ jobs:
   # ============================================================
   # Detect which platform directories changed.
   # Outputs:
-  #   run_linux   – true when src/linux/** is touched
+  #   run_linux   – true when src/linux/** or scripts/linux/** is touched
   #   run_windows – true when build/** or src/windows/** is touched
   # ============================================================
   detect-changes:
@@ -32,15 +34,31 @@ jobs:
       - name: Determine changed paths
         id: filter
         env:
+          EVENT_NAME: ${{ github.event_name }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.event.after }}
         run: |
-          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          if [ "$EVENT_NAME" = "push" ]; then
+            FROM_SHA="$PUSH_BEFORE"
+            TO_SHA="$PUSH_AFTER"
+            # A new-branch push or force-push can make the before SHA
+            # unreachable; fall back to diffing against the parent commit.
+            if ! git cat-file -e "${FROM_SHA}^{commit}" 2>/dev/null; then
+              FROM_SHA="${TO_SHA}^"
+            fi
+          else
+            FROM_SHA="$BASE_SHA"
+            TO_SHA="$HEAD_SHA"
+          fi
+
+          CHANGED=$(git diff --name-only "$FROM_SHA" "$TO_SHA")
           echo "Changed files:"
           echo "$CHANGED"
 
-          # Linux: any change under src/linux/
-          if echo "$CHANGED" | grep -qE '^src/linux/'; then
+          # Linux: any change under src/linux/ or scripts/linux/
+          if echo "$CHANGED" | grep -qE '^(src/linux/|scripts/linux/)'; then
             echo "linux=true"  >> "$GITHUB_OUTPUT"
           else
             echo "linux=false" >> "$GITHUB_OUTPUT"
@@ -116,27 +134,43 @@ jobs:
       - name: Install dpkg tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y dpkg
+          sudo apt-get install -y dpkg dpkg-dev zip
 
-      - name: Build .deb package
+      - name: Build .deb and .zip package
         working-directory: src/linux
-        run: bash build-deb.sh
+        run: bash build-deb.sh zip
 
-      - name: Verify .deb package
+      - name: Verify package contents
         working-directory: src/linux
         run: |
           DEB=$(find build -name "*.deb" | head -n 1)
+          ZIP=$(find build -name "*.zip" | head -n 1)
           echo "Package: $DEB"
+          echo "Zip bundle: $ZIP"
           test -n "$DEB" || (echo "ERROR: No .deb file produced" && exit 1)
+          test -n "$ZIP" || (echo "ERROR: No .zip file produced" && exit 1)
+
+          VERSION="$(grep -E '^[[:space:]]*#define[[:space:]]+DRIVER_VERSION' version.h \
+            | sed -E 's/.*"([^"]+)".*/\1/')"
+          echo "Expected version: $VERSION"
+
           dpkg-deb -I "$DEB"
+          dpkg-deb -I "$DEB" | grep -qE "^ Version: ${VERSION}\$" || \
+            (echo "ERROR: .deb Version does not match version.h ($VERSION)" && exit 1)
+          dpkg-deb -I "$DEB" | grep -qE "^ Architecture: all\$" || \
+            (echo "ERROR: .deb Architecture is not 'all'" && exit 1)
           dpkg-deb -c "$DEB"
 
-      - name: Upload .deb artifact
+          unzip -l "$ZIP"
+
+      - name: Upload .deb/.zip artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: linux-deb-package
-          path: src/linux/build/*.deb
-          retention-days: 1
+          path: |
+            src/linux/build/*.deb
+            src/linux/build/*.zip
+          retention-days: ${{ github.event_name == 'push' && 30 || 1 }}
 
   # ============================================================
   # Windows: build drivers

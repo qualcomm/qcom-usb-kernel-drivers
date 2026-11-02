@@ -2,7 +2,6 @@
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
 */
-
 #include "qmidevice.h"
 #include "qmi.h"
 #include "qmap.h"
