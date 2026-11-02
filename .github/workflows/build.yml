@@ -71,6 +71,29 @@ jobs:
             echo "windows=false" >> "$GITHUB_OUTPUT"
           fi
 
+          echo "from_sha=$FROM_SHA" >> "$GITHUB_OUTPUT"
+          echo "to_sha=$TO_SHA"     >> "$GITHUB_OUTPUT"
+
+      - name: Guard against an unbumped Linux version on main
+        if: github.event_name == 'push' && steps.filter.outputs.linux == 'true'
+        env:
+          FROM_SHA: ${{ steps.filter.outputs.from_sha }}
+          TO_SHA: ${{ steps.filter.outputs.to_sha }}
+        run: |
+          OLD_VERSION=$(git show "${FROM_SHA}:src/linux/version.h" \
+            | grep -E '^[[:space:]]*#define[[:space:]]+DRIVER_VERSION' \
+            | sed -E 's/.*"([^"]+)".*/\1/')
+          NEW_VERSION=$(git show "${TO_SHA}:src/linux/version.h" \
+            | grep -E '^[[:space:]]*#define[[:space:]]+DRIVER_VERSION' \
+            | sed -E 's/.*"([^"]+)".*/\1/')
+
+          if [ "$OLD_VERSION" = "$NEW_VERSION" ]; then
+            echo "::error file=src/linux/version.h::This push to main changes src/linux/ or scripts/linux/, but DRIVER_VERSION is still \"${NEW_VERSION}\" (unchanged). Bump src/linux/version.h and add a matching section to src/linux/RELEASES.md on develop before promoting to main, otherwise no Linux pre-release will be queued for this change."
+            exit 1
+          fi
+
+          echo "DRIVER_VERSION bumped: ${OLD_VERSION} -> ${NEW_VERSION}"
+
   # ============================================================
   # Linux: build kernel modules
   # ============================================================
