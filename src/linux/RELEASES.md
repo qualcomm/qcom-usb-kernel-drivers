@@ -23,7 +23,7 @@ Qualcomm USB host drivers providing logical representations of Qualcomm chipset-
 
 ---
 
-## [1.0.6.6] - 2026-09-3
+## [1.0.6.7] - 2026-09-16
 1. Extended support for Debian 13 ARM64 platform.
 2. Automated removal of existing QUD Debian packages during QUD installation via QSC/QPM.
 3. Automated removal of existing QUD Userspace Debian packages during QUD installation via QSC/QPM.

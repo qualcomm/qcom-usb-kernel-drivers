@@ -1,6 +1,6 @@
 # Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 # SPDX-License-Identifier: BSD-3-Clause
-#
+
 param(
     [string]$OutputName = "installer.exe",
     [ValidateSet("x64", "x86", "arm64")]
@@ -23,8 +23,8 @@ $Script:PayloadItems = @(
     @{ Path = "tools";   Arch = $null; Promote = @("qdclr.exe", "qdinstall.exe") }
 )
 
-# Only .cat files must be Microsoft-attested signed before the installer can be built.
-# .sys files and .cab are signed by QCOM EV signing and are not checked here.
+# .cat files must carry a Microsoft WHQL (kernel-policy) signature.
+# .sys files must carry both a Qualcomm EV signature and a Microsoft WHCP signature.
 # Paths are relative to $Script:OutputRoot.
 $Script:RequiredSignedFiles = @(
     "drivers\qcadb.cat"
@@ -57,7 +57,7 @@ function Find-SignTool {
     return $null
 }
 
-# Verifies all required files are signed. Errors out listing every unsigned file.
+# Verifies all required .cat files (WHQL) and all .sys files (Qualcomm EV + WHCP).
 function Assert-DriversSigned {
     Write-Host "========================================"
     Write-Host " Verifying Driver Signatures"
@@ -70,9 +70,11 @@ function Assert-DriversSigned {
     }
     Write-Host "[INFO] Using signtool: $signtool`n"
 
-    $unsigned = @()
-    $missing  = @()
+    $failed  = @()
+    $missing = @()
 
+    # --- Check .cat files (WHQL kernel policy) ---
+    Write-Host "Checking CAT files..."
     foreach ($rel in $Script:RequiredSignedFiles) {
         $fullPath = Join-Path $Script:OutputRoot $rel
 
@@ -81,11 +83,51 @@ function Assert-DriversSigned {
             continue
         }
 
-        # signtool verify /kp = verify against kernel-mode driver signing policy (WHQL only)
-        $result = & $signtool verify /kp /q $fullPath 2>&1
+        # /kp = kernel-mode driver signing policy (WHQL only)
+        & $signtool verify /kp /q $fullPath 2>&1 | Out-Null
         if ($LASTEXITCODE -ne 0) {
-            $unsigned += $rel
+            $failed += $rel
             Write-Host "[UNSIGNED] $rel" -ForegroundColor Red
+        } else {
+            Write-Host "[SIGNED]   $rel" -ForegroundColor Green
+        }
+    }
+
+    # --- Check .sys files (Qualcomm EV + Microsoft WHCP) ---
+    Write-Host "`nChecking SYS files..."
+    $driversDir = Join-Path $Script:OutputRoot "drivers"
+    $sysFiles   = Get-ChildItem -Path $driversDir -Recurse -Filter "*.sys" -ErrorAction SilentlyContinue
+
+    foreach ($file in $sysFiles) {
+        $rel      = $file.FullName.Substring($Script:OutputRoot.Length).TrimStart('\','/')
+        $tempLog  = [System.IO.Path]::GetTempFileName()
+
+        # /pa /all = verify all signatures using default auth policy
+        & $signtool verify /pa /all /v $file.FullName 2>&1 | Set-Content $tempLog
+
+        $logContent = Get-Content $tempLog -Raw
+        Remove-Item $tempLog -Force
+
+        $hasQcom     = $logContent -match "Issued to: Qualcomm Technologies, Inc\."
+        $hasWhcp     = $logContent -match "Issued to: Microsoft Windows Hardware Compatibility Publisher"
+        $isVerified  = $logContent -match "Successfully verified"
+
+        $fileFailed = $false
+        if (-not $hasQcom) {
+            Write-Host "[FAIL] Qualcomm signature missing: $rel" -ForegroundColor Red
+            $fileFailed = $true
+        }
+        if (-not $hasWhcp) {
+            Write-Host "[FAIL] Microsoft WHCP signature missing: $rel" -ForegroundColor Red
+            $fileFailed = $true
+        }
+        if (-not $isVerified) {
+            Write-Host "[FAIL] Signature verification failed: $rel" -ForegroundColor Red
+            $fileFailed = $true
+        }
+
+        if ($fileFailed) {
+            $failed += $rel
         } else {
             Write-Host "[SIGNED]   $rel" -ForegroundColor Green
         }
@@ -96,14 +138,14 @@ function Assert-DriversSigned {
     if ($missing.Count -gt 0) {
         Write-Host "[ERROR] The following required files are missing:" -ForegroundColor Red
         $missing | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
-        Write-Host "[ERROR] Catalog file integrity verification failed. Please try rebuilding the drivers. `n" -ForegroundColor Red
+        Write-Host "[ERROR] Catalog file integrity verification failed. Please try rebuilding the drivers.`n" -ForegroundColor Red
         exit 1
     }
 
-    if ($unsigned.Count -gt 0) {
-        Write-Host "[ERROR] The following files are not signed:" -ForegroundColor Red
-        $unsigned | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
-        Write-Host "[ERROR] WHQL signature verification failed. Please run AttestDrivers.bat to get WHQL sign for all .cat files before building the installer. `n" -ForegroundColor Red
+    if ($failed.Count -gt 0) {
+        Write-Host "[ERROR] The following files failed signature verification:" -ForegroundColor Red
+        $failed | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
+        Write-Host "[ERROR] Signature verification failed. Please run AttestDrivers.bat before building the installer.`n" -ForegroundColor Red
         exit 1
     }
 

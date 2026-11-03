@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.14.37314.3 d17.14
+VisualStudioVersion = 17.14.37314.3
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "qcusbfilter", "qcusbfilter.vcxproj", "{AAC5BB08-77C0-4626-A944-7FB0ADC3E4F1}"
 EndProject
@@ -9,10 +9,8 @@ Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM64 = Debug|ARM64
 		Debug|x64 = Debug|x64
-		
 		Release|ARM64 = Release|ARM64
 		Release|x64 = Release|x64
-		
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{AAC5BB08-77C0-4626-A944-7FB0ADC3E4F1}.Debug|ARM64.ActiveCfg = Debug|ARM64
@@ -21,16 +19,17 @@ Global
 		{AAC5BB08-77C0-4626-A944-7FB0ADC3E4F1}.Debug|x64.ActiveCfg = Debug|x64
 		{AAC5BB08-77C0-4626-A944-7FB0ADC3E4F1}.Debug|x64.Build.0 = Debug|x64
 		{AAC5BB08-77C0-4626-A944-7FB0ADC3E4F1}.Debug|x64.Deploy.0 = Debug|x64
-		
 		{AAC5BB08-77C0-4626-A944-7FB0ADC3E4F1}.Release|ARM64.ActiveCfg = Release|ARM64
 		{AAC5BB08-77C0-4626-A944-7FB0ADC3E4F1}.Release|ARM64.Build.0 = Release|ARM64
 		{AAC5BB08-77C0-4626-A944-7FB0ADC3E4F1}.Release|ARM64.Deploy.0 = Release|ARM64
 		{AAC5BB08-77C0-4626-A944-7FB0ADC3E4F1}.Release|x64.ActiveCfg = Release|x64
 		{AAC5BB08-77C0-4626-A944-7FB0ADC3E4F1}.Release|x64.Build.0 = Release|x64
 		{AAC5BB08-77C0-4626-A944-7FB0ADC3E4F1}.Release|x64.Deploy.0 = Release|x64
-		
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1DCB8105-39E5-4F0E-B6CC-B63C36DAF825}
 	EndGlobalSection
 EndGlobal

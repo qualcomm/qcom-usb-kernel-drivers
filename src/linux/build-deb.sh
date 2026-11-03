@@ -180,6 +180,7 @@ Priority: optional
 Architecture: $DEB_ARCH
 Maintainer: $MAINTAINER
 Depends: bash, coreutils, sed, grep, kmod, mokutil, keyutils, python3-tk
+Recommends: build-essential, make, gawk
 Conflicts: qualcomm-userspace-driver
 Replaces: qualcomm-userspace-driver
 Breaks: qualcomm-userspace-driver
@@ -233,6 +234,16 @@ if command -v qpm-cli >/dev/null 2>&1; then
   fi
 else
   echo "[QUD] qpm-cli not available, skipping qpm-cli QUD uninstall." >> "\$LOG_FILE" 2>&1
+fi
+
+LOG_HEADER "qsc-cli QUD uninstall (qud.internal / qud / qud.slt)"
+if command -v qsc-cli >/dev/null 2>&1; then
+  for QUD_QSC_PKG in qud.internal qud qud.slt; do
+    echo "[QUD] Uninstalling \$QUD_QSC_PKG via qsc-cli (if installed)..." >> "\$LOG_FILE" 2>&1
+    qsc-cli tool uninstall --name "\$QUD_QSC_PKG" >> "\$LOG_FILE" 2>&1 || true
+  done
+else
+  echo "[QUD] qsc-cli not available, skipping qsc-cli QUD uninstall." >> "\$LOG_FILE" 2>&1
 fi
 
 LOG_HEADER "Legacy QUD cleanup"
@@ -346,7 +357,13 @@ for pkg in \$BUILD_DEPS; do
 done
 if [ -n "\$MISSING_DEPS" ]; then
   echo "[QUD] Installing missing build dependencies:\$MISSING_DEPS ..." >> "\$LOG_FILE" 2>&1
-  DEBIAN_FRONTEND=noninteractive apt-get install -y \$MISSING_DEPS >> "\$LOG_FILE" 2>&1 || true
+  APT_OUT=\$(DEBIAN_FRONTEND=noninteractive apt-get install -y \$MISSING_DEPS 2>&1) || {
+    if echo "\$APT_OUT" | grep -q "lock"; then
+      echo "[QUD] WARNING: dpkg lock held - build dependencies not installed. Retry manually: sudo apt-get install\$MISSING_DEPS" >> "\$LOG_FILE" 2>&1
+    else
+      echo "[QUD] WARNING: apt-get install failed:\$APT_OUT" >> "\$LOG_FILE" 2>&1
+    fi
+  }
 else
   echo "[QUD] All build dependencies already installed." >> "\$LOG_FILE" 2>&1
 fi
