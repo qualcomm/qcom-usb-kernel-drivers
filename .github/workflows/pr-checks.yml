@@ -30,18 +30,38 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Enforce develop-only source branch
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Enforce develop-only source branch (or workflow-only bypass)
         env:
           HEAD_REF: ${{ github.head_ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          if [ "$HEAD_REF" != "develop" ]; then
-            echo "::error::PRs targeting main are only accepted from the 'develop' branch."
-            echo "::error::This PR originates from '$HEAD_REF'."
-            echo "::error::Please target the 'develop' branch instead, or merge 'develop' → 'main' via the release process."
-            echo "::error::See CONTRIBUTING.md for the contribution workflow."
-            exit 1
+          if [ "$HEAD_REF" = "develop" ]; then
+            echo "Source branch is 'develop' — OK"
+            exit 0
           fi
-          echo "Source branch is 'develop' — OK"
+
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          NON_WORKFLOW=$(echo "$CHANGED" | grep -vE '^\.github/workflows/' || true)
+          if [ -z "$NON_WORKFLOW" ] && [ -n "$CHANGED" ]; then
+            echo "Workflow-only PR — bypassing the develop-only requirement."
+            echo "Changed files:"
+            echo "$CHANGED"
+            exit 0
+          fi
+
+          echo "::error::PRs targeting main are only accepted from the 'develop' branch,"
+          echo "::error::unless the PR exclusively changes files under .github/workflows/."
+          echo "::error::This PR originates from '$HEAD_REF' and changes:"
+          echo "$CHANGED"
+          echo "::error::Please target 'develop' instead, or merge via the release process."
+          exit 1
 
       - name: Enforce maintainer-only merge to main
         env:
@@ -60,6 +80,58 @@ jobs:
               echo "::error::Only maintainers (write/maintain/admin) may open PRs targeting main."
               echo "::error::Actor '${ACTOR}' has permission '${PERMISSION}'."
               echo "::error::Please open your PR against the 'develop' branch instead."
+              exit 1
+              ;;
+          esac
+
+  # ============================================================
+  # Hard-gate: only maintainers may modify .github/workflows/,
+  # regardless of which branch the PR targets.
+  # ============================================================
+  enforce-workflow-maintainer-only:
+    name: Workflows Are Maintainer-Only
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detect workflow changes
+        id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          echo "Changed files:"
+          echo "$CHANGED"
+          if echo "$CHANGED" | grep -qE '^\.github/workflows/'; then
+            echo "touches_workflows=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "touches_workflows=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Enforce maintainer-only edits to .github/workflows
+        if: steps.diff.outputs.touches_workflows == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+          REPO: ${{ github.repository }}
+        run: |
+          PERMISSION=$(gh api "repos/${REPO}/collaborators/${ACTOR}/permission" \
+            --jq '.permission' 2>/dev/null || echo "none")
+          echo "Actor '${ACTOR}' permission: ${PERMISSION}"
+          case "$PERMISSION" in
+            admin|maintain|write)
+              echo "Actor '${ACTOR}' is a maintainer — OK"
+              ;;
+            *)
+              echo "::error::Only maintainers (write/maintain/admin) may modify .github/workflows/."
+              echo "::error::Actor '${ACTOR}' has permission '${PERMISSION}'."
               exit 1
               ;;
           esac
@@ -259,7 +331,6 @@ jobs:
         run: |
           PROHIBITED_PATTERNS=(
             "^LICENSE"
-            "^\.github/workflows/"
             "^SECURITY\.md"
           )
           CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
