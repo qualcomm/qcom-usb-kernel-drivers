@@ -75,7 +75,9 @@ jobs:
           echo "to_sha=$TO_SHA"     >> "$GITHUB_OUTPUT"
 
       - name: Guard against an unbumped Linux version on main
-        if: github.event_name == 'push' && steps.filter.outputs.linux == 'true'
+        if: >
+          steps.filter.outputs.linux == 'true' &&
+          (github.event_name == 'push' || github.base_ref == 'main')
         env:
           FROM_SHA: ${{ steps.filter.outputs.from_sha }}
           TO_SHA: ${{ steps.filter.outputs.to_sha }}
