@@ -12,6 +12,11 @@ on:
       - reopened
       - synchronize
       - edited
+  pull_request_review:
+    types:
+      - submitted
+      - edited
+      - dismissed
 
 permissions:
   contents: read
@@ -83,6 +88,80 @@ jobs:
               exit 1
               ;;
           esac
+
+  # ============================================================
+  # QA sign-off gate for PRs targeting main:
+  #   mandatory only when src/ or build/ changed.
+  #   Passes only when a maintainer (write / maintain / admin) has
+  #   APPROVED the current head commit with a review body containing
+  #   "QA passed: <evidence>". QA has no repo access - they relay
+  #   results out-of-band and a maintainer attests to it here.
+  #   Re-evaluated on every push (invalidates stale sign-offs since a
+  #   new head commit means a new build artifact) and on every review.
+  # ============================================================
+  qa-signoff:
+    name: QA Sign-off
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.base.ref == 'main'
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Require maintainer approval acknowledging QA
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9
+        with:
+          script: |
+            const pr    = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+            const head  = pr.head.sha;
+
+            const files = await github.paginate(github.rest.pulls.listFiles,
+              { owner, repo, pull_number: pr.number, per_page: 100 });
+            const needsQa = files.some(f => /^(src\/|build\/)/.test(f.filename));
+            if (!needsQa) {
+              core.info("No src/ or build/ changes in this PR — no QA sign-off required.");
+              return;
+            }
+
+            // Latest decisive review per reviewer (plain comments do not count).
+            const reviews = await github.paginate(github.rest.pulls.listReviews,
+              { owner, repo, pull_number: pr.number, per_page: 100 });
+            const latest = new Map();
+            for (const r of reviews) {
+              if (["APPROVED", "CHANGES_REQUESTED", "DISMISSED"].includes(r.state)) {
+                latest.set(r.user.login, r);
+              }
+            }
+
+            const QA_LINE = /^\s*QA passed:\s*\S.*$/im;
+            for (const [login, r] of latest) {
+              if (r.state !== "APPROVED") continue;
+              if (r.commit_id !== head) {
+                core.info(`@${login} approved an older commit (${r.commit_id.slice(0, 7)}) — ignored.`);
+                continue;
+              }
+              const match = (r.body || "").match(QA_LINE);
+              if (!match) {
+                core.info(`@${login} approved without a "QA passed:" line — ignored.`);
+                continue;
+              }
+              const { data: perm } = await github.rest.repos.getCollaboratorPermissionLevel(
+                { owner, repo, username: login });
+              if (!["admin", "maintain", "write"].includes(perm.permission)) {
+                core.info(`@${login} is not a maintainer (${perm.permission}) — ignored.`);
+                continue;
+              }
+              core.info(`QA sign-off by @${login} on ${head.slice(0, 7)}: ${match[0].trim()}`);
+              return;
+            }
+
+            core.setFailed([
+              `Missing QA sign-off for the current head commit ${head.slice(0, 7)}.`,
+              `This PR changes src/ or build/, so QA must test the build artifact from this PR's own Build run before merging.`,
+              `After QA confirms, a maintainer must APPROVE the PR with a review body line such as:`,
+              `  QA passed: <QA result email subject, or link to the QA results>`,
+            ].join("\n"));
 
   # ============================================================
   # Hard-gate: only maintainers may modify .github/workflows/,
