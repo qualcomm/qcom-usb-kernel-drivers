@@ -1,6 +1,7 @@
 // ci/release-testing - This comment will trigger a build in pipeline when merging the PR in develop
 // when merging this from develop -> main, this PR will be flagged because of change being detected in linux/ dir but
 // no update in version.h and releases.md
+// ci/release-testing-no-version-bump - second round: testing the required-status-check gate on main
 /*
     Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
     SPDX-License-Identifier: BSD-3-Clause
