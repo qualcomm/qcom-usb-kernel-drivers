@@ -1,0 +1,318 @@
+# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
+# SPDX-License-Identifier: BSD-3-Clause
+name: Windows Signing
+
+# Runs after every Build (build.yml) completes. The `gate` job below only
+# lets the pipeline proceed past it for a develop -> main PR whose head
+# commit is already on `develop` - the internal runner (sign-drivers,
+# build-installer) therefore never executes code that only exists on a PR
+# branch. See docs/windows/RELEASING.md.
+on:  # zizmor: ignore[dangerous-triggers]
+  workflow_run:
+    workflows: ["Build"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  # ============================================================
+  # Gate: decide whether this Build run belongs to a develop -> main PR
+  # that is an actual Windows release candidate, and set the commit
+  # status "Windows Signed Installer" accordingly. Nothing below this
+  # job runs unless `proceed` is true.
+  # ============================================================
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: read
+      statuses: write
+      actions: read
+    outputs:
+      proceed: ${{ steps.decide.outputs.proceed }}
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+      pr_number: ${{ steps.pr.outputs.pr_number }}
+    steps:
+      - name: Resolve the owning PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_PRS: ${{ toJson(github.event.workflow_run.pull_requests) }}
+        run: |
+          PR_NUMBER=$(echo "$RUN_PRS" | jq -r '.[0].number // empty')
+          if [ -z "$PR_NUMBER" ]; then
+            echo "This Build run is not associated with an open same-repo PR - nothing to do."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Re-fetch the PR live (the workflow_run payload can be stale):
+          # confirm it is still open, still targets main, and its head sha
+          # still matches this Build run (no new push happened meanwhile).
+          gh api "repos/${REPO}/pulls/${PR_NUMBER}" > /tmp/pr.json
+          STATE=$(jq -r '.state' /tmp/pr.json)
+          BASE_REF=$(jq -r '.base.ref' /tmp/pr.json)
+          HEAD_SHA=$(jq -r '.head.sha' /tmp/pr.json)
+          RUN_HEAD_SHA="${{ github.event.workflow_run.head_sha }}"
+
+          echo "found=true"            >> "$GITHUB_OUTPUT"
+          echo "pr_number=$PR_NUMBER"  >> "$GITHUB_OUTPUT"
+          echo "base_ref=$BASE_REF"    >> "$GITHUB_OUTPUT"
+          echo "state=$STATE"          >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA"    >> "$GITHUB_OUTPUT"
+          echo "stale=$([ "$HEAD_SHA" != "$RUN_HEAD_SHA" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout at the PR head
+        if: steps.pr.outputs.found == 'true' && steps.pr.outputs.stale == 'false'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          ref: ${{ steps.pr.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Decide gate outcome and set "Windows Signed Installer" status
+        if: steps.pr.outputs.found == 'true' && steps.pr.outputs.stale == 'false'
+        id: decide
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          BASE_REF: ${{ steps.pr.outputs.base_ref }}
+          STATE: ${{ steps.pr.outputs.state }}
+        run: |
+          set_status () {
+            gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
+              -f state="$1" \
+              -f context="Windows Signed Installer" \
+              -f description="$2" \
+              -f target_url="$RUN_URL"
+          }
+
+          if [ "$STATE" != "open" ] || [ "$BASE_REF" != "main" ]; then
+            echo "PR is not an open develop -> main PR (state=$STATE base=$BASE_REF) - nothing to do."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only "origin/main...${HEAD_SHA}" 2>/dev/null || git diff --name-only "${HEAD_SHA}^..${HEAD_SHA}")
+          if ! echo "$CHANGED" | grep -qE '^(build/|src/windows/)'; then
+            echo "No build/ or src/windows/ changes - nothing to sign."
+            set_status "success" "No Windows changes in this PR."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Release candidate check: qcversion.h must carry a real, unused
+          # version bump, and RELEASES.md must have a non-empty section for
+          # it - the same rule pr-checks.yml's "Windows Release Files"
+          # check enforces, re-verified here before touching the internal
+          # runner.
+          HEADER="src/windows/qcversion.h"
+          NOTES="src/windows/RELEASES.md"
+          VERSION=$(grep -E '^[[:space:]]*#define[[:space:]]+QCOM_USB_DRIVERS_PRODUCT_VERSION' "$HEADER" \
+            | sed -E 's/.*PRODUCT_VERSION[[:space:]]+([0-9.]+).*/\1/')
+
+          LATEST=$(gh api "repos/${REPO}/git/matching-refs/tags/release-win-v" \
+            --jq '.[].ref' | sed 's#refs/tags/release-win-v##' | sort -V | tail -1)
+          IS_NEWER=true
+          if [ -n "$LATEST" ]; then
+            TOP=$(printf '%s\n%s\n' "$LATEST" "$VERSION" | sort -V | tail -1)
+            [ "$TOP" = "$VERSION" ] && [ "$VERSION" != "$LATEST" ] || IS_NEWER=false
+          fi
+
+          SECTION=$(awk -v ver="$VERSION" '
+            $0 ~ ("^## \\[" ver "\\]") {found=1; next}
+            found && /^## \[/ {exit}
+            found && /^---/ {exit}
+            found {print}
+          ' "$NOTES")
+
+          # Trust check: the signing runner only ever runs for a commit
+          # that is already reachable on develop - never a commit that
+          # exists solely on the PR branch.
+          ON_DEVELOP=true
+          git fetch origin develop --depth=1 2>/dev/null || git fetch origin develop
+          git merge-base --is-ancestor "$HEAD_SHA" origin/develop || ON_DEVELOP=false
+
+          if [ "$IS_NEWER" != "true" ] || [ -z "$(echo "$SECTION" | tr -d '[:space:]')" ] || [ "$ON_DEVELOP" != "true" ]; then
+            echo "Windows changes present, but this PR is not a release candidate yet (newer=$IS_NEWER, notes=$([ -n "$SECTION" ] && echo ok || echo empty), on_develop=$ON_DEVELOP)."
+            set_status "failure" "Not a release candidate yet - bump qcversion.h and RELEASES.md on develop."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Release candidate ${VERSION} confirmed - proceeding to sign and attest."
+          set_status "pending" "Signing and attesting drivers on the internal runner..."
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+  # ============================================================
+  # Qualcomm EV-sign the drivers and submit them for Microsoft
+  # attestation (SDCM). Runs on the internal runner only, never with
+  # PR-controlled code (see `gate`, above).
+  #
+  # NOTE: the actual sign/attest commands are intentionally left as
+  # comments below - this job currently only wires up the artifact
+  # plumbing (download/upload) and the credentials file. Fill in the
+  # commented steps once the internal runner and the `windows-signing`
+  # environment secret are provisioned. See docs/windows/RELEASING.md
+  # step 3 and build/sign.ps1 / build/attestation/AttestDrivers.bat.
+  # ============================================================
+  sign-drivers:
+    name: Sign Drivers (Qualcomm EV + Microsoft attestation)
+    needs: gate
+    if: needs.gate.outputs.proceed == 'true'
+    runs-on: [self-hosted, windows, qcom-signing]
+    environment: windows-signing
+    steps:
+      - name: Download unsigned windows-drivers artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+          name: windows-drivers
+          path: build/target/drivers
+
+      - name: Write attestation auth config
+        shell: pwsh
+        env:
+          SDCM_AUTHCONFIG_JSON: ${{ secrets.SDCM_AUTHCONFIG_JSON }}
+        run: |
+          Set-Content -Path "build/attestation/authconfig.json" -Value $env:SDCM_AUTHCONFIG_JSON -NoNewline
+
+      # ── TODO: Qualcomm EV-sign + Microsoft attestation ──────────────────
+      # - name: Qualcomm EV-sign drivers and build drivers.cab
+      #   shell: pwsh
+      #   working-directory: build
+      #   run: |
+      #     powershell -ExecutionPolicy Bypass -File "sign.ps1"
+      #     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      #   # EV-signs every .sys/.cat in build/target/drivers against the
+      #   # local EVSS (localhost:3197), then packages and EV-signs
+      #   # build/target/drivers.cab.
+      #
+      # - name: Submit drivers.cab for Microsoft attestation (SDCM)
+      #   shell: cmd
+      #   working-directory: build/attestation
+      #   run: |
+      #     AttestDrivers.bat
+      #   # Submits drivers.cab as product QUD_<ver>_EXT, waits for
+      #   # Microsoft Hardware Dev Center to attest it (up to 12h), then
+      #   # downloads drivers.cab.signed.zip and copies the attested
+      #   # files back into build/target/drivers.
+      # ─────────────────────────────────────────────────────────────────
+
+      - name: Upload attested windows-drivers-attested artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: windows-drivers-attested
+          path: build/target/drivers/
+          retention-days: 30
+
+      - name: Delete attestation credentials
+        if: always()
+        shell: pwsh
+        run: |
+          Remove-Item -Path "build/attestation/authconfig.json" -ErrorAction SilentlyContinue
+
+  # ============================================================
+  # Build the installer from the attested drivers and EV-sign the .exe.
+  # Separate job from sign-drivers so a failed installer build does not
+  # force re-attestation. Runs on the internal runner only.
+  #
+  # NOTE: like sign-drivers, the actual build/sign commands are left as
+  # comments - fill them in once the internal runner is provisioned. See
+  # docs/windows/RELEASING.md step 3 and build/build_installer.bat.
+  # ============================================================
+  build-installer:
+    name: Build Signed Installer
+    needs: [gate, sign-drivers]
+    if: needs.gate.outputs.proceed == 'true'
+    runs-on: [self-hosted, windows, qcom-signing]
+    environment: windows-signing
+    steps:
+      - name: Download attested drivers
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        with:
+          name: windows-drivers-attested
+          path: build/target/drivers
+
+      # ── TODO: build + EV-sign the installer, verify signatures ─────────
+      # - name: Build signed installers (x86, x64, arm64)
+      #   shell: pwsh
+      #   working-directory: build
+      #   run: |
+      #     # No --no_sign_required: fails unless every .cat is WHQL-signed
+      #     # and every .sys carries both the Qualcomm EV signature and the
+      #     # Microsoft WHCP signature.
+      #     & cmd.exe /c "build_installer.bat"
+      #     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      #
+      # - name: EV-sign installer .exe files
+      #   shell: pwsh
+      #   working-directory: build
+      #   run: |
+      #     powershell -ExecutionPolicy Bypass -File "sign.ps1" -InputFrom "..\build\target"
+      #     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      #
+      # - name: Verify installer .exe signatures
+      #   shell: pwsh
+      #   run: |
+      #     $exeFiles = Get-ChildItem -Path "build\target" -Filter "qcom_usb_kernel_drivers_*.exe"
+      #     foreach ($exe in $exeFiles) {
+      #       $sig = Get-AuthenticodeSignature -FilePath $exe.FullName
+      #       if ($sig.Status -ne "Valid") {
+      #         Write-Host "ERROR: Invalid signature on $($exe.FullName): $($sig.Status)" -ForegroundColor Red
+      #         exit 1
+      #       }
+      #     }
+      # ─────────────────────────────────────────────────────────────────
+
+      - name: Upload windows-release-candidate artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: windows-release-candidate
+          path: |
+            build/target/qcom_usb_kernel_drivers_*.exe
+            build/target/qud-win-v*_64bit_signed.zip
+          retention-days: 30
+
+  # ============================================================
+  # Flip "Windows Signed Installer" to its final state, linked to this
+  # run, for QA and release.yml to read.
+  # ============================================================
+  report:
+    name: Report
+    needs: [gate, sign-drivers, build-installer]
+    if: always() && needs.gate.outputs.proceed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Set final "Windows Signed Installer" status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ needs.gate.outputs.head_sha }}
+          SIGN_RESULT: ${{ needs.sign-drivers.result }}
+          INSTALLER_RESULT: ${{ needs.build-installer.result }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "$SIGN_RESULT" = "success" ] && [ "$INSTALLER_RESULT" = "success" ]; then
+            STATE="success"
+            DESC="Signed, attested and installer built - ready for QA."
+          else
+            STATE="failure"
+            DESC="Signing/attestation/installer build failed (sign=${SIGN_RESULT}, installer=${INSTALLER_RESULT})."
+          fi
+
+          gh api "repos/${REPO}/statuses/${HEAD_SHA}" \
+            -f state="$STATE" \
+            -f context="Windows Signed Installer" \
+            -f description="$DESC" \
+            -f target_url="$RUN_URL"
