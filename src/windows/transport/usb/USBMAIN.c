@@ -622,6 +622,8 @@ VOID USBMAIN_ResetRspAvailableCount
 
 NTSTATUS USBMAIN_StopDataThreads(PDEVICE_EXTENSION pDevExt, BOOLEAN CancelWaitWake)
 {
+    NTSTATUS ntStatus;
+
     QCUSB_DbgPrint
     (
         QCUSB_DBG_MASK_CONTROL,
@@ -674,7 +676,27 @@ NTSTATUS USBMAIN_StopDataThreads(PDEVICE_EXTENSION pDevExt, BOOLEAN CancelWaitWa
             ("<%s> StopDataThreads: still in S0, keep DTR\n", pDevExt->PortName)
         );
     }
-    USBRD_SetStopState(pDevExt, TRUE, 7);   // blocking call
+    ntStatus = USBRD_SetStopState(pDevExt, TRUE, 7);   // bounded blocking call
+    if (!NT_SUCCESS(ntStatus))
+    {
+        pDevExt->PowerSuspended = FALSE;
+        pDevExt->bLowPowerMode = FALSE;
+        QCUSB_CDC_SetInterfaceIdle
+        (
+            pDevExt->MyDeviceObject,
+            pDevExt->DataInterface,
+            FALSE,
+            1
+        );
+        QCUSB_DbgPrint
+        (
+            QCUSB_DBG_MASK_CONTROL,
+            QCUSB_DBG_LEVEL_CRITICAL,
+            ("<%s> StopDataThreads: read stop failed 0x%x\n",
+            pDevExt->PortName, ntStatus)
+        );
+        return ntStatus;
+    }
     USBWT_SetStopState(pDevExt, TRUE);      // non-blocking
     USBINT_StopInterruptService(pDevExt, TRUE, CancelWaitWake, 5);
     USBMAIN_ResetRspAvailableCount

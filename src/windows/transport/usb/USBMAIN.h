@@ -1055,8 +1055,11 @@ typedef struct _DEVICE_EXTENSION
 
     KEVENT L1StopEvent;
     KEVENT L1StopAckEvent;
+    volatile LONG L1StopStatus;
+    volatile LONG L1StateTransitionActive;
     KEVENT L1ResumeEvent;
     KEVENT L1ResumeAckEvent;
+    volatile LONG L1ResumeStatus;
     KEVENT L2StopEvent;
     KEVENT L2StopAckEvent;
     KEVENT L2ResumeEvent;

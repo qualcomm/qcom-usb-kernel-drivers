@@ -454,7 +454,21 @@ wait_for_completion2:
 
             case L1_STOP_EVENT_INDEX:
             {
+                LARGE_INTEGER stopTimeout;
+                NTSTATUS stopStatus;
+
                 KeClearEvent(&pDevExt->L1StopEvent);
+                stopStatus = (NTSTATUS)InterlockedCompareExchange
+                (
+                    &pDevExt->L1StopStatus,
+                    STATUS_MORE_PROCESSING_REQUIRED,
+                    STATUS_PENDING
+                );
+                if (stopStatus != STATUS_PENDING)
+                {
+                    // The caller timed out before this request was claimed.
+                    break;
+                }
                 QCUSB_DbgPrint
                 (
                     QCUSB_DBG_MASK_READ,
@@ -466,15 +480,31 @@ wait_for_completion2:
                 // signal L2
                 KeClearEvent(&pDevExt->L2StopAckEvent);
                 KeSetEvent(&pDevExt->L2StopEvent, IO_NO_INCREMENT, FALSE);
-                KeWaitForSingleObject
+                stopTimeout.QuadPart = -(20 * 1000 * 1000); // 2 seconds
+                stopStatus = KeWaitForSingleObject
                 (
                     &pDevExt->L2StopAckEvent,
                     Executive,
                     KernelMode,
                     FALSE,
-                    NULL
+                    &stopTimeout
                 );
-                KeClearEvent(&pDevExt->L2StopAckEvent);
+                if (stopStatus == STATUS_SUCCESS)
+                {
+                    KeClearEvent(&pDevExt->L2StopAckEvent);
+                }
+                else
+                {
+                    QCUSB_DbgPrint
+                    (
+                        QCUSB_DBG_MASK_READ,
+                        QCUSB_DBG_LEVEL_CRITICAL,
+                        ("<%s> L1 STOP: L2 ACK timeout 0x%x\n",
+                        pDevExt->PortName, stopStatus)
+                    );
+                    stopStatus = STATUS_IO_TIMEOUT;
+                }
+                InterlockedExchange(&pDevExt->L1StopStatus, stopStatus);
 
                 // Ack the caller
                 KeSetEvent(&pDevExt->L1StopAckEvent, IO_NO_INCREMENT, FALSE);
@@ -483,28 +513,58 @@ wait_for_completion2:
 
             case L1_RESUME_EVENT_INDEX:
             {
+                LARGE_INTEGER resumeTimeout;
+                NTSTATUS resumeStatus;
+
                 KeClearEvent(&pDevExt->L1ResumeEvent);
+                resumeStatus = (NTSTATUS)InterlockedCompareExchange
+                (
+                    &pDevExt->L1ResumeStatus,
+                    STATUS_MORE_PROCESSING_REQUIRED,
+                    STATUS_PENDING
+                );
+                if (resumeStatus != STATUS_PENDING)
+                {
+                    // The caller timed out before this request was claimed.
+                    break;
+                }
                 QCUSB_DbgPrint
                 (
                     QCUSB_DBG_MASK_READ,
                     QCUSB_DBG_LEVEL_DETAIL,
                     ("<%s> L1_RESUME_EVENT rm %d\n", pDevExt->PortName, pDevExt->bDeviceRemoved)
                 );
-                pDevExt->bL1Stopped = pDevExt->bDeviceRemoved;
-                pDevExt->InputPipeStatus = STATUS_SUCCESS;
-
                 // signal L2
                 KeClearEvent(&pDevExt->L2ResumeAckEvent);
                 KeSetEvent(&pDevExt->L2ResumeEvent, IO_NO_INCREMENT, FALSE);
-                KeWaitForSingleObject
+                resumeTimeout.QuadPart = -(20 * 1000 * 1000); // 2 seconds
+                resumeStatus = KeWaitForSingleObject
                 (
                     &pDevExt->L2ResumeAckEvent,
                     Executive,
                     KernelMode,
                     FALSE,
-                    NULL
+                    &resumeTimeout
                 );
-                KeClearEvent(&pDevExt->L2ResumeAckEvent);
+                if (resumeStatus == STATUS_SUCCESS)
+                {
+                    KeClearEvent(&pDevExt->L2ResumeAckEvent);
+                    pDevExt->bL1Stopped = pDevExt->bDeviceRemoved;
+                    pDevExt->InputPipeStatus = STATUS_SUCCESS;
+                }
+                else
+                {
+                    KeClearEvent(&pDevExt->L2ResumeEvent);
+                    QCUSB_DbgPrint
+                    (
+                        QCUSB_DBG_MASK_READ,
+                        QCUSB_DBG_LEVEL_CRITICAL,
+                        ("<%s> L1 RESUME: L2 ACK timeout 0x%x\n",
+                        pDevExt->PortName, resumeStatus)
+                    );
+                    resumeStatus = STATUS_IO_TIMEOUT;
+                }
+                InterlockedExchange(&pDevExt->L1ResumeStatus, resumeStatus);
 
                 // Ack the caller
                 KeSetEvent(&pDevExt->L1ResumeAckEvent, IO_NO_INCREMENT, FALSE);

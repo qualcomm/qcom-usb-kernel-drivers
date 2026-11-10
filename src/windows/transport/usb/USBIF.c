@@ -1383,7 +1383,7 @@ VOID USBIF_PowerDownDevice
     MPMAIN_PowerDownDevice(pDevExt->MiniportContext, DevicePower);
 }  // USBIF_PowerDownDevice
 
-VOID USBIF_SyncPowerDownDevice
+NTSTATUS USBIF_SyncPowerDownDevice
 (
     PVOID              DeviceExtension,
     DEVICE_POWER_STATE DevicePower
@@ -1392,6 +1392,10 @@ VOID USBIF_SyncPowerDownDevice
     PDEVICE_EXTENSION pDevExt = (PDEVICE_EXTENSION)DeviceExtension;
     DEVICE_POWER_STATE pwrState = PowerDeviceD3;
     NDIS_DEVICE_POWER_STATE ndisPwrState = NdisDeviceStateD3;
+    DEVICE_POWER_STATE oldPowerState = pDevExt->PowerState;
+    BOOLEAN oldEncStopped = pDevExt->bEncStopped;
+    PMP_ADAPTER pAdapter = (PMP_ADAPTER)pDevExt->MiniportContext;
+    NTSTATUS ntStatus;
 
     if (DevicePower < PowerDeviceD3)
     {
@@ -1401,12 +1405,33 @@ VOID USBIF_SyncPowerDownDevice
     pDevExt->PowerState = pwrState;
     pDevExt->bEncStopped = TRUE;
 
-    USBMAIN_StopDataThreads(pDevExt, FALSE);
+    ntStatus = USBMAIN_StopDataThreads(pDevExt, FALSE);
+    if (!NT_SUCCESS(ntStatus))
+    {
+        pDevExt->PowerState = oldPowerState;
+        pDevExt->bEncStopped = oldEncStopped;
+        if (pAdapter != NULL)
+        {
+            pAdapter->MiniportDevicePower = oldPowerState;
+            if (pDevExt->SystemPower > PowerSystemWorking)
+            {
+                pAdapter->MiniportSystemPower = PowerSystemWorking;
+                pAdapter->ToPowerDown = FALSE;
+            }
+        }
+        if (pDevExt->SystemPower > PowerSystemWorking)
+        {
+            pDevExt->SystemPower = PowerSystemWorking;
+            pDevExt->PrepareToPowerDown = FALSE;
+        }
+        return ntStatus;
+    }
 
     // need to cleanup (consolidate the two members)
     pDevExt->DevicePower = pDevExt->PowerState;
 
     MPMAIN_DevicePowerStateChange(pDevExt->MiniportContext, ndisPwrState);
+    return STATUS_SUCCESS;
 }  // USBIF_SyncPowerDownDevice
 
 VOID USBIF_SetupDispatchFilter(PVOID DriverObject)
@@ -1638,22 +1663,6 @@ NTSTATUS USBIF_DispatchFilter
                             ("<%s> DispatchFilter: SET-devPwr D%d\n", gDeviceName,
                             irpStack->Parameters.Power.State.DeviceState - 1)
                         );
-                        if ((irpStack->Parameters.Power.State.DeviceState > PowerDeviceD0) &&
-                            (pAdapter->USBDo != NULL))
-                        {
-                            PDEVICE_EXTENSION dev = ((PDEVICE_EXTENSION)pAdapter->USBDo->DeviceExtension);
-                            if ((dev->SystemPower <= PowerSystemWorking) &&
-                                ((dev->bInService == TRUE) || (dev->IoBusyMask != 0) || (dev->InServiceSelectiveSuspension == FALSE)))
-                            {
-                                QCUSB_DbgPrint(
-                                    QCUSB_DBG_MASK_POWER, QCUSB_DBG_LEVEL_ERROR,
-                                    ("<%s> DispatchFilter: block runtime D%d (busy/in-service S0)\n", dev->PortName, irpStack->Parameters.Power.State.DeviceState - 1)
-                                );
-                                Irp->IoStatus.Status = STATUS_INVALID_DEVICE_STATE;
-                                IoCompleteRequest(Irp, IO_NO_INCREMENT);
-                                return STATUS_SUCCESS;
-                            }
-                        }
                         pAdapter->MiniportDevicePower =
                             irpStack->Parameters.Power.State.DeviceState;
                         switch (irpStack->Parameters.Power.State.DeviceState)

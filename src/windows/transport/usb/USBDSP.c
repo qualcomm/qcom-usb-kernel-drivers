@@ -920,6 +920,8 @@ dispatch_case:
             }
             case DSP_STANDBY_EVENT_INDEX:
             {
+                BOOLEAN previousL2Polling;
+
                 KeClearEvent(&pDevExt->DispatchStandbyEvent);
                 QCUSB_DbgPrint
                 (
@@ -966,8 +968,21 @@ dispatch_case:
                         ("<%s> STANDBY: still in S0, keep DTR\n", pDevExt->PortName)
                     );
                 }
+                previousL2Polling = pDevExt->bL2Polling;
                 pDevExt->bL2Polling = FALSE;
-                USBRD_SetStopState(pDevExt, TRUE, 2);
+                ntStatus = USBRD_SetStopState(pDevExt, TRUE, 2);
+                if (!NT_SUCCESS(ntStatus))
+                {
+                    pDevExt->bL2Polling = previousL2Polling;
+                    QCUSB_DbgPrint
+                    (
+                        QCUSB_DBG_MASK_CONTROL,
+                        QCUSB_DBG_LEVEL_CRITICAL,
+                        ("<%s> STANDBY: read stop failed 0x%x\n",
+                        pDevExt->PortName, ntStatus)
+                    );
+                    break;
+                }
                 USBWT_SetStopState(pDevExt, TRUE);
                 USBINT_StopInterruptService(pDevExt, FALSE, FALSE, 3);
                 USBMAIN_ResetRspAvailableCount
@@ -981,6 +996,8 @@ dispatch_case:
             }
             case DSP_WAKEUP_EVENT_INDEX:
             {
+                BOOLEAN previousL2Polling;
+
                 KeClearEvent(&pDevExt->DispatchWakeupEvent);
                 QCUSB_DbgPrint
                 (
@@ -1006,8 +1023,21 @@ dispatch_case:
                     );
                 }
                 pDevExt->PowerSuspended = pDevExt->SelectiveSuspended = FALSE;
+                previousL2Polling = pDevExt->bL2Polling;
                 pDevExt->bL2Polling = TRUE;
-                USBRD_SetStopState(pDevExt, FALSE, 3);
+                ntStatus = USBRD_SetStopState(pDevExt, FALSE, 3);
+                if (!NT_SUCCESS(ntStatus))
+                {
+                    pDevExt->bL2Polling = previousL2Polling;
+                    QCUSB_DbgPrint
+                    (
+                        QCUSB_DBG_MASK_CONTROL,
+                        QCUSB_DBG_LEVEL_CRITICAL,
+                        ("<%s> WAKEUP: read resume failed 0x%x\n",
+                        pDevExt->PortName, ntStatus)
+                    );
+                    break;
+                }
                 USBWT_SetStopState(pDevExt, FALSE);
                 USBINT_ResumeInterruptService(pDevExt, 1);
                 USBCTL_SetDtr(pDevExt->MyDeviceObject);
@@ -1016,6 +1046,7 @@ dispatch_case:
             case DSP_WAKEUP_RESET_EVENT_INDEX:
             {
                 NTSTATUS ntStatus;
+                BOOLEAN previousL2Polling;
 
                 KeClearEvent(&pDevExt->DispatchWakeupResetEvent);
                 QCUSB_DbgPrint
@@ -1055,8 +1086,21 @@ dispatch_case:
                     );
                 }
                 pDevExt->PowerSuspended = pDevExt->SelectiveSuspended = FALSE;
+                previousL2Polling = pDevExt->bL2Polling;
                 pDevExt->bL2Polling = TRUE;
-                USBRD_SetStopState(pDevExt, FALSE, 4);
+                ntStatus = USBRD_SetStopState(pDevExt, FALSE, 4);
+                if (!NT_SUCCESS(ntStatus))
+                {
+                    pDevExt->bL2Polling = previousL2Polling;
+                    QCUSB_DbgPrint
+                    (
+                        QCUSB_DBG_MASK_CONTROL,
+                        QCUSB_DBG_LEVEL_CRITICAL,
+                        ("<%s> WAKEUP_RESET: read resume failed 0x%x\n",
+                        pDevExt->PortName, ntStatus)
+                    );
+                    break;
+                }
                 USBWT_SetStopState(pDevExt, FALSE);
                 USBINT_ResumeInterruptService(pDevExt, 1);
                 USBCTL_SetDtr(pDevExt->MyDeviceObject);
@@ -1235,6 +1279,8 @@ dispatch_case:
 
             case DSP_START_POLLING_EVENT_INDEX:
             {
+                BOOLEAN previousL2Polling;
+
                 if (!inDevState(DEVICE_STATE_PRESENT))
                 {
                     break;
@@ -1247,12 +1293,26 @@ dispatch_case:
                     QCUSB_DBG_LEVEL_DETAIL,
                     ("<%s> D: -->START_POLLING\n", pDevExt->PortName)
                 );
+                previousL2Polling = pDevExt->bL2Polling;
                 pDevExt->bL2Polling = TRUE;
-                USBRD_SetStopState(pDevExt, FALSE, 5);
+                ntStatus = USBRD_SetStopState(pDevExt, FALSE, 5);
+                if (!NT_SUCCESS(ntStatus))
+                {
+                    pDevExt->bL2Polling = previousL2Polling;
+                    QCUSB_DbgPrint
+                    (
+                        QCUSB_DBG_MASK_CONTROL,
+                        QCUSB_DBG_LEVEL_ERROR,
+                        ("<%s> START_POLLING: read resume failed 0x%x\n",
+                        pDevExt->PortName, ntStatus)
+                    );
+                }
                 break;
             }
             case DSP_STOP_POLLING_EVENT_INDEX:
             {
+                BOOLEAN previousL2Polling;
+
                 KeClearEvent(&(pDevExt->DispatchStopPollingEvent));
                 QCUSB_DbgPrint
                 (
@@ -1260,8 +1320,20 @@ dispatch_case:
                     QCUSB_DBG_LEVEL_DETAIL,
                     ("<%s> D: -->STOP_POLLING\n", pDevExt->PortName)
                 );
+                previousL2Polling = pDevExt->bL2Polling;
                 pDevExt->bL2Polling = FALSE;
-                USBRD_SetStopState(pDevExt, TRUE, 6);
+                ntStatus = USBRD_SetStopState(pDevExt, TRUE, 6);
+                if (!NT_SUCCESS(ntStatus))
+                {
+                    pDevExt->bL2Polling = previousL2Polling;
+                    QCUSB_DbgPrint
+                    (
+                        QCUSB_DBG_MASK_CONTROL,
+                        QCUSB_DBG_LEVEL_ERROR,
+                        ("<%s> STOP_POLLING: read stop failed 0x%x\n",
+                        pDevExt->PortName, ntStatus)
+                    );
+                }
                 break;
             }
 

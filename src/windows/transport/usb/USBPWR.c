@@ -201,7 +201,7 @@ VOID QCPWR_PowrerManagement
                         ("<%s> IRP_MN_SET_POWER: D%d\n", pDevExt->PortName, pwrState - 1)
                     );
 
-                    QCPWR_SetDevicePowerState(pDevExt, Irp, pwrState);
+                    nts = QCPWR_SetDevicePowerState(pDevExt, Irp, pwrState);
 
                     break;
                 }
@@ -251,7 +251,7 @@ VOID QCPWR_PowrerManagement
 
     }  // switch
 
-    if (!NT_SUCCESS(nts))  // failure can only happen with QUERY POWER
+    if (!NT_SUCCESS(nts))
     {
         QCUSB_DbgPrint
         (
@@ -342,30 +342,6 @@ NTSTATUS QCPWR_QuerySystemPowerState
 {
     NTSTATUS nts = STATUS_SUCCESS;
 
-    if ((pDevExt->PowerManagementEnabled == FALSE) &&
-        (pDevExt->bInService == TRUE))
-    {
-        QCUSB_DbgPrint
-        (
-            QCUSB_DBG_MASK_PIRP,
-            QCUSB_DBG_LEVEL_ERROR,
-            ("<%s> QuerySystemPowerState: dev in service, reject.\n", pDevExt->PortName)
-        );
-        return STATUS_UNSUCCESSFUL;
-    }
-    /* Block runtime D1/D2/D3 while in S0 and busy/in-service */
-    if ((PowerState > PowerDeviceD0) &&
-        (pDevExt->SystemPower <= PowerSystemWorking) &&
-        ((pDevExt->bInService == TRUE) ||
-        (pDevExt->IoBusyMask != 0) ||
-        (pDevExt->InServiceSelectiveSuspension == FALSE)))
-    {
-        QCUSB_DbgPrint(
-            QCUSB_DBG_MASK_PIRP, QCUSB_DBG_LEVEL_ERROR,
-            ("<%s> QueryDevicePowerState: block D%d (busy/in-service S0)\n", pDevExt->PortName, PowerState - 1)
-        );
-        return STATUS_INVALID_DEVICE_STATE;
-    }
     if (pDevExt->bRemoteWakeupEnabled == TRUE)
     {
         if (PowerState > pDevExt->DeviceCapabilities.SystemWake)
@@ -680,18 +656,6 @@ NTSTATUS QCPWR_QueryDevicePowerState
 {
     NTSTATUS nts = STATUS_SUCCESS;
 
-    if ((pDevExt->PowerManagementEnabled == FALSE) &&
-        (pDevExt->bInService == TRUE))
-    {
-        QCUSB_DbgPrint
-        (
-            QCUSB_DBG_MASK_PIRP,
-            QCUSB_DBG_LEVEL_ERROR,
-            ("<%s> QueryDevicePowerState: dev in service, reject.\n", pDevExt->PortName)
-        );
-        return STATUS_INVALID_DEVICE_STATE;
-    }
-
     if (pDevExt->bRemoteWakeupEnabled == TRUE)
     {
         if (PowerState > pDevExt->DeviceCapabilities.DeviceWake)
@@ -914,31 +878,6 @@ NTSTATUS QCPWR_SetDevicePowerState
 )
 {
     NTSTATUS nts = STATUS_SUCCESS;
-    // Block runtime D1/D2/D3 while in S0 and busy/in-service
-    if ((pDevExt->SystemPower <= PowerSystemWorking) && (PowerState > PowerDeviceD0))
-    {
-        if ((pDevExt->bInService == TRUE) ||
-            (pDevExt->IoBusyMask != 0) ||
-            (pDevExt->InServiceSelectiveSuspension == FALSE))
-        {
-            QCUSB_DbgPrint
-            (
-                QCUSB_DBG_MASK_PIRP,
-                QCUSB_DBG_LEVEL_ERROR,
-                ("<%s> SetDevicePowerState: block runtime D%d while busy/in-service (S0)\n",
-                pDevExt->PortName, PowerState - 1)
-            );
-
-            // Complete IRP as success without changing HW power; keeps device in D0
-            PoStartNextPowerIrp(Irp);
-            Irp->IoStatus.Status = STATUS_INVALID_DEVICE_STATE;
-            Irp->IoStatus.Information = 0;
-
-            // Release remove lock acquired in power management path
-            QcIoReleaseRemoveLock(pDevExt->pRemoveLock, Irp, 0);
-            return STATUS_INVALID_DEVICE_STATE;
-        }
-    }
     // For our device, we can consider it as either D0 or D3
     if (PowerState == PowerDeviceD0)
     {
@@ -970,7 +909,7 @@ NTSTATUS QCPWR_SetDevicePowerState
     else
     {
         // Decrease Power
-        QCPWR_DecreaseDevicePower(pDevExt, Irp, PowerState);
+        nts = QCPWR_DecreaseDevicePower(pDevExt, Irp, PowerState);
     }
 
     return nts;
@@ -1059,7 +998,13 @@ NTSTATUS QCPWR_DecreaseDevicePower
 
         if (inDevState(DEVICE_STATE_PRESENT_AND_STARTED))
         {
-            USBIF_SyncPowerDownDevice(pDevExt, NewDevicePower);
+            ntStatus = USBIF_SyncPowerDownDevice(pDevExt, NewDevicePower);
+            if (!NT_SUCCESS(ntStatus))
+            {
+                pDevExt->PowerSuspended = FALSE;
+                PoStartNextPowerIrp(Irp);
+                return ntStatus;
+            }
         }
     }
     else
