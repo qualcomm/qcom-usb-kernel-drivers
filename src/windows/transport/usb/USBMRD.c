@@ -454,7 +454,21 @@ wait_for_completion2:
 
             case L1_STOP_EVENT_INDEX:
             {
+                LARGE_INTEGER stopTimeout;
+                NTSTATUS stopStatus;
+
                 KeClearEvent(&pDevExt->L1StopEvent);
+                stopStatus = (NTSTATUS)InterlockedCompareExchange
+                (
+                    &pDevExt->L1StopStatus,
+                    STATUS_MORE_PROCESSING_REQUIRED,
+                    STATUS_PENDING
+                );
+                if (stopStatus != STATUS_PENDING)
+                {
+                    // The caller timed out before this request was claimed.
+                    break;
+                }
                 QCUSB_DbgPrint
                 (
                     QCUSB_DBG_MASK_READ,
@@ -466,15 +480,31 @@ wait_for_completion2:
                 // signal L2
                 KeClearEvent(&pDevExt->L2StopAckEvent);
                 KeSetEvent(&pDevExt->L2StopEvent, IO_NO_INCREMENT, FALSE);
-                KeWaitForSingleObject
+                stopTimeout.QuadPart = -(20 * 1000 * 1000); // 2 seconds
+                stopStatus = KeWaitForSingleObject
                 (
                     &pDevExt->L2StopAckEvent,
                     Executive,
                     KernelMode,
                     FALSE,
-                    NULL
+                    &stopTimeout
                 );
-                KeClearEvent(&pDevExt->L2StopAckEvent);
+                if (stopStatus == STATUS_SUCCESS)
+                {
+                    KeClearEvent(&pDevExt->L2StopAckEvent);
+                }
+                else
+                {
+                    QCUSB_DbgPrint
+                    (
+                        QCUSB_DBG_MASK_READ,
+                        QCUSB_DBG_LEVEL_CRITICAL,
+                        ("<%s> L1 STOP: L2 ACK timeout 0x%x\n",
+                        pDevExt->PortName, stopStatus)
+                    );
+                    stopStatus = STATUS_IO_TIMEOUT;
+                }
+                InterlockedExchange(&pDevExt->L1StopStatus, stopStatus);
 
                 // Ack the caller
                 KeSetEvent(&pDevExt->L1StopAckEvent, IO_NO_INCREMENT, FALSE);

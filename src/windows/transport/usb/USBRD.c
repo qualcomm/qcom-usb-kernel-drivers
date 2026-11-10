@@ -2371,10 +2371,11 @@ VOID USBRD_FillReadRequest(PDEVICE_EXTENSION pDevExt)
 
 }  // USBRD_FillReadRequest
 
-VOID USBRD_SetStopState(PDEVICE_EXTENSION pDevExt, BOOLEAN StopState, UCHAR Cookie)
+NTSTATUS USBRD_SetStopState(PDEVICE_EXTENSION pDevExt, BOOLEAN StopState, UCHAR Cookie)
 {
     LARGE_INTEGER checkRegInterval;
-    NTSTATUS nts;
+    NTSTATUS nts = STATUS_SUCCESS;
+    LONG stopState;
 
     QCUSB_DbgPrint
     (
@@ -2393,7 +2394,7 @@ VOID USBRD_SetStopState(PDEVICE_EXTENSION pDevExt, BOOLEAN StopState, UCHAR Cook
             QCUSB_DBG_LEVEL_ERROR,
             ("<%s> R: SetStop: L2 not alive, no act %u\n", pDevExt->PortName, StopState)
         );
-        return;
+        return STATUS_SUCCESS;
     }
 
     if (inDevState(DEVICE_STATE_SURPRISE_REMOVED) ||
@@ -2407,8 +2408,26 @@ VOID USBRD_SetStopState(PDEVICE_EXTENSION pDevExt, BOOLEAN StopState, UCHAR Cook
                 QCUSB_DBG_LEVEL_ERROR,
                 ("<%s> R start - dev removed, no act\n", pDevExt->PortName)
             );
-            return;
+            return STATUS_SUCCESS;
         }
+    }
+
+    if ((pDevExt->UseMultiReads == TRUE) &&
+        (InterlockedCompareExchange
+        (
+            &pDevExt->L1StateTransitionActive,
+            1,
+            0
+        ) != 0))
+    {
+        QCUSB_DbgPrint
+        (
+            QCUSB_DBG_MASK_READ,
+            QCUSB_DBG_LEVEL_ERROR,
+            ("<%s> R SetStop: state transition already active\n",
+            pDevExt->PortName)
+        );
+        return STATUS_DEVICE_BUSY;
     }
 
     if (StopState == TRUE)
@@ -2416,39 +2435,97 @@ VOID USBRD_SetStopState(PDEVICE_EXTENSION pDevExt, BOOLEAN StopState, UCHAR Cook
         if (pDevExt->UseMultiReads == TRUE)
         {
             KeClearEvent(&pDevExt->L1StopAckEvent);
+            InterlockedExchange(&pDevExt->L1StopStatus, STATUS_PENDING);
             KeSetEvent(&pDevExt->L1StopEvent, IO_NO_INCREMENT, FALSE);
 
-            while (TRUE)
+            checkRegInterval.QuadPart = -(30 * 1000 * 1000); // 3 seconds
+            nts = KeWaitForSingleObject
+            (
+                &pDevExt->L1StopAckEvent,
+                Executive,
+                KernelMode,
+                FALSE,
+                &checkRegInterval
+            );
+            if (nts == STATUS_SUCCESS)
             {
-                checkRegInterval.QuadPart = -(1 * 1000 * 1000); // .1 sec
-                nts = KeWaitForSingleObject
+                KeClearEvent(&pDevExt->L1StopAckEvent);
+                nts = (NTSTATUS)InterlockedCompareExchange
                 (
-                    &pDevExt->L1StopAckEvent,
-                    Executive,
-                    KernelMode,
-                    FALSE,
-                    &checkRegInterval
+                    &pDevExt->L1StopStatus,
+                    STATUS_SUCCESS,
+                    STATUS_SUCCESS
                 );
-
-                // CR136843
-                if (nts != STATUS_SUCCESS)
+                if ((nts == STATUS_PENDING) ||
+                    (nts == STATUS_MORE_PROCESSING_REQUIRED))
                 {
-                    if (USBRD_IsL1Terminated(pDevExt, 0) == TRUE)
+                    nts = STATUS_IO_TIMEOUT;
+                }
+            }
+            else
+            {
+                stopState = InterlockedCompareExchange
+                (
+                    &pDevExt->L1StopStatus,
+                    STATUS_IO_TIMEOUT,
+                    STATUS_PENDING
+                );
+                if (stopState == STATUS_PENDING)
+                {
+                    // L1 has not claimed the request; cancel the stale event.
+                    KeClearEvent(&pDevExt->L1StopEvent);
+                    nts = STATUS_IO_TIMEOUT;
+                }
+                else if (stopState == STATUS_MORE_PROCESSING_REQUIRED)
+                {
+                    // L1 owns the request. Its L2 wait is bounded, so allow it
+                    // one more bounded interval to publish the final status.
+                    checkRegInterval.QuadPart = -(30 * 1000 * 1000); // 3 seconds
+                    nts = KeWaitForSingleObject
+                    (
+                        &pDevExt->L1StopAckEvent,
+                        Executive,
+                        KernelMode,
+                        FALSE,
+                        &checkRegInterval
+                    );
+                    if (nts == STATUS_SUCCESS)
                     {
-                        QCUSB_DbgPrint
+                        KeClearEvent(&pDevExt->L1StopAckEvent);
+                        nts = (NTSTATUS)InterlockedCompareExchange
                         (
-                            QCUSB_DBG_MASK_READ,
-                            QCUSB_DBG_LEVEL_ERROR,
-                            ("<%s> R SetStop: give up 0x%x\n", pDevExt->PortName, nts)
+                            &pDevExt->L1StopStatus,
+                            STATUS_SUCCESS,
+                            STATUS_SUCCESS
                         );
-                        break;
+                        if ((nts == STATUS_PENDING) ||
+                            (nts == STATUS_MORE_PROCESSING_REQUIRED))
+                        {
+                            nts = STATUS_IO_TIMEOUT;
+                        }
+                    }
+                    else
+                    {
+                        nts = STATUS_IO_TIMEOUT;
                     }
                 }
                 else
                 {
-                    KeClearEvent(&pDevExt->L1StopAckEvent);
-                    break;
+                    nts = (NTSTATUS)stopState;
                 }
+            }
+
+            if (!NT_SUCCESS(nts))
+            {
+                QCUSB_DbgPrint
+                (
+                    QCUSB_DBG_MASK_READ,
+                    QCUSB_DBG_LEVEL_CRITICAL,
+                    ("<%s> R SetStop: bounded wait failed 0x%x\n",
+                    pDevExt->PortName, nts)
+                );
+                InterlockedExchange(&pDevExt->L1StateTransitionActive, 0);
+                return nts;
             }
 
             QCUSB_DbgPrint
@@ -2512,6 +2589,11 @@ VOID USBRD_SetStopState(PDEVICE_EXTENSION pDevExt, BOOLEAN StopState, UCHAR Cook
             KeSetEvent(&pDevExt->L1ResumeEvent, IO_NO_INCREMENT, FALSE);
         }
     }
+    if (pDevExt->UseMultiReads == TRUE)
+    {
+        InterlockedExchange(&pDevExt->L1StateTransitionActive, 0);
+    }
+    return nts;
 }  // USBRD_SetStopState
 
 BOOLEAN USBRD_IsL1Terminated(PDEVICE_EXTENSION pDevExt, UCHAR Cookie)

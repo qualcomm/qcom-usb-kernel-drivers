@@ -112,7 +112,7 @@ VOID USBIF_PowerDownDevice
     DEVICE_POWER_STATE DevicePower
 );
 
-VOID USBIF_SyncPowerDownDevice
+NTSTATUS USBIF_SyncPowerDownDevice
 (
     PVOID              DeviceExtension,
     DEVICE_POWER_STATE DevicePower
