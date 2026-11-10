@@ -260,53 +260,12 @@ jobs:
         with:
           name: windows-drivers
           path: build/target/drivers/
-          retention-days: 1
+          # Kept longer on PRs into main: that's the release-candidate
+          # artifact windows-signing.yml signs, attests, and builds the
+          # installer from. See docs/windows/RELEASING.md.
+          retention-days: ${{ (github.event_name == 'pull_request' && github.base_ref == 'main') && 7 || 1 }}
 
-  # ============================================================
-  # Windows: build installer
-  # ============================================================
-  build-windows-installer:
-    name: Build Windows Installer
-    runs-on: windows-2022
-    needs: [detect-changes, build-windows-drivers]
-    if: needs.detect-changes.outputs.run_windows == 'true'
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-        with:
-          persist-credentials: false
-
-      - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@6fb02220983dee41ce7ae257b6f4d8f9bf5ed4ce  # v2
-
-      - name: Download Windows driver artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
-        with:
-          name: windows-drivers
-          path: build/target/drivers
-
-      - name: Build Windows installers (x86, x64, arm64) — skip signing
-        shell: pwsh
-        working-directory: build
-        run: |
-          & cmd.exe /c "build_installer.bat --no_sign_required"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Verify installer outputs
-        shell: pwsh
-        run: |
-          $targetDir = "build\target"
-          Write-Host "=== Installer build outputs ==="
-          Get-ChildItem -Path $targetDir -Filter "*.exe" | Select-Object FullName | Format-Table -AutoSize
-          $exeFiles = Get-ChildItem -Path $targetDir -Filter "qcom_usb_kernel_drivers_*.exe"
-          if ($exeFiles.Count -eq 0) {
-            Write-Host "ERROR: No installer .exe files found in $targetDir" -ForegroundColor Red
-            exit 1
-          }
-          Write-Host "Found $($exeFiles.Count) installer(s)." -ForegroundColor Green
-
-      - name: Upload Windows installer artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
-        with:
-          name: windows-installers
-          path: build/target/qcom_usb_kernel_drivers_*.exe
-          retention-days: 1
+  # Installer building moved to windows-signing.yml: the installer must be
+  # built from the *attested* drivers and EV-signed itself, which only
+  # happens on the internal runner after Microsoft attestation. See
+  # docs/windows/RELEASING.md.
