@@ -1392,6 +1392,7 @@ VOID USBINT_HandleConnectionSpeedChangeNotification(PDEVICE_EXTENSION pDevExt)
 {
     PUSB_NOTIFICATION_STATUS pNotification;
     PUSB_NOTIFICATION_CONNECTION_SPEED pConSpd;
+    NTSTATUS readStatus;
 
     QCUSB_DbgPrint
     (
@@ -1416,12 +1417,22 @@ VOID USBINT_HandleConnectionSpeedChangeNotification(PDEVICE_EXTENSION pDevExt)
     if (pConSpd->ulUSBitRate == 0)
     {
         // read flow off
-        USBRD_SetStopState(pDevExt, TRUE, 0);
+        readStatus = USBRD_SetStopState(pDevExt, TRUE, 0);
     }
     else
     {
         // read flow on
-        USBRD_SetStopState(pDevExt, FALSE, 1);
+        readStatus = USBRD_SetStopState(pDevExt, FALSE, 1);
+    }
+    if (!NT_SUCCESS(readStatus))
+    {
+        QCUSB_DbgPrint
+        (
+            QCUSB_DBG_MASK_READ,
+            QCUSB_DBG_LEVEL_ERROR,
+            ("<%s> INTConSpdChange: read flow change failed 0x%x\n",
+            pDevExt->PortName, readStatus)
+        );
     }
 
     if (pConSpd->ulDSBitRate == 0)
