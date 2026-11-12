@@ -293,7 +293,7 @@ VOID QDBDSP_IoStop
  *           queue is resumed; no action is required beyond logging.
  *
  * arguments:Queue   = WDF I/O queue handle
- *           Request = WDF request handle
+ *           Request = WDF request handle; opaque, must not be dereferenced
  *
  * returns:  VOID
  *
@@ -305,23 +305,22 @@ VOID QDBDSP_IoResume
 )
 {
     PDEVICE_CONTEXT pDevContext;
-    PFILE_CONTEXT   fileContext = NULL;
-    WDFFILEOBJECT   fileObj;
-    UCHAR           devType = 0;  // none
 
     pDevContext = QdbDeviceGetContext(WdfIoQueueGetDevice(Queue));
-    if ((fileObj = WdfRequestGetFileObject(Request)) != NULL)
-    {
-        fileContext = QdbFileGetContext(fileObj);  // for debugging
-        devType = fileContext->Type;
-    }
 
+    //
+    // Request must be treated as an opaque handle here. Reads and writes are
+    // forwarded to the USB target (QDBRD_ReadUSB/QDBWT_WriteUSB), so their
+    // completion routines may already have completed the request by the time
+    // this callback runs. Any accessor such as WdfRequestGetFileObject() would
+    // then dereference a released IRP.
+    //
     QDB_DbgPrint
     (
         QDB_DBG_MASK_CONTROL,
         QDB_DBG_LEVEL_TRACE,
-        ("<%s> -->QDBDSP_IoResume: File %d queue 0x%p req 0x%p\n", pDevContext->PortName,
-        devType, Queue, Request)
+        ("<%s> -->QDBDSP_IoResume: queue 0x%p req 0x%p\n", pDevContext->PortName,
+        Queue, Request)
     );
 
     QDB_DbgPrint
