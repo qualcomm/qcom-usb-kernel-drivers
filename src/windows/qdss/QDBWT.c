@@ -218,6 +218,8 @@ VOID QDBWT_WriteUSB
             QDB_DBG_LEVEL_ERROR,
             ("<%s> QDBWT_WriteUSB: WdfRequestSend failed (0x%x)\n", pDevContext->PortName, ntStatus)
         );
+        WdfRequestCompleteWithInformation(Request, ntStatus, 0);
+        return;
     }
 
     QDB_DbgPrint

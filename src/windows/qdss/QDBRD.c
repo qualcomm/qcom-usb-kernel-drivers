@@ -355,6 +355,8 @@ VOID QDBRD_ReadUSB
 
         // In this case, completion routine will not be called, so need to rewind
         InterlockedDecrement(&(pDevContext->Stats.OutstandingRx));
+        WdfRequestCompleteWithInformation(Request, ntStatus, 0);
+        return;
     }
 
     QDB_DbgPrint
