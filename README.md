@@ -30,8 +30,6 @@ The project is organized to facilitate easy compilation, testing, and integratio
 
 - Visual Studio 2019 (or later) with **Desktop development with C++** workload.
 - Windows Driver Kit for Windows 10, version 1903 (18362.1) or later.
-- **.NET Framework 4.7.1 Developer Pack** (required to compile the SDCM installer). Although .NET Framework 4.x is built into Windows 10/11, the Developer Pack provides the compiler reference assemblies (`csc.exe` targeting pack) that the build script needs and is **not** included in Windows by default. Download it from [Microsoft](https://dotnet.microsoft.com/en-us/download/dotnet-framework/net471) and install it manually if the build fails with a `csc.exe not found` or assembly-reference error.
-  > **Note:** This is only required on Windows 11 24H2 / 25H2 and later where the targeting pack is no longer pre-installed.
 
 ## Build
 
