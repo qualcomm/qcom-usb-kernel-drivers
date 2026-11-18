@@ -448,6 +448,10 @@ QCFilterDispatchPnp(PDEVICE_OBJECT DeviceObject, PIRP Irp)
             case IRP_MN_SURPRISE_REMOVAL:
             {
                 QC_SET_NEW_PNP_STATE(deviceExtension, QC_SURPRISE_REMOVE_PENDING);
+                // Wake the filter thread now instead of waiting for IRP_MN_REMOVE_DEVICE,
+                // which may be delayed; non-blocking signal only, the blocking join still
+                // happens later in QCFilter_CancelFilterThread() on IRP_MN_REMOVE_DEVICE.
+                KeSetEvent(&deviceExtension->FilterThread.FilterStopEvent, IO_NO_INCREMENT, FALSE);
                 status = STATUS_SUCCESS;
                 break;
             }
