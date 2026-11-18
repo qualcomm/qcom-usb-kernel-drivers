@@ -176,7 +176,12 @@ VOID QDBDEV_EvtDeviceFileClose(WDFFILEOBJECT FileObject)
         pDevContext->PortName, fileName, FileObject)
     );
 
-    QDBRD_PipeDrainStart(pDevContext);
+    // QDSS drains continuously regardless of app reads, so leave it running here.
+    // DPL re-arms its drain on close as before.
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
+    {
+        QDBRD_PipeDrainStart(pDevContext);
+    }
 
     QDB_DbgPrint
     (
@@ -218,7 +223,12 @@ VOID QDBDEV_EvtDeviceFileCleanup(WDFFILEOBJECT FileObject)
         pDevContext->PortName, fileName, FileObject)
     );
 
-    QDBRD_PipeDrainStart(pDevContext);
+    // QDSS drains continuously regardless of app reads, so leave it running here.
+    // DPL re-arms its drain on cleanup as before.
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
+    {
+        QDBRD_PipeDrainStart(pDevContext);
+    }
 
     QDB_DbgPrint
     (

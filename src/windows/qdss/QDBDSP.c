@@ -157,10 +157,13 @@ VOID QDBDSP_IoDeviceControl
             ntStatus = WdfRequestRetrieveOutputBuffer(Request, 0, &outBuffer, &bufferSize);
             if (NT_SUCCESS(ntStatus))
             {
-                if (OutputBufferLength >= sizeof(QDB_STATS))
+                // Legacy callers pass the 24-byte layout; newer ones get the QDSS fields too
+                if (bufferSize >= QDB_STATS_LEGACY_SIZE)
                 {
-                    RtlCopyMemory(outBuffer, &(pDevContext->Stats), sizeof(QDB_STATS));
-                    WdfRequestSetInformation(Request, sizeof(QDB_STATS));
+                    size_t copyLen = min(bufferSize, sizeof(QDB_STATS));
+
+                    RtlCopyMemory(outBuffer, &(pDevContext->Stats), copyLen);
+                    WdfRequestSetInformation(Request, copyLen);
                 }
                 else
                 {
