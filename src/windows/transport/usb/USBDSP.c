@@ -2181,6 +2181,10 @@ NTSTATUS USBDSP_Dispatch
                     _AcquireMutex(&pDevExt->muPnPMutex);
                     pDevExt->bDeviceSurpriseRemoved = TRUE;
                     USBMAIN_CancalIoThreads(DeviceObject);
+                    // Wake the dispatch thread now instead of waiting for MiniportHalt,
+                    // which may never run for this device; non-blocking so it is safe
+                    // to call while holding muPnPMutex/DSPSyncEvent.
+                    KeSetEvent(&pDevExt->DispatchCancelEvent, IO_NO_INCREMENT, FALSE);
                     USBMAIN_ResetRspAvailableCount(pDevExt, pDevExt->DataInterface, pDevExt->PortName, 1);
                     _ReleaseMutex(&pDevExt->muPnPMutex);
 
