@@ -35,7 +35,12 @@ extern ULONG SimData[2724];
 #define MAX_NAME_LEN              1024
 #define QDB_USB_TRANSFER_SIZE_MAX 1024*1024
 #define QDB_MAX_IO_SIZE_RX        1024*16
+#define QDB_MAX_IO_SIZE_QDSS_RX   (1024*128) // 128 KB per QDSS URB
 #define IO_REQ_NUM_RX             4
+#define QDB_QDSS_RING_BUF_SIZE    (IO_REQ_NUM_RX * 2 * QDB_MAX_IO_SIZE_QDSS_RX) // 1 MB QDSS ring buffer
+#define QDB_QDSS_POLL_INTERVAL_MS 10   // retry delay when no URB could be posted
+#define QDB_QDSS_URB_TIMEOUT_SEC  5    // recycle a QDSS EP7IN URB if the pipe stays quiet
+
 #define QDB_TAG_RD  (ULONG)'RBDQ'
 #define QDB_TAG_WT  (ULONG)'WBDQ'
 #define QDB_TAG_GEN (ULONG)'GBDQ'
@@ -130,7 +135,9 @@ typedef struct _QDB_IO_REQUEST
     WDFMEMORY  IoMemory;
     PVOID      IoBuffer;
     int        Index;
-    int        IsPending;
+    // Claimed/released with Interlocked ops from IoRead, the completion DPC and
+    // the poll timer -- must be LONG for InterlockedCompareExchange.
+    LONG       IsPending;
 } QDB_IO_REQUEST, *PQDB_IO_REQUEST;
 
 #pragma pack(push, 1)
@@ -144,15 +151,25 @@ typedef struct _QCQMAP_STRUCT
 
 #pragma pack(pop)
 
+// Copied to user mode by IOCTL_QCDEV_DPL_STATS: the first 24 bytes are the legacy ABI
+// and must not change. New fields go after them only.
 typedef struct _QDB_STATS
 {
     LONG  OutstandingRx;  // buffers not returned to app
     LONG  DrainingRx;     // internal buffer for draining
     LONG  NumRxExhausted; // no RX buffers
-    ULONG BytesDrained;   // bytes since drain started
+    ULONG BytesDrained;   // bytes since drain started (interlocked: 4 completions)
     ULONG PacketsDrained; // reserved -- debug only
     ULONG IoFailureCount; // debug only
+    // ---- end of legacy layout ----
+    ULONG NumRingOverruns;// QDSS: ring-full events
+    ULONG Reserved;       // explicit pad so BytesDropped is 8-byte aligned
+    ULONG64 BytesDropped; // QDSS: bytes discarded due to ring full
 } QDB_STATS, *PQDB_STATS;
+
+#define QDB_STATS_LEGACY_SIZE FIELD_OFFSET(QDB_STATS, NumRingOverruns)
+C_ASSERT(QDB_STATS_LEGACY_SIZE == 24);
+C_ASSERT(FIELD_OFFSET(QDB_STATS, PacketsDrained) == 16);
 
 typedef struct _DEVICE_CONTEXT
 {
@@ -184,6 +201,7 @@ typedef struct _DEVICE_CONTEXT
     WDFQUEUE                      RxQueue;
     WDFQUEUE                      TxQueue;
     WDFQUEUE                      DefaultQueue;
+    WDFQUEUE                      QdssRxPendingQueue; // manual queue: parks app reads until ring has data
     LONG                          RxCount;
     LONG                          TxCount;
     KSPIN_LOCK                    RxLock;
@@ -193,6 +211,15 @@ typedef struct _DEVICE_CONTEXT
     QDB_IO_REQUEST                RxRequest[IO_REQ_NUM_RX];
     BOOLEAN                       PipeDrain;
     QDB_STATS                     Stats;
+    PUCHAR                        QdssRingBuf;     // QDSS ring buffer pointer; allocated in PrepareHW
+    ULONG                         QdssRingBufSize; // total ring size = QDB_QDSS_RING_BUF_SIZE
+    ULONG                         QdssRingHead;    // write offset (producer)
+    ULONG                         QdssRingTail;    // read offset (consumer)
+    ULONG                         QdssRingUsed;    // bytes currently held in ring
+    ULONG                         QdssRingReserved;// bytes handed to a consumer, copy-out still in progress
+    LONG                          QdssDeliverBusy; // 1 while a consumer is dequeue+reserving (keeps delivery ordered)
+    WDFTIMER                      QdssPollTimer;   // passive-level retry if no URB gets posted
+    ULONG                         QdssUrbsInFlight;// EP7IN reads outstanding (0..NumOfRxReqs)
 } DEVICE_CONTEXT, *PDEVICE_CONTEXT;
 
 typedef struct _REQUEST_CONTEXT

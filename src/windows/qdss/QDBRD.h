@@ -39,6 +39,13 @@ NTSTATUS QDBRD_PipeDrainStop(PDEVICE_CONTEXT pDevContext);
 
 EVT_WDF_REQUEST_COMPLETION_ROUTINE QDBRD_PipeDrainCompletion;
 
+// QDSS poll timer: re-arms EP7IN URBs and drains the ring when no completion will
+EVT_WDF_TIMER QDBRD_QdssPollTimer;
+
+VOID QDBRD_QdssTryArmRead(PDEVICE_CONTEXT pDevContext);
+
+VOID QDBRD_QdssStopPolling(PDEVICE_CONTEXT pDevContext);
+
 VOID QDBRD_ProcessDrainedDPLBlock(PDEVICE_CONTEXT pDevContext, PVOID Buffer, ULONG Length);
 
 PVOID QDBRD_RetrievePacket(PVOID *DataPtr, PULONG DataLength, PULONG PacketLength);
