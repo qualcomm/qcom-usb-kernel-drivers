@@ -164,6 +164,108 @@ jobs:
             ].join("\n"));
 
   # ============================================================
+  # Windows release-files gate for PRs targeting main:
+  #   mandatory only when build/ or src/windows/ changed. Required so that
+  #   windows-signing.yml has a real version to sign/attest and
+  #   release.yml's windows-release job has a RELEASES.md section to
+  #   publish. See docs/windows/RELEASING.md.
+  # ============================================================
+  windows-release-files:
+    name: Windows Release Files
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.base.ref == 'main'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Validate Windows version bump and release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          CHANGED=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")
+          echo "Changed files:"
+          echo "$CHANGED"
+
+          if ! echo "$CHANGED" | grep -qE '^(build/|src/windows/)'; then
+            echo "No build/ or src/windows/ changes in this PR — nothing to validate."
+            exit 0
+          fi
+
+          HEADER="src/windows/qcversion.h"
+          NOTES="src/windows/RELEASES.md"
+
+          if ! echo "$CHANGED" | grep -qF "$HEADER"; then
+            echo "::error file=${HEADER}::This PR changes build/ or src/windows/, but ${HEADER} was not updated. Bump QCOM_USB_DRIVERS_PRODUCT_VERSION before merging into main."
+            exit 1
+          fi
+
+          VERSION=$(grep -E '^[[:space:]]*#define[[:space:]]+QCOM_USB_DRIVERS_PRODUCT_VERSION' "$HEADER" \
+            | sed -E 's/.*PRODUCT_VERSION[[:space:]]+([0-9.]+).*/\1/')
+          FILE_VERSION=$(grep -E '^[[:space:]]*#define[[:space:]]+QCOM_USB_DRIVERS_FILE_VERSION' "$HEADER" \
+            | sed -E 's/.*FILE_VERSION[[:space:]]+([0-9,]+).*/\1/')
+
+          VERSION_RE='^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'
+          if ! echo "$VERSION" | grep -qE "$VERSION_RE"; then
+            echo "::error file=${HEADER}::QCOM_USB_DRIVERS_PRODUCT_VERSION '${VERSION}' does not match expected format X.X.X.X"
+            exit 1
+          fi
+
+          EXPECTED_FILE_VERSION="${VERSION//./,}"
+          if [ "$FILE_VERSION" != "$EXPECTED_FILE_VERSION" ]; then
+            echo "::error file=${HEADER}::QCOM_USB_DRIVERS_FILE_VERSION '${FILE_VERSION}' does not match QCOM_USB_DRIVERS_PRODUCT_VERSION '${VERSION}' (expected ${EXPECTED_FILE_VERSION})"
+            exit 1
+          fi
+
+          TAG="release-win-v${VERSION}"
+          TAG_EXISTS=$(gh api "repos/${REPO}/git/matching-refs/tags/${TAG}" \
+            --jq ".[] | select(.ref == \"refs/tags/${TAG}\") | .ref")
+          if [ -n "$TAG_EXISTS" ]; then
+            echo "::error file=${HEADER}::Version '${VERSION}' is already tagged as ${TAG}. Bump to a newer version."
+            exit 1
+          fi
+
+          LATEST=$(gh api "repos/${REPO}/git/matching-refs/tags/release-win-v" \
+            --jq '.[].ref' | sed 's#refs/tags/release-win-v##' | sort -V | tail -1)
+          if [ -n "$LATEST" ]; then
+            TOP=$(printf '%s\n%s\n' "$LATEST" "$VERSION" | sort -V | tail -1)
+            if [ "$TOP" != "$VERSION" ] || [ "$VERSION" = "$LATEST" ]; then
+              echo "::error file=${HEADER}::QCOM_USB_DRIVERS_PRODUCT_VERSION '${VERSION}' must be newer than the latest tag release-win-v${LATEST}."
+              exit 1
+            fi
+          fi
+
+          echo "Version OK: ${VERSION} (FILE_VERSION ${FILE_VERSION}), newer than latest tag."
+
+          if ! echo "$CHANGED" | grep -qF "$NOTES"; then
+            echo "::error file=${NOTES}::This PR changes build/ or src/windows/, but ${NOTES} was not updated. Add a '## [${VERSION}]' section before merging into main."
+            exit 1
+          fi
+
+          SECTION=$(awk -v ver="$VERSION" '
+            $0 ~ ("^## \\[" ver "\\]") {found=1; next}
+            found && /^## \[/ {exit}
+            found && /^---/ {exit}
+            found {print}
+          ' "$NOTES")
+
+          if [ -z "$(echo "$SECTION" | tr -d '[:space:]')" ]; then
+            echo "::error file=${NOTES}::${NOTES} has no (or an empty) section for ${VERSION}."
+            exit 1
+          fi
+
+          echo "RELEASES.md section for ${VERSION}:"
+          echo "$SECTION"
+
+  # ============================================================
   # Hard-gate: only maintainers may modify .github/workflows/,
   # regardless of which branch the PR targets.
   # ============================================================
@@ -221,10 +323,14 @@ jobs:
   block-upstream-pr:
     name: Block PR From Upstream Repository
     runs-on: ubuntu-latest
-    # linux-prepare (release.yml) pushes ci/release-lnx-<ver> into this repo
-    # (not a fork) for a maintainer to open as a PR - exempt it from the
-    # upstream-branch rule. See docs/linux/RELEASING.md.
-    if: github.base_ref == 'develop' && !startsWith(github.head_ref, 'ci/release-lnx-')
+    # linux-prepare and windows-prepare (release.yml) push ci/release-lnx-<ver>
+    # / ci/release-win-<ver> into this repo (not a fork) for a maintainer to
+    # open as a PR - exempt them from the upstream-branch rule. See
+    # docs/linux/RELEASING.md and docs/windows/RELEASING.md.
+    if: >
+      github.base_ref == 'develop' &&
+      !startsWith(github.head_ref, 'ci/release-lnx-') &&
+      !startsWith(github.head_ref, 'ci/release-win-')
     permissions:
       pull-requests: write
       issues: write
