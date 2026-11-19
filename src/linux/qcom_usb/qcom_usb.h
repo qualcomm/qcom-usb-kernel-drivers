@@ -57,6 +57,7 @@
 
 #define BULK_URB_LIST            4
 #define QTIDEV_TX_TIMEOUT        2000   // in milliseconds
+#define QTIDEV_TX_ZLP_TIMEOUT    60000  // in milliseconds, target may hold off ZLP ACK (e.g. SPINOR write)
 #define QTIDEV_RX_TIMEOUT        2000  // in milliseconds
 #define QTIDEV_BULK_BUF_LEN      1024*1024*3 // 4000000//1024*1024*3
 #define QTIDEV_RETRY             3
@@ -124,10 +125,13 @@ typedef struct qtidev_stats
 typedef struct qtidev_tx_buf
 {
     struct usb_anchor mTxAnchor; // for tracking/cancelling
+    struct usb_anchor mZlpAnchor; // for tracking/cancelling ZLP
     struct urb *mpTxUrb;   // URB
+    struct urb *mpZlpUrb;  // ZLP URB
     void       *mpTxBuf;   // buffer
     size_t     mTxBufSize; // buffer size
     void       *mpTxSem;   // signal
+    void       *mpZlpSem;  // ZLP signal
     void       *mpDev;     // device
     int        mIndex;     // for tracking
 } sQTIDevTxBuf;

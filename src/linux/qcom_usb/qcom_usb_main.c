@@ -26,6 +26,7 @@ int debug_g=0;//For global logging
 
 int UrbRxSize=QTIDEV_RX_SIZE;//global RxSize variable
 int UrbTxSize=QTIDEV_TX_SIZE;//global TxSize variable
+int txZlpTimeout=QTIDEV_TX_ZLP_TIMEOUT;//TX ZLP completion timeout
 int skip_open_handles = 0;
 
 static struct usb_driver qtiDevDriver;
@@ -1500,6 +1501,29 @@ static void UserspaceQTIDevWrite_bulk_callback(struct urb *urb)
     return;
 }
 
+static void UserspaceQTIDevWriteZlp_bulk_callback(struct urb *urb)
+{
+    sQTIDevTxBuf *txBuf;
+    sQTIDevUSB *dev;
+
+    txBuf = urb->context;
+    dev = txBuf->mpDev;
+    QC_LOG_DBG(dev," [%d] ZLP status %d 0x%px\n", txBuf->mIndex, urb->status, urb);
+    /* sync/async unlink faults aren't errors */
+    if (urb->status &&
+        !(urb->status == -ENOENT ||
+          urb->status == -ECONNRESET ||
+          urb->status == -ESHUTDOWN))
+    {
+        QC_LOG_INFO(dev,"%s - nonzero ZLP bulk status received: %d\n",
+                __func__, urb->status);
+    }
+
+    urb->transfer_buffer = NULL;
+    up((struct semaphore*)txBuf->mpZlpSem);
+    return;
+}
+
 static void InitializeTxBuffers(sQTIDevUSB *pDev)
 {
     int i;
@@ -1510,7 +1534,10 @@ static void InitializeTxBuffers(sQTIDevUSB *pDev)
         pDev->mTxBufferPool[i].mIndex = i;
         pDev->mTxBufferPool[i].mpTxBuf = NULL;
         pDev->mTxBufferPool[i].mpTxUrb = NULL;
+        pDev->mTxBufferPool[i].mpZlpUrb = NULL;
+        pDev->mTxBufferPool[i].mpZlpSem = NULL;
         init_usb_anchor(&(pDev->mTxBufferPool[i].mTxAnchor));
+        init_usb_anchor(&(pDev->mTxBufferPool[i].mZlpAnchor));
     }
 
 }  // InitializeTxBuffers
@@ -1526,7 +1553,14 @@ static void DeinitializeTxBuffers(sQTIDevUSB *pDev)
         if (!time)
         {
             QC_LOG_DBG(pDev,"timeout on URB anchor[%d], kill URBs\n", i);
+            usb_kill_anchored_urbs(&(pDev->mTxBufferPool[i].mZlpAnchor));
             usb_kill_anchored_urbs(&(pDev->mTxBufferPool[i].mTxAnchor));
+        }
+        time = usb_wait_anchor_empty_timeout(&(pDev->mTxBufferPool[i].mZlpAnchor), QTIDEV_TX_TIMEOUT);
+        if (!time)
+        {
+            QC_LOG_DBG(pDev,"timeout on ZLP anchor[%d], kill URBs\n", i);
+            usb_kill_anchored_urbs(&(pDev->mTxBufferPool[i].mZlpAnchor));
         }
     }
 }  // DeinitializeTxBuffers
@@ -1595,6 +1629,18 @@ int PrepareTxUrbBuffer(sQTIDevUSB *pDev, size_t dataLen, void *pSem)
         }
     }
 
+    // prepare TX ZLP URB, allocate if necessary
+    if (pDev->mTxBufferPool[i].mpZlpUrb == NULL)
+    {
+        pDev->mTxBufferPool[i].mpZlpUrb = usb_alloc_urb(0, GFP_KERNEL);
+        if (pDev->mTxBufferPool[i].mpZlpUrb == NULL)
+        {
+            QC_LOG_ERR(pDev,"TX ZLP urb mem failure[%d]\n", i);
+            pDev->mTxBufferPool[i].mpTxSem = NULL;
+            return -ENOMEM;
+        }
+    }
+
     return i;
 }  // PrepareTxUrbBuffer
 
@@ -1605,9 +1651,14 @@ static ssize_t UserspaceQTIDevWrite(struct file *file, const char *user_buffer,
     int retval = 0;
     struct urb *urb = NULL;
     char *buf = NULL;
+    struct urb *zlpUrb = NULL;
     struct semaphore writeSem;
+    struct semaphore zlpSem;
     struct usb_anchor *txAnchor;
+    struct usb_anchor *zlpAnchor;
     int txEmpty;
+    bool needZlp;
+    unsigned long zlpStart;
     int iterator = QTIDEV_RETRY;
     int txIdx = -1;
     u32 bytesSent; 
@@ -1637,6 +1688,7 @@ static ssize_t UserspaceQTIDevWrite(struct file *file, const char *user_buffer,
     spin_unlock_irq(&pDev->mSpinErrLock);
 
     sema_init(&writeSem, 0);
+    sema_init(&zlpSem, 0);
     txIdx = PrepareTxUrbBuffer(pDev, dataLen, &writeSem);
 
     // prepare TX buffer and TX URB, re-allocate if necessary
@@ -1645,8 +1697,11 @@ static ssize_t UserspaceQTIDevWrite(struct file *file, const char *user_buffer,
         goto error;
     }
     urb = pDev->mTxBufferPool[txIdx].mpTxUrb;
+    zlpUrb = pDev->mTxBufferPool[txIdx].mpZlpUrb;
+    pDev->mTxBufferPool[txIdx].mpZlpSem = &zlpSem;
     buf = pDev->mTxBufferPool[txIdx].mpTxBuf;
     txAnchor = &(pDev->mTxBufferPool[txIdx].mTxAnchor);
+    zlpAnchor = &(pDev->mTxBufferPool[txIdx].mZlpAnchor);
 
     if (copy_from_user(buf, user_buffer, dataLen))
     {
@@ -1667,11 +1722,14 @@ static ssize_t UserspaceQTIDevWrite(struct file *file, const char *user_buffer,
     usb_fill_bulk_urb(urb, pDev->udev,
             usb_sndbulkpipe(pDev->udev, pDev->mBulkOutEndAddr),
             buf, dataLen, UserspaceQTIDevWrite_bulk_callback, &(pDev->mTxBufferPool[txIdx]));
-    urb->transfer_flags |= URB_ZERO_PACKET;
+    // ZLP is sent as a separate URB so that it gets its own (longer) timeout;
+    // the target may hold off the ZLP ACK while it commits data (e.g. SPINOR write)
+    urb->transfer_flags &= ~URB_ZERO_PACKET;
+    needZlp = (pDev->mBulkOutSize != 0) && ((dataLen % pDev->mBulkOutSize) == 0);
 #ifdef QCUSB_TEST_ONLY
     if (pDev->mDevInfo.mDevInfInfo.mDevType == QTIDEV_INF_TYPE_LPC)
     {
-        urb->transfer_flags &= ~URB_ZERO_PACKET;  // clear ZLP flag
+        needZlp = false;  // no ZLP for LPC
     }
 #endif
     usb_anchor_urb(urb, txAnchor);
@@ -1695,13 +1753,41 @@ static ssize_t UserspaceQTIDevWrite(struct file *file, const char *user_buffer,
         mutex_unlock(&pDev->mIoMutex);
         goto error;
     }
+
+    // queue ZLP right behind the data URB to keep endpoint ordering
+    if (needZlp)
+    {
+        usb_fill_bulk_urb(zlpUrb, pDev->udev,
+                usb_sndbulkpipe(pDev->udev, pDev->mBulkOutEndAddr),
+                buf, 0, UserspaceQTIDevWriteZlp_bulk_callback, &(pDev->mTxBufferPool[txIdx]));
+        zlpUrb->transfer_flags &= ~URB_ZERO_PACKET;
+        usb_anchor_urb(zlpUrb, zlpAnchor);
+        QC_LOG_DBG(pDev," TX ZLP URB[%d] 0x%px\n", txIdx, zlpUrb);
+        retval = usb_submit_urb(zlpUrb, GFP_KERNEL);
+        if (retval != 0)
+        {
+            QC_LOG_ERR(pDev,"- failed submitting ZLP urb, error %d\n", retval);
+            usb_unanchor_urb(zlpUrb);
+            mutex_unlock(&pDev->mIoMutex);
+            usb_kill_anchored_urbs(txAnchor);
+            down(&writeSem); // wait for data URB callback
+            goto error;
+        }
+    }
     mutex_unlock(&pDev->mIoMutex);
-    
+
     mutex_lock(&pDev->mIoMutex);
     if (pDev->disconnected)
     {
         QC_LOG_EXCEPTION(pDev, "QTI-ALERT-W1: dev interface is gone, return\n");
         mutex_unlock(&pDev->mIoMutex);
+        usb_kill_anchored_urbs(zlpAnchor); // ZLP is queued behind data, cancel it first
+        usb_kill_anchored_urbs(txAnchor);
+        down(&writeSem); // wait for callbacks before semaphores go out of scope
+        if (needZlp)
+        {
+            down(&zlpSem);
+        }
         retval = -ENODEV;
         goto error;
     }
@@ -1709,22 +1795,59 @@ static ssize_t UserspaceQTIDevWrite(struct file *file, const char *user_buffer,
 
     // IMPORTANT: assume only one URB on anshor for synchronous IO
     txEmpty = usb_wait_anchor_empty_timeout(txAnchor, QTIDEV_TX_TIMEOUT); /** return 0 on timeout */
-    bytesSent = urb->actual_length;
     if (txEmpty == 0)
     {
-        // timeout, cancel what's on the anchor
+        // timeout, cancel  what's on the anchor ZLP first (it is queued behind data), then data
         QC_LOG_WARN(pDev, "QTI TX timeout: planned size %lu TxCount %ld\n", dataLen, pDev->mStats.TxCount);
+        usb_kill_anchored_urbs(zlpAnchor);
         usb_kill_anchored_urbs(txAnchor);
+        down(&writeSem); // make it non-interruptible
+        if (needZlp)
+        {
+            down(&zlpSem);
+        }
+        retval = -ETIMEDOUT;
+        goto error;
+    }
+    down(&writeSem); // make sure data callback has completed
+    bytesSent = urb->actual_length;
+
+    if (needZlp)
+    {
+        if (urb->status != 0)
+        {
+            // data stage failed, no point waiting for ZLP
+            usb_kill_anchored_urbs(zlpAnchor);
+            down(&zlpSem);
+        }
+        else
+        {
+            // ZLP stage, target may hold off the ACK while committing data
+            zlpStart = jiffies;
+            txEmpty = usb_wait_anchor_empty_timeout(zlpAnchor, txZlpTimeout); /** return 0 on timeout */
+            if (txEmpty == 0)
+            {
+                QC_LOG_WARN(pDev, "QTI TX ZLP timeout after %d ms: size %lu TxCount %ld\n",
+                        txZlpTimeout, dataLen, pDev->mStats.TxCount);
+                usb_kill_anchored_urbs(zlpAnchor);
+                down(&zlpSem); // make it non-interruptible
+                retval = -ETIMEDOUT;
+                goto error;
+            }
+            down(&zlpSem); // make sure ZLP callback has completed
+            QC_LOG_DBG(pDev," TX ZLP[%d] done in %u ms, status %d\n", txIdx,
+                    jiffies_to_msecs(jiffies - zlpStart), zlpUrb->status);
+        }
     }
 
-    down(&writeSem); // make it non-interruptible
-
+    pDev->mTxBufferPool[txIdx].mpZlpSem = NULL;
     pDev->mTxBufferPool[txIdx].mpTxSem = NULL;
     return bytesSent;
 
 error:
     if (txIdx >= 0)
     {
+        pDev->mTxBufferPool[txIdx].mpZlpSem = NULL;
         pDev->mTxBufferPool[txIdx].mpTxSem = NULL;
     }
     return retval;
@@ -3365,6 +3488,11 @@ static void DeInitializeURB(sQTIDevUSB *pDev)
            usb_free_urb(pDev->mTxBufferPool[i].mpTxUrb);
            pDev->mTxBufferPool[i].mpTxUrb = NULL;
         }
+        if (pDev->mTxBufferPool[i].mpZlpUrb != NULL)
+        {
+           usb_free_urb(pDev->mTxBufferPool[i].mpZlpUrb);
+           pDev->mTxBufferPool[i].mpZlpUrb = NULL;
+        }
     }
     mutex_unlock(&pDev->mIoMutex);
 
@@ -3676,12 +3804,8 @@ static int QTIDevUSBProbe(struct usb_interface *interface,
         if (!dev->mBulkOutEndAddr &&
                 usb_endpoint_is_bulk_out(endpoint)) {
             /* we found a bulk out endpoint */
-#ifdef QCUSB_TEST_ONLY
-            if (devInfo->mDevType == QTIDEV_INF_TYPE_LPC)
-            {
-                dev->mBulkOutSize = usb_endpoint_maxp(endpoint);
-            }
-#endif
+            dev->mBulkOutSize = usb_endpoint_maxp(endpoint); // needed for ZLP decision on TX
+            QC_LOG_INFO(dev,"Bulk OUT max packet size %zu\n", dev->mBulkOutSize);
             dev->mBulkOutEndAddr = endpoint->bEndpointAddress;
         }
 
@@ -4138,6 +4262,9 @@ MODULE_PARM_DESC(UrbRxSize, "URB Rx Size)");
 
 module_param( UrbTxSize, int, S_IRUGO | S_IWUSR );
 MODULE_PARM_DESC(UrbTxSize, "URB Tx Size)");
+
+module_param( txZlpTimeout, int, S_IRUGO | S_IWUSR );
+MODULE_PARM_DESC(txZlpTimeout, "TX ZLP completion timeout in ms (default 60000)");
 
 module_param(gQdssInfFilePath, charp, S_IRUGO | S_IWUSR );
 MODULE_PARM_DESC(gQdssInfFilePath, "Inf File location (Need complete path)");
