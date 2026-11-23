@@ -166,56 +166,119 @@ VOID QDBRD_QdssStopPolling(PDEVICE_CONTEXT pDevContext)
 }
 
 
-VOID QDBRD_QdssTryArmRead(PDEVICE_CONTEXT pDevContext)
+// QDSS: KMDF keeps IO_REQ_NUM_RX reads of 128 KB posted on TraceIN. The pipe target is
+// started in EvtDeviceD0Entry and stopped in EvtDeviceD0Exit (see QDBPNP.c).
+// Ordering ASSUMPTION (not a documented KMDF guarantee): completions for one bulk IN
+// endpoint are delivered in submission order, so blocks enter the ring in stream order.
+NTSTATUS QDBRD_QdssConfigReader(PDEVICE_CONTEXT pDevContext)
 {
-    KIRQL irql;
-    ULONG i;
+    WDF_USB_CONTINUOUS_READER_CONFIG readerConfig;
+    NTSTATUS                         ntStatus;
 
-    if ((pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS) ||
+    pDevContext->QdssReaderPipe = NULL;
+
+    WDF_USB_CONTINUOUS_READER_CONFIG_INIT(&readerConfig, QDBRD_QdssReadComplete,
+                                          pDevContext, QDB_MAX_IO_SIZE_QDSS_RX);
+    readerConfig.NumPendingReads = IO_REQ_NUM_RX;
+    readerConfig.EvtUsbTargetPipeReadersFailed = QDBRD_QdssReadersFailed;
+
+    ntStatus = WdfUsbTargetPipeConfigContinuousReader(pDevContext->TraceIN, &readerConfig);
+    if (NT_SUCCESS(ntStatus))
+    {
+        pDevContext->QdssReaderPipe = pDevContext->TraceIN;
+    }
+
+    QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_DETAIL,
+        ("<%s> QDBRD_QdssConfigReader: %u x %uB readers ST 0x%x\n", pDevContext->PortName,
+        IO_REQ_NUM_RX, QDB_MAX_IO_SIZE_QDSS_RX, ntStatus));
+
+    return ntStatus;
+}
+
+// Continuous-reader completion (<= DISPATCH_LEVEL): commit the block to the ring, then deliver.
+VOID QDBRD_QdssReadComplete
+(
+    WDFUSBPIPE Pipe,
+    WDFMEMORY  Buffer,
+    size_t     NumBytesTransferred,
+    WDFCONTEXT Context
+)
+{
+    PDEVICE_CONTEXT pDevContext = (PDEVICE_CONTEXT)Context;
+    KIRQL           ringLevel;
+
+    UNREFERENCED_PARAMETER(Pipe);
+
+    // A successful read ends the failure run, as in the original drain completion
+    InterlockedExchange((volatile LONG *)&pDevContext->Stats.IoFailureCount, 0);
+
+    if (NumBytesTransferred == 0)
+    {
+        return;
+    }
+
+    // 32-bit on purpose: legacy IOCTL ABI field (wraps at 4 GB, as before)
+    InterlockedExchangeAdd((volatile LONG *)&pDevContext->Stats.BytesDrained, (LONG)NumBytesTransferred);
+
+    KeAcquireSpinLock(&pDevContext->RxLock, &ringLevel);
+    QdssRingWriteLocked(pDevContext, WdfMemoryGetBuffer(Buffer, NULL), (ULONG)NumBytesTransferred);
+    KeReleaseSpinLock(&pDevContext->RxLock, ringLevel);
+
+    QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_TRACE,
+        ("<%s> QDBRD_QdssReadComplete: %uB (ring %uB)\n", pDevContext->PortName,
+        (ULONG)NumBytesTransferred, pDevContext->QdssRingUsed));
+
+    QdssServicePendingReads(pDevContext);
+}
+
+// Continuous-reader failure (PASSIVE_LEVEL). TRUE: KMDF resets the pipe and restarts the
+// readers. FALSE: reading stays stopped until the next D0Entry restarts the pipe target.
+BOOLEAN QDBRD_QdssReadersFailed
+(
+    WDFUSBPIPE  Pipe,
+    NTSTATUS    Status,
+    USBD_STATUS UsbdStatus
+)
+{
+    PDEVICE_CONTEXT pDevContext;
+    ULONG           failures;
+
+    UNREFERENCED_PARAMETER(UsbdStatus);
+
+    pDevContext = QdbDeviceGetContext(WdfIoTargetGetDevice(WdfUsbTargetPipeGetIoTarget(Pipe)));
+
+    if ((Status == STATUS_NO_SUCH_DEVICE) ||
+        (Status == STATUS_DEVICE_NOT_CONNECTED) ||
+        (Status == STATUS_DELETE_PENDING) ||
         (pDevContext->DeviceRemoval == TRUE))
     {
-        return;
+        QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_ERROR,
+            ("<%s> QDBRD_QdssReadersFailed: device gone ST 0x%x, stop reading\n",
+            pDevContext->PortName, Status));
+        return FALSE;
     }
 
-    // Never re-enable the drain once cleanup has cleared it under the same lock
-    KeAcquireSpinLock(&pDevContext->RxLock, &irql);
-    if (pDevContext->DeviceRemoval == TRUE)
+    // Same budget as the original drain: give up after IoFailureThreshold consecutive failures
+    failures = (ULONG)InterlockedIncrement((volatile LONG *)&pDevContext->Stats.IoFailureCount);
+    if (failures > pDevContext->IoFailureThreshold)
     {
-        KeReleaseSpinLock(&pDevContext->RxLock, irql);
-        return;
-    }
-    pDevContext->PipeDrain = TRUE;   // lets SendIOBlock/completion proceed
-    KeReleaseSpinLock(&pDevContext->RxLock, irql);
-
-    // Top up every free slot; SendIOBlock skips slots already in flight
-    for (i = 0; i < pDevContext->NumOfRxReqs; i++)
-    {
-        QDBRD_SendIOBlock(pDevContext, i);
+        QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_ERROR,
+            ("<%s> QDBRD_QdssReadersFailed: ST 0x%x USBD 0x%x failed %u times (> %u), stop reading\n",
+            pDevContext->PortName, Status, UsbdStatus, failures, pDevContext->IoFailureThreshold));
+        return FALSE;
     }
 
     QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_ERROR,
-        ("<%s> QDSSDIAG QdssTryArmRead: posted up to %u URBs, InFlight=%u DrainingRx=%d\n",
-        pDevContext->PortName, pDevContext->NumOfRxReqs,
-        pDevContext->QdssUrbsInFlight, pDevContext->Stats.DrainingRx));
-
-    // Nothing posted and nothing pending -> retry shortly rather than wedge
-    if (pDevContext->QdssUrbsInFlight == 0)
-    {
-        QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_ERROR,
-            ("<%s> QDSSDIAG QdssTryArmRead: no URB posted, retrying in %u ms\n",
-            pDevContext->PortName, QDB_QDSS_POLL_INTERVAL_MS));
-        QdssSchedulePoll(pDevContext);
-    }
+        ("<%s> QDBRD_QdssReadersFailed: ST 0x%x USBD 0x%x (%u/%u), reset and restart\n",
+        pDevContext->PortName, Status, UsbdStatus, failures, pDevContext->IoFailureThreshold));
+    return TRUE;
 }
 
-// Timer callback: re-arm the pipe and flush the ring. Passive-level (see QDBPNP setup).
+// Timer callback (PASSIVE_LEVEL): finish delivering ring data the bounded service loop left.
 VOID QDBRD_QdssPollTimer(WDFTIMER Timer)
 {
     PDEVICE_CONTEXT pDevContext = QdbDeviceGetContext(WdfTimerGetParentObject(Timer));
 
-    QDBRD_QdssTryArmRead(pDevContext);
-
-    // Drain too: the bounded service loop can leave ring data undelivered
     QdssServicePendingReads(pDevContext);
 }
 
@@ -256,7 +319,7 @@ static VOID QdssRingWriteLocked(PDEVICE_CONTEXT pDevContext, PVOID Src, ULONG Le
 // Drain ring -> parked QDSS TRACE reads. Bounded so we cannot spin at DISPATCH_LEVEL.
 VOID QdssServicePendingReads(PDEVICE_CONTEXT pDevContext)
 {
-    ULONG guard = (pDevContext->NumOfRxReqs + 1) * 2;
+    ULONG guard = (IO_REQ_NUM_RX + 1) * 2;
 
     // One deliverer at a time: concurrent dequeue+reserve would reorder the stream
     if (InterlockedCompareExchange(&pDevContext->QdssDeliverBusy, 1, 0) != 0)
@@ -457,6 +520,8 @@ VOID QDBRD_IoRead
 
     // QDSS TRACE path: serve inline when the ring has data (parking every read
     // costs a round trip that throttles the app); park only when it is empty.
+    // Stream order is guaranteed only with ONE outstanding read per TRACE handle:
+    // RxQueue dispatches in parallel, so overlapped reads may complete out of issue order.
     if ((pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS) &&
         (fileContext->Type == QDB_FILE_TYPE_TRACE))
     {
@@ -519,13 +584,11 @@ VOID QDBRD_IoRead
                 (
                     QDB_DBG_MASK_READ,
                     QDB_DBG_LEVEL_ERROR,
-                    ("<%s> QDSSDIAG IoRead: served %uB from ring (ring now %uB) InFlight=%u\n",
-                    pDevContext->PortName, copyLen,
-                    pDevContext->QdssRingUsed, pDevContext->QdssUrbsInFlight)
+                    ("<%s> QDSSDIAG IoRead: served %uB from ring (ring now %uB)\n",
+                    pDevContext->PortName, copyLen, pDevContext->QdssRingUsed)
                 );
                 // A deliverer turned away while we held Busy has no retry: drain for it
                 QdssServicePendingReads(pDevContext);
-                QDBRD_QdssTryArmRead(pDevContext);
                 WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, copyLen);
                 return;
             }
@@ -547,7 +610,6 @@ VOID QDBRD_IoRead
         }
 
         QdssServicePendingReads(pDevContext);
-        QDBRD_QdssTryArmRead(pDevContext);
         return;
     }
 
@@ -812,15 +874,13 @@ NTSTATUS QDBRD_AllocateRequestsRx(PDEVICE_CONTEXT pDevContext)
 
     // RxLock is initialized in QDBPNP_EvtDriverDeviceAdd (before any cleanup can take it)
 
-    // ENABLING CHANGE: pool was DPL-only; QDSS now reuses it for EP7IN reads
-    if ((pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL) &&
-        (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS))
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
     {
         QDB_DbgPrint
         (
             QDB_DBG_MASK_READ,
             QDB_DBG_LEVEL_ERROR,
-            ("<%s> <--QDBRD_AllocateRequestsRx: not DPL/QDSS\n", pDevContext->PortName)
+            ("<%s> <--QDBRD_AllocateRequestsRx: not DPL\n", pDevContext->PortName)
         );
         return STATUS_NOT_SUPPORTED;
     }
@@ -853,7 +913,7 @@ NTSTATUS QDBRD_AllocateRequestsRx(PDEVICE_CONTEXT pDevContext)
             WDF_NO_OBJECT_ATTRIBUTES,
             NonPagedPool,
             QDB_TAG_RD,
-            (pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS) ? QDB_MAX_IO_SIZE_QDSS_RX : QDB_MAX_IO_SIZE_RX,
+            QDB_MAX_IO_SIZE_RX,
             &(pDevContext->RxRequest[i].IoMemory),
             &(pDevContext->RxRequest[i].IoBuffer)
         );
@@ -912,9 +972,7 @@ VOID QDBRD_FreeIoBuffer(PDEVICE_CONTEXT pDevContext)
     PQDB_IO_REQUEST ioReq = pDevContext->RxRequest;
     ULONG numElements = pDevContext->NumOfRxReqs;
 
-    // ENABLING CHANGE: must mirror AllocateRequestsRx or QDSS objects leak
-    if ((pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL) &&
-        (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS))
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
     {
         return;
     }
@@ -975,15 +1033,13 @@ NTSTATUS QDBRD_PipeDrainStart(PDEVICE_CONTEXT pDevContext)
         ("<%s> -->QDBRD_PipeDrainStart\n", pDevContext->PortName)
     );
 
-    // ENABLING CHANGE: QDSS calls this from QdssTryArmRead to set PipeDrain
-    if ((pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL) &&
-        (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS))
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
     {
         QDB_DbgPrint
         (
             QDB_DBG_MASK_READ,
             QDB_DBG_LEVEL_ERROR,
-            ("<%s> <--QDBRD_PipeDrainStart: not DPL/QDSS\n", pDevContext->PortName)
+            ("<%s> <--QDBRD_PipeDrainStart: not DPL\n", pDevContext->PortName)
         );
         return STATUS_NOT_SUPPORTED;
     }
@@ -1028,10 +1084,6 @@ static VOID QDBRD_SendRewind(PDEVICE_CONTEXT pDevContext, INT Index)
 
     KeAcquireSpinLock(&pDevContext->RxLock, &level);
     InterlockedDecrement(&(pDevContext->Stats.DrainingRx));
-    if ((pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS) && (pDevContext->QdssUrbsInFlight > 0))
-    {
-        pDevContext->QdssUrbsInFlight--;
-    }
     KeReleaseSpinLock(&pDevContext->RxLock, level);
 
     InterlockedExchange((volatile LONG *)&pDevContext->RxRequest[Index].IsPending, 0);
@@ -1055,12 +1107,8 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
     NTSTATUS                 ntStatus;
     BOOLEAN                  bResult;
     WDFUSBPIPE               pipeIN = pDevContext->TraceIN;
-    WDF_REQUEST_SEND_OPTIONS sendOptions;
-    PWDF_REQUEST_SEND_OPTIONS pSendOptions = WDF_NO_SEND_OPTIONS;
 
-    // ENABLING CHANGE: EP7IN submit path, driven per-slot by QdssTryArmRead
-    if ((pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL) &&
-        (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS))
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
     {
         QDB_DbgPrint
         (
@@ -1080,8 +1128,8 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
         pDevContext->MyIoTarget, pDevContext->Stats.IoFailureCount)
     );
 
-    // Claim the slot atomically: IoRead, the completion DPC and the poll timer all
-    // target the same slot, and a double submit of one WDFREQUEST bugchecks.
+    // Claim the slot atomically: PipeDrainStart and the completion DPC can target the
+    // same slot, and a double submit of one WDFREQUEST bugchecks.
     if (InterlockedCompareExchange((volatile LONG *)&pDevContext->RxRequest[Index].IsPending,
                                    1, 0) != 0)
     {
@@ -1105,10 +1153,6 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
         if (allowed)
         {
             InterlockedIncrement(&(pDevContext->Stats.DrainingRx));
-            if (pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS)
-            {
-                pDevContext->QdssUrbsInFlight++;
-            }
         }
         KeReleaseSpinLock(&pDevContext->RxLock, gateLevel);
 
@@ -1176,21 +1220,12 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
         &(pDevContext->RxRequest[Index])
     );
 
-    // DrainingRx/QdssUrbsInFlight were already counted at the gate above
-    if (pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS)
-    {
-        // QDSS: bound the wait so a silent TraceIN recycles the URB, not parks the slot
-        WDF_REQUEST_SEND_OPTIONS_INIT(&sendOptions, WDF_REQUEST_SEND_OPTION_TIMEOUT);
-        WDF_REQUEST_SEND_OPTIONS_SET_TIMEOUT(&sendOptions,
-                                             WDF_REL_TIMEOUT_IN_SEC(QDB_QDSS_URB_TIMEOUT_SEC));
-        pSendOptions = &sendOptions;
-    }
-
+    // DrainingRx was already counted at the gate above
     bResult = WdfRequestSend
     (
         pDevContext->RxRequest[Index].IoRequest,
         pDevContext->MyIoTarget,
-        pSendOptions
+        WDF_NO_SEND_OPTIONS
     );
     if (bResult == FALSE)
     {
@@ -1239,10 +1274,7 @@ NTSTATUS QDBRD_PipeDrainStop(PDEVICE_CONTEXT pDevContext)
     // ULONG i;
     KIRQL oldLevel;
 
-    // ENABLING CHANGE: lets QDSS clear PipeDrain outside EvtDeviceCleanupCallback
-    // (not reachable for QDSS today -- the IoRead caller excludes it).
-    if ((pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL) &&
-        (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS))
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
     {
         QDB_DbgPrint
         (
@@ -1306,8 +1338,6 @@ VOID QDBRD_PipeDrainCompletion
     ULONG           readLength = 0;
     WDF_REQUEST_REUSE_PARAMS reqPrams;
     BOOLEAN         sendAgain = TRUE;
-    BOOLEAN         deviceGone = FALSE;
-    LONG            remaining;
     PWDF_USB_REQUEST_COMPLETION_PARAMS usbInfo;
 
     UNREFERENCED_PARAMETER(Request);
@@ -1327,71 +1357,16 @@ VOID QDBRD_PipeDrainCompletion
     );
     if (!NT_SUCCESS(ntStatus))
     {
-        // Only an absent device stops the pipeline; everything else is transient
-        // and re-armed, so one bad completion cannot kill the stream.
-        if ((ntStatus == STATUS_NO_SUCH_DEVICE) ||
-            (ntStatus == STATUS_DEVICE_NOT_CONNECTED) ||
-            (ntStatus == STATUS_DELETE_PENDING))
+        // Original DPL policy: retry CANCELLED/UNSUCCESSFUL up to IoFailureThreshold,
+        // stop this slot on any other error.
+        if ((ntStatus != STATUS_CANCELLED) && (ntStatus != STATUS_UNSUCCESSFUL))
         {
-            QDB_DbgPrint
-            (
-                QDB_DBG_MASK_READ,
-                QDB_DBG_LEVEL_ERROR,
-                ("<%s> QDSSDIAG PipeDrainCompletion: device gone [%d] ST 0x%x, stop re-arm\n",
-                pDevContext->PortName, ioReq->Index, ntStatus)
-            );
             sendAgain = FALSE;
-            deviceGone = TRUE;
         }
-        else if (ntStatus == STATUS_IO_TIMEOUT)
+        else if ((ULONG)InterlockedIncrement((volatile LONG *)&pDevContext->Stats.IoFailureCount) >
+                 pDevContext->IoFailureThreshold)
         {
-            // Expected on a quiet pipe: recycle the slot, do not count as a failure
-            sendAgain = TRUE;
-
-            // Keep bytes DMA'd before the abort. A full-length value means the URB was never
-            // processed (length untouched) -- a full buffer completes OK, it can't time out.
-            if ((pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS) && (usbInfo != NULL) &&
-                (usbInfo->Parameters.PipeRead.Length < QDB_MAX_IO_SIZE_QDSS_RX))
-            {
-                readLength = (ULONG)usbInfo->Parameters.PipeRead.Length;
-            }
-            QDB_DbgPrint
-            (
-                QDB_DBG_MASK_READ,
-                QDB_DBG_LEVEL_ERROR,
-                ("<%s> QDSSDIAG PipeDrainCompletion: URB[%d] %us timeout recycle (DrainingRx=%d)\n",
-                pDevContext->PortName, ioReq->Index,
-                QDB_QDSS_URB_TIMEOUT_SEC, pDevContext->Stats.DrainingRx)
-            );
-        }
-        else if (InterlockedIncrement((volatile LONG *)&pDevContext->Stats.IoFailureCount) >
-                 (LONG)pDevContext->IoFailureThreshold)
-        {
-            // Bound the retries: a permanently failing pipe would re-arm forever
-            // and an inline completion would recurse until the stack overflows.
             sendAgain = FALSE;
-            QDB_DbgPrint
-            (
-                QDB_DBG_MASK_READ,
-                QDB_DBG_LEVEL_ERROR,
-                ("<%s> QDSSDIAG PipeDrainCompletion: URB[%d] ST 0x%x failed %u times (> %u), giving up\n",
-                pDevContext->PortName, ioReq->Index, ntStatus,
-                pDevContext->Stats.IoFailureCount, pDevContext->IoFailureThreshold)
-            );
-        }
-        else
-        {
-            // QDSS: retry errors from the timer, never inline -- a send that fails and
-            // completes synchronously would recurse here once per retry (stack overflow).
-            sendAgain = (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS);
-            QDB_DbgPrint
-            (
-                QDB_DBG_MASK_READ,
-                QDB_DBG_LEVEL_ERROR,
-                ("<%s> QDSSDIAG PipeDrainCompletion: transient error URB[%d] ST 0x%x, re-arming (DrainingRx=%d IoFailCnt=%u)\n",
-                pDevContext->PortName, ioReq->Index, ntStatus,
-                pDevContext->Stats.DrainingRx, pDevContext->Stats.IoFailureCount)
-            );
         }
     }
     else
@@ -1407,32 +1382,6 @@ VOID QDBRD_PipeDrainCompletion
             QDB_DBG_MASK_READ,
             QDB_DBG_LEVEL_ERROR,
             ("<%s> QDBRD_PipeDrainCompletion: read %uB/%u\n", pDevContext->PortName, readLength, pDevContext->Stats.BytesDrained)
-        );
-    }
-
-    // QDSS: commit to the ring now, else the re-arm below hands IoBuffer back to
-    // USB with uncommitted data still in it.
-    if (pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS)
-    {
-        KIRQL ringLevel;
-
-        KeAcquireSpinLock(&pDevContext->RxLock, &ringLevel);
-
-        QdssRingWriteLocked(pDevContext, ioReq->IoBuffer, readLength);
-
-        if (pDevContext->QdssUrbsInFlight > 0)
-        {
-            pDevContext->QdssUrbsInFlight--;
-        }
-        KeReleaseSpinLock(&pDevContext->RxLock, ringLevel);
-
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_ERROR,
-            ("<%s> QDSSDIAG EP7IN <-- bulk IN completed: %uB (ST 0x%x) InFlight=%u ring=%uB\n",
-            pDevContext->PortName, readLength, ntStatus,
-            pDevContext->QdssUrbsInFlight, pDevContext->QdssRingUsed)
         );
     }
 
@@ -1462,47 +1411,14 @@ VOID QDBRD_PipeDrainCompletion
         }
     }
 
-    // Release the slot atomically (IoRead/poll timer claim it concurrently), and
-    // re-arm before servicing app reads so the endpoint is busy during the copy.
+    // Release the slot atomically: PipeDrainStart can claim it concurrently
     InterlockedExchange((volatile LONG *)&pDevContext->RxRequest[ioReq->Index].IsPending, 0);
     if (sendAgain == TRUE)
     {
         QDBRD_SendIOBlock(pDevContext, ioReq->Index);
     }
-    else if ((pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS) && (deviceGone == FALSE))
-    {
-        // not re-arming here; retry from the timer at passive level
-        QdssSchedulePoll(pDevContext);
-    }
 
-    // Endpoint is busy again: hand buffered data to any parked reads
-    if (pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS)
-    {
-        QdssServicePendingReads(pDevContext);
-    }
-
-    // Decrement LAST: at 0 WaitForDrainToStop frees the requests and the ring, so
-    // dropping it before the ring work above opens a use-after-free.
-    remaining = InterlockedDecrement(&(pDevContext->Stats.DrainingRx));
-
-    // QDSS liveness: nothing outstanding means no completion will restart the
-    // drain, so kick the timer instead.
-    if ((remaining == 0) &&
-        (pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS) &&
-        (pDevContext->DeviceRemoval == FALSE) &&
-        (pDevContext->PipeDrain == TRUE))
-    {
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_ERROR,
-            ("<%s> QDSSDIAG PipeDrainCompletion: WARNING pipeline idle [%d] -- re-arming from timer\n",
-            pDevContext->PortName, ioReq->Index)
-        );
-        QdssSchedulePoll(pDevContext);
-    }
-
-    if (remaining == 0)
+    if (InterlockedDecrement(&(pDevContext->Stats.DrainingRx)) == 0)
     {
         // signal the halt of draining
         if (pDevContext->DeviceRemoval == TRUE)

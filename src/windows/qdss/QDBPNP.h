@@ -40,6 +40,13 @@ VOID QDBPNP_WaitForDrainToStop(PDEVICE_CONTEXT pDevContext);
 
 EVT_WDF_DEVICE_PREPARE_HARDWARE QDBPNP_EvtDevicePrepareHW;
 
+// QDSS: start/stop the TraceIN continuous reader with the device power state
+EVT_WDF_DEVICE_D0_ENTRY QDBPNP_EvtDeviceD0Entry;
+EVT_WDF_DEVICE_D0_EXIT  QDBPNP_EvtDeviceD0Exit;
+
+// Stops the QDSS poll timer and purges read queues before object cleanup begins
+EVT_WDF_DEVICE_SELF_MANAGED_IO_CLEANUP QDBPNP_EvtDeviceSelfManagedIoCleanup;
+
 NTSTATUS QDBPNP_EnumerateDevice(IN WDFDEVICE Device);
 
 NTSTATUS QDBPNP_UsbConfigureDevice(IN WDFDEVICE Device);

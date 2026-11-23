@@ -39,10 +39,15 @@ NTSTATUS QDBRD_PipeDrainStop(PDEVICE_CONTEXT pDevContext);
 
 EVT_WDF_REQUEST_COMPLETION_ROUTINE QDBRD_PipeDrainCompletion;
 
-// QDSS poll timer: re-arms EP7IN URBs and drains the ring when no completion will
-EVT_WDF_TIMER QDBRD_QdssPollTimer;
+// QDSS continuous reader on TraceIN: configured in PrepareHW, started/stopped in D0Entry/D0Exit
+NTSTATUS QDBRD_QdssConfigReader(PDEVICE_CONTEXT pDevContext);
 
-VOID QDBRD_QdssTryArmRead(PDEVICE_CONTEXT pDevContext);
+EVT_WDF_USB_READER_COMPLETION_ROUTINE QDBRD_QdssReadComplete;
+
+EVT_WDF_USB_READERS_FAILED QDBRD_QdssReadersFailed;
+
+// QDSS poll timer: finishes ring delivery the bounded service loop left
+EVT_WDF_TIMER QDBRD_QdssPollTimer;
 
 VOID QDBRD_QdssStopPolling(PDEVICE_CONTEXT pDevContext);
 

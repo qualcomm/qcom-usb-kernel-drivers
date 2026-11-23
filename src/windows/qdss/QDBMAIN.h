@@ -38,8 +38,7 @@ extern ULONG SimData[2724];
 #define QDB_MAX_IO_SIZE_QDSS_RX   (1024*128) // 128 KB per QDSS URB
 #define IO_REQ_NUM_RX             4
 #define QDB_QDSS_RING_BUF_SIZE    (IO_REQ_NUM_RX * 2 * QDB_MAX_IO_SIZE_QDSS_RX) // 1 MB QDSS ring buffer
-#define QDB_QDSS_POLL_INTERVAL_MS 10   // retry delay when no URB could be posted
-#define QDB_QDSS_URB_TIMEOUT_SEC  5    // recycle a QDSS EP7IN URB if the pipe stays quiet
+#define QDB_QDSS_POLL_INTERVAL_MS 10   // delay before the timer finishes leftover ring delivery
 
 #define QDB_TAG_RD  (ULONG)'RBDQ'
 #define QDB_TAG_WT  (ULONG)'WBDQ'
@@ -218,8 +217,8 @@ typedef struct _DEVICE_CONTEXT
     ULONG                         QdssRingUsed;    // bytes currently held in ring
     ULONG                         QdssRingReserved;// bytes handed to a consumer, copy-out still in progress
     LONG                          QdssDeliverBusy; // 1 while a consumer is dequeue+reserving (keeps delivery ordered)
-    WDFTIMER                      QdssPollTimer;   // passive-level retry if no URB gets posted
-    ULONG                         QdssUrbsInFlight;// EP7IN reads outstanding (0..NumOfRxReqs)
+    WDFTIMER                      QdssPollTimer;   // passive-level: finishes leftover ring delivery
+    WDFUSBPIPE                    QdssReaderPipe;  // TraceIN once the continuous reader is configured
 } DEVICE_CONTEXT, *PDEVICE_CONTEXT;
 
 typedef struct _REQUEST_CONTEXT

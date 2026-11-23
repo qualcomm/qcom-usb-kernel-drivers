@@ -181,6 +181,7 @@ VOID QDBMAIN_GetRegistrySettings(WDFDEVICE Device)
                 ("<%s> QDBMAIN_GetRegistrySettings: use default for funcType\n", pDevContext->PortName)
             );
             pDevContext->FunctionType = 0;
+            WdfRegistryClose(hKey);  // early return must not leak the key handle
             return;
         }
 
@@ -199,6 +200,7 @@ VOID QDBMAIN_GetRegistrySettings(WDFDEVICE Device)
                 ("<%s> QDBMAIN_GetRegistrySettings: use default for funcType\n", pDevContext->PortName)
             );
             pDevContext->IoFailureThreshold = 24;  // default
+            WdfRegistryClose(hKey);  // early return must not leak the key handle
             return;
         }
 
