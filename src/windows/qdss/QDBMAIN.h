@@ -219,6 +219,10 @@ typedef struct _DEVICE_CONTEXT
     LONG                          QdssDeliverBusy; // 1 while a consumer is dequeue+reserving (keeps delivery ordered)
     WDFTIMER                      QdssPollTimer;   // passive-level: finishes leftover ring delivery
     WDFUSBPIPE                    QdssReaderPipe;  // TraceIN once the continuous reader is configured
+    WDFWAITLOCK                   QdssReaderLock;  // serializes reader start/stop (file open/close vs D0)
+    LONG                          QdssTraceOpenCount; // open TRACE handles; reader runs only while > 0
+    BOOLEAN                       QdssInD0;        // device is powered up (between D0Entry and D0Exit)
+    BOOLEAN                       QdssReaderRunning; // continuous reader currently started
 } DEVICE_CONTEXT, *PDEVICE_CONTEXT;
 
 typedef struct _REQUEST_CONTEXT
@@ -238,6 +242,7 @@ typedef struct _FILE_CONTEXT
     WDFUSBPIPE DebugIN;
     WDFUSBPIPE DebugOUT;
     UCHAR      Type;
+    BOOLEAN    QdssReaderRef; // this handle is counted in QdssTraceOpenCount
 } FILE_CONTEXT, *PFILE_CONTEXT;
 
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(DEVICE_CONTEXT, QdbDeviceGetContext)

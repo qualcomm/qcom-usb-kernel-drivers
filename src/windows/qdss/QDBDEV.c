@@ -88,6 +88,13 @@ VOID QDBDEV_EvtDeviceFileCreate
             pFileContext->Type = QDB_FILE_TYPE_TRACE;
             pFileContext->TraceIN = pDevContext->TraceIN;
             ntStatus = STATUS_SUCCESS;
+
+            // QDSS reads from the device only while a TRACE handle is open
+            if (pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS)
+            {
+                pFileContext->QdssReaderRef = TRUE;
+                QDBRD_QdssUpdateReader(pDevContext, 1);
+            }
             QDB_DbgPrint
             (
                 (QDB_DBG_MASK_READ | QDB_DBG_MASK_WRITE),
@@ -176,8 +183,7 @@ VOID QDBDEV_EvtDeviceFileClose(WDFFILEOBJECT FileObject)
         pDevContext->PortName, fileName, FileObject)
     );
 
-    // QDSS drains continuously regardless of app reads, so leave it running here.
-    // DPL re-arms its drain on close as before.
+    // QDSS reader stop is handled in file cleanup. DPL re-arms its drain on close as before.
     if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
     {
         QDBRD_PipeDrainStart(pDevContext);
@@ -223,11 +229,16 @@ VOID QDBDEV_EvtDeviceFileCleanup(WDFFILEOBJECT FileObject)
         pDevContext->PortName, fileName, FileObject)
     );
 
-    // QDSS drains continuously regardless of app reads, so leave it running here.
+    // QDSS: last TRACE handle closed stops the reader and empties the ring.
     // DPL re-arms its drain on cleanup as before.
     if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
     {
         QDBRD_PipeDrainStart(pDevContext);
+    }
+    else if (pFileContext->QdssReaderRef == TRUE)
+    {
+        pFileContext->QdssReaderRef = FALSE;
+        QDBRD_QdssUpdateReader(pDevContext, -1);
     }
 
     QDB_DbgPrint

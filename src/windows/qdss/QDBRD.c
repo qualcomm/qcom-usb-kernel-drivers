@@ -167,7 +167,7 @@ VOID QDBRD_QdssStopPolling(PDEVICE_CONTEXT pDevContext)
 
 
 // QDSS: KMDF keeps IO_REQ_NUM_RX reads of 128 KB posted on TraceIN. The pipe target is
-// started in EvtDeviceD0Entry and stopped in EvtDeviceD0Exit (see QDBPNP.c).
+// started and stopped only by QDBRD_QdssUpdateReader (TRACE handle open AND device in D0).
 // Ordering ASSUMPTION (not a documented KMDF guarantee): completions for one bulk IN
 // endpoint are delivered in submission order, so blocks enter the ring in stream order.
 NTSTATUS QDBRD_QdssConfigReader(PDEVICE_CONTEXT pDevContext)
@@ -191,6 +191,88 @@ NTSTATUS QDBRD_QdssConfigReader(PDEVICE_CONTEXT pDevContext)
     QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_DETAIL,
         ("<%s> QDBRD_QdssConfigReader: %u x %uB readers ST 0x%x\n", pDevContext->PortName,
         IO_REQ_NUM_RX, QDB_MAX_IO_SIZE_QDSS_RX, ntStatus));
+
+    return ntStatus;
+}
+
+// Empty the ring so a new TRACE session never receives data from before it opened.
+static VOID QdssRingFlush(PDEVICE_CONTEXT pDevContext)
+{
+    KIRQL level;
+
+    KeAcquireSpinLock(&pDevContext->RxLock, &level);
+    // Reserved bytes are still being copied to a reader: leave the ring alone then
+    if (pDevContext->QdssRingReserved == 0)
+    {
+        pDevContext->QdssRingHead = 0;
+        pDevContext->QdssRingTail = 0;
+        pDevContext->QdssRingUsed = 0;
+    }
+    KeReleaseSpinLock(&pDevContext->RxLock, level);
+}
+
+// PASSIVE_LEVEL. Single place that starts/stops the QDSS reader. It runs only while a
+// TRACE handle is open AND the device is in D0. OpenDelta: +1 on open, -1 on close, 0 for
+// power changes. The ring is flushed on the first open and after the last close.
+NTSTATUS QDBRD_QdssUpdateReader(PDEVICE_CONTEXT pDevContext, LONG OpenDelta)
+{
+    NTSTATUS    ntStatus = STATUS_SUCCESS;
+    LONG        prevCount;
+    BOOLEAN     want;
+    WDFIOTARGET target = NULL;
+
+    if ((pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS) || (pDevContext->QdssReaderLock == NULL))
+    {
+        return STATUS_SUCCESS;
+    }
+
+    WdfWaitLockAcquire(pDevContext->QdssReaderLock, NULL);
+
+    prevCount = pDevContext->QdssTraceOpenCount;
+    pDevContext->QdssTraceOpenCount += OpenDelta;
+    if (pDevContext->QdssTraceOpenCount < 0)
+    {
+        pDevContext->QdssTraceOpenCount = 0;
+    }
+
+    want = (pDevContext->QdssTraceOpenCount > 0) && (pDevContext->QdssInD0 == TRUE) &&
+           (pDevContext->QdssReaderPipe != NULL) && (pDevContext->DeviceRemoval == FALSE);
+
+    if (pDevContext->QdssReaderPipe != NULL)
+    {
+        target = WdfUsbTargetPipeGetIoTarget(pDevContext->QdssReaderPipe);
+    }
+
+    // Stop first: waits for every outstanding read, so nothing writes the ring afterwards
+    if ((want == FALSE) && (pDevContext->QdssReaderRunning == TRUE) && (target != NULL))
+    {
+        WdfIoTargetStop(target, WdfIoTargetCancelSentIo);
+        pDevContext->QdssReaderRunning = FALSE;
+    }
+
+    // Session boundary (first open or last close): discard old data while the reader is stopped
+    if (((prevCount == 0) && (pDevContext->QdssTraceOpenCount > 0)) ||
+        ((prevCount > 0) && (pDevContext->QdssTraceOpenCount == 0)))
+    {
+        QdssRingFlush(pDevContext);
+    }
+
+    if ((want == TRUE) && (pDevContext->QdssReaderRunning == FALSE))
+    {
+        // A fresh start also clears the failure run, so a reader that gave up restarts here
+        InterlockedExchange((volatile LONG *)&pDevContext->Stats.IoFailureCount, 0);
+        ntStatus = WdfIoTargetStart(target);
+        if (NT_SUCCESS(ntStatus))
+        {
+            pDevContext->QdssReaderRunning = TRUE;
+        }
+    }
+
+    QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_DETAIL,
+        ("<%s> QDBRD_QdssUpdateReader: open %d D0 %d running %d ST 0x%x\n", pDevContext->PortName,
+        pDevContext->QdssTraceOpenCount, pDevContext->QdssInD0, pDevContext->QdssReaderRunning, ntStatus));
+
+    WdfWaitLockRelease(pDevContext->QdssReaderLock);
 
     return ntStatus;
 }
@@ -232,7 +314,8 @@ VOID QDBRD_QdssReadComplete
 }
 
 // Continuous-reader failure (PASSIVE_LEVEL). TRUE: KMDF resets the pipe and restarts the
-// readers. FALSE: reading stays stopped until the next D0Entry restarts the pipe target.
+// readers. FALSE: reading stays stopped until the reader is restarted, i.e. the last TRACE
+// handle closes and a new one opens, or the device leaves and re-enters D0.
 BOOLEAN QDBRD_QdssReadersFailed
 (
     WDFUSBPIPE  Pipe,

@@ -139,6 +139,20 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
     // PrepareHW bails early, and a live lock must never be re-initialized.
     KeInitializeSpinLock(&pDevContext->RxLock);
 
+    // Serializes QDSS reader start/stop between file open/close and D0Entry/D0Exit
+    {
+        WDF_OBJECT_ATTRIBUTES lockAttrib;
+
+        WDF_OBJECT_ATTRIBUTES_INIT(&lockAttrib);
+        lockAttrib.ParentObject = wdfDevice;
+        ntStatus = WdfWaitLockCreate(&lockAttrib, &pDevContext->QdssReaderLock);
+        if (!NT_SUCCESS(ntStatus))
+        {
+            QDB_DbgPrintG(0, 0, ("WdfWaitLockCreate QDSS reader lock failed ST 0x%X\n", ntStatus));
+            return ntStatus;
+        }
+    }
+
     // TODO: for debug purpose
     pDevContext->DebugMask = 0x0;
     pDevContext->DebugLevel = QDB_DBG_LEVEL_FORCE;
@@ -678,7 +692,7 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
             }
         }
 
-        // KMDF continuous reader on TraceIN; it is started in D0Entry, stopped in D0Exit.
+        // KMDF continuous reader on TraceIN; runs only while a TRACE handle is open and in D0.
         // Configure once per pipe: re-configuring a configured pipe fails.
         if ((pDevContext->TraceIN == NULL) ||
             (pDevContext->QdssReaderPipe != pDevContext->TraceIN))
@@ -748,8 +762,8 @@ VOID QDBPNP_EvtDeviceSelfManagedIoCleanup(WDFDEVICE Device)
     }
 }  // QDBPNP_EvtDeviceSelfManagedIoCleanup
 
-// D0Entry (PASSIVE_LEVEL): start the QDSS continuous reader. A fresh start also clears the
-// failure count, so a reader that gave up after IoFailureThreshold restarts here.
+// D0Entry (PASSIVE_LEVEL): device is powered. The QDSS reader starts only if a TRACE handle
+// is open; otherwise it starts on the first open (QDBRD_QdssUpdateReader).
 NTSTATUS QDBPNP_EvtDeviceD0Entry(WDFDEVICE Device, WDF_POWER_DEVICE_STATE PreviousState)
 {
     PDEVICE_CONTEXT pDevContext = QdbDeviceGetContext(Device);
@@ -757,12 +771,13 @@ NTSTATUS QDBPNP_EvtDeviceD0Entry(WDFDEVICE Device, WDF_POWER_DEVICE_STATE Previo
 
     UNREFERENCED_PARAMETER(PreviousState);
 
-    if ((pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS) && (pDevContext->QdssReaderPipe != NULL))
+    if ((pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS) && (pDevContext->QdssReaderLock != NULL))
     {
-        InterlockedExchange((volatile LONG *)&pDevContext->Stats.IoFailureCount, 0);
-        ntStatus = WdfIoTargetStart(WdfUsbTargetPipeGetIoTarget(pDevContext->QdssReaderPipe));
-        QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_DETAIL,
-            ("<%s> QDBPNP_EvtDeviceD0Entry: start QDSS reader ST 0x%x\n", pDevContext->PortName, ntStatus));
+        WdfWaitLockAcquire(pDevContext->QdssReaderLock, NULL);
+        pDevContext->QdssInD0 = TRUE;
+        WdfWaitLockRelease(pDevContext->QdssReaderLock);
+
+        ntStatus = QDBRD_QdssUpdateReader(pDevContext, 0);
     }
 
     return ntStatus;
@@ -776,11 +791,13 @@ NTSTATUS QDBPNP_EvtDeviceD0Exit(WDFDEVICE Device, WDF_POWER_DEVICE_STATE TargetS
 
     UNREFERENCED_PARAMETER(TargetState);
 
-    if ((pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS) && (pDevContext->QdssReaderPipe != NULL))
+    if ((pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS) && (pDevContext->QdssReaderLock != NULL))
     {
-        WdfIoTargetStop(WdfUsbTargetPipeGetIoTarget(pDevContext->QdssReaderPipe), WdfIoTargetCancelSentIo);
-        QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_DETAIL,
-            ("<%s> QDBPNP_EvtDeviceD0Exit: QDSS reader stopped\n", pDevContext->PortName));
+        WdfWaitLockAcquire(pDevContext->QdssReaderLock, NULL);
+        pDevContext->QdssInD0 = FALSE;
+        WdfWaitLockRelease(pDevContext->QdssReaderLock);
+
+        QDBRD_QdssUpdateReader(pDevContext, 0);
     }
 
     return STATUS_SUCCESS;
