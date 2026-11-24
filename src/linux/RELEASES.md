@@ -23,6 +23,9 @@ Qualcomm USB host drivers providing logical representations of Qualcomm chipset-
 
 ---
 
+## [1.0.6.8] - 2026-11-24
+1. Test change to validate the automated develop -> main release pipeline (CI/release-automation testing, no functional driver changes).
+
 ## [1.0.6.7] - 2026-09-16
 1. Extended support for Debian 13 ARM64 platform.
 2. Automated removal of existing QUD Debian packages during QUD installation via QSC/QPM.
