@@ -90,7 +90,7 @@ jobs:
           esac
 
   # ============================================================
-  # QA sign-off gate for PRs targeting main:
+  # QA sign-off gate for develop -> main promotions only:
   #   mandatory only when src/ or build/ changed.
   #   Passes only when a maintainer (write / maintain / admin) has
   #   APPROVED the current head commit with a review body containing
@@ -102,7 +102,7 @@ jobs:
   qa-signoff:
     name: QA Sign-off
     runs-on: ubuntu-latest
-    if: github.event.pull_request.base.ref == 'main'
+    if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'develop'
     permissions:
       contents: read
       pull-requests: read
