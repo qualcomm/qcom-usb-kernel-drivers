@@ -75,6 +75,7 @@ jobs:
           echo "to_sha=$TO_SHA"     >> "$GITHUB_OUTPUT"
 
       - name: Guard against an unbumped Linux version on main
+        id: version_guard
         if: >
           steps.filter.outputs.linux == 'true' &&
           (github.event_name == 'push' || github.base_ref == 'main')
@@ -95,6 +96,32 @@ jobs:
           fi
 
           echo "DRIVER_VERSION bumped: ${OLD_VERSION} -> ${NEW_VERSION}"
+          echo "new_version=${NEW_VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Guard against a Linux release missing RELEASES.md notes
+        if: >
+          steps.filter.outputs.linux == 'true' &&
+          (github.event_name == 'push' || github.base_ref == 'main')
+        env:
+          TO_SHA: ${{ steps.filter.outputs.to_sha }}
+          NEW_VERSION: ${{ steps.version_guard.outputs.new_version }}
+        run: |
+          # Same section-matching logic release.yml's linux-prerelease job
+          # uses to gate the pre-release - catch the problem here, before
+          # merge, instead of letting the Linux pre-release job fail after.
+          SECTION=$(git show "${TO_SHA}:src/linux/RELEASES.md" | awk -v ver="$NEW_VERSION" '
+            $0 ~ ("^## \\[" ver "\\]") {found=1; next}
+            found && /^## \[/ {exit}
+            found && /^---/ {exit}
+            found {print}
+          ')
+
+          if [ -z "$(echo "$SECTION" | tr -d '[:space:]')" ]; then
+            echo "::error file=src/linux/RELEASES.md::This push to main bumps DRIVER_VERSION to \"${NEW_VERSION}\", but RELEASES.md has no (or an empty) '## [${NEW_VERSION}]' section. Add release notes to src/linux/RELEASES.md on develop before promoting to main, otherwise the Linux pre-release automation will fail after merge instead of before."
+            exit 1
+          fi
+
+          echo "RELEASES.md has notes for ${NEW_VERSION}"
 
   # ============================================================
   # Linux: build kernel modules
