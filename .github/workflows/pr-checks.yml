@@ -12,6 +12,11 @@ on:
       - reopened
       - synchronize
       - edited
+  pull_request_review:
+    types:
+      - submitted
+      - edited
+      - dismissed
 
 permissions:
   contents: read
@@ -85,21 +90,19 @@ jobs:
           esac
 
   # ============================================================
-  # QA sign-off gate for develop -> main promotions only:
+  # QA sign-off gate for PRs targeting main:
   #   mandatory only when src/ or build/ changed.
   #   Passes only when a maintainer (write / maintain / admin) has
   #   APPROVED the current head commit with a review body containing
   #   "QA passed: <evidence>". QA has no repo access - they relay
   #   results out-of-band and a maintainer attests to it here.
   #   Re-evaluated on every push (invalidates stale sign-offs since a
-  #   new head commit means a new build artifact). Approving an existing
-  #   commit does not auto-retrigger this job - re-run it manually
-  #   (Actions tab -> this run -> Re-run jobs) after approving.
+  #   new head commit means a new build artifact) and on every review.
   # ============================================================
   qa-signoff:
     name: QA Sign-off
     runs-on: ubuntu-latest
-    if: github.event.pull_request.base.ref == 'main' && github.event.pull_request.head.ref == 'develop'
+    if: github.event.pull_request.base.ref == 'main'
     permissions:
       contents: read
       pull-requests: read
