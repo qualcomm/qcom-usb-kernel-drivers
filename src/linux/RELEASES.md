@@ -23,8 +23,15 @@ Qualcomm USB host drivers providing logical representations of Qualcomm chipset-
 
 ---
 
-## [1.0.6.8] - 2026-11-24
-1. Test change to validate the automated develop -> main release pipeline (CI/release-automation testing, no functional driver changes).
+## [1.0.6.8] - 2026-11-26
+  1. Fixed SPINOR flashing failure with "QTI TX timeout" via QUTS/PCAT. The driver no longer cancels a write while the target holds off the trailing zero-length packet (ZLP) during flash programming.
+  2. Increased the default write timeout from 2 s to 60 s. The wait is now killable, so a stuck transfer can always be ended by
+  killing the application, without blocking the system or triggering hung-task warnings.
+  3. Added txTimeout and rxTimeout module parameters (ms) to configure the default write/read timeouts.
+  4. Added IOCTL_QTIDEV_SET_TIMEOUTS/IOCTL_QTIDEV_GET_TIMEOUTS to set write/read timeouts per device handle (0 = module
+  default, 0xFFFFFFFF = no timeout).
+  5. Improved write failure logs to report the cause (data incomplete, ZLP not acknowledged, killed, or transfer failed) and the bytes sent.
+
 
 ## [1.0.6.7] - 2026-09-16
 1. Extended support for Debian 13 ARM64 platform.

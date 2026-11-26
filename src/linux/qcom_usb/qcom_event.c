@@ -78,9 +78,11 @@ void qti_set_event(sQtiEvent *evt, int event)
 
 int qti_wait_event(sQtiEvent *evt, unsigned long timeout_ms)
 {
-    int i, ret;
+    int i;
+    long ret;
+    long expire = (timeout_ms == QTI_WAIT_FOREVER) ? MAX_SCHEDULE_TIMEOUT : msecs_to_jiffies(timeout_ms);
 
-    ret = wait_event_interruptible_timeout(evt->wq, evt->events & evt->mask, msecs_to_jiffies(timeout_ms));
+    ret = wait_event_interruptible_timeout(evt->wq, evt->events & evt->mask, expire);
     if (ret > 0)
     {
         for (i = 0; i < 64; i++)
@@ -91,7 +93,8 @@ int qti_wait_event(sQtiEvent *evt, unsigned long timeout_ms)
            }
         }
     }
-    return ret; // interrupted or timed out
+    // interrupted or timed out; remaining jiffies may not fit in an int, so never return them
+    return (ret > 0) ? 0 : (int)ret;
 }
 
 void qti_clear_event(sQtiEvent *evt, unsigned long long event)

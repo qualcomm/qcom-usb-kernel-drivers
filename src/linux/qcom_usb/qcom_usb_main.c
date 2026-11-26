@@ -7,6 +7,7 @@
 #include "../version.h"
 #include <linux/poll.h>
 #include <linux/vmalloc.h>
+#include <linux/compat.h>
 
 #define DRIVER_DESC "qcom_usb"
 #define QDSS_INF_PATH "/opt/qcom/QUD/qcom_usb/qdbusb.inf"
@@ -26,6 +27,8 @@ int debug_g=0;//For global logging
 
 int UrbRxSize=QTIDEV_RX_SIZE;//global RxSize variable
 int UrbTxSize=QTIDEV_TX_SIZE;//global TxSize variable
+static unsigned int txTimeout = QTIDEV_TX_TIMEOUT; // default write timeout (ms), per-device override via ioctl
+static unsigned int rxTimeout = QTIDEV_RX_TIMEOUT; // default read timeout (ms), per-device override via ioctl
 int skip_open_handles = 0;
 
 static struct usb_driver qtiDevDriver;
@@ -474,7 +477,7 @@ static void QTIDevUSBDrawDown(sQTIDevUSB *dev)
     QC_LOG_DBG(dev," --> unlink urbs\n");
     DeinitializeTxBuffers(dev);
 
-    time = usb_wait_anchor_empty_timeout(&dev->submitted, QTIDEV_TX_TIMEOUT);
+    time = usb_wait_anchor_empty_timeout(&dev->submitted, QTIDEV_TX_DRAIN_TIMEOUT);
     if (!time)
     {
         QC_LOG_ERR(dev,"timeout on URB anchor, kill URBs\n");
@@ -676,6 +679,31 @@ void SetDtrRts(sQTIDevUSB *pDev, __u16 DtrRts)
    QC_LOG_INFO(pDev, "Set DTR/RTS 0x%x\n", DtrRts);
 } // SetDtrRts
 
+/*
+ * Effective timeout in ms: the per-device ioctl override if set, else the module param.
+ * READ_ONCE: both can be changed (ioctl, sysfs) while a read/write is in progress.
+ */
+static unsigned int QTIDevEffTimeout(unsigned int *pOverride, unsigned int *pParam, unsigned int defaultMs)
+{
+    unsigned int timeoutMs = READ_ONCE(*pOverride);
+
+    if (timeoutMs == QTIDEV_TIMEOUT_DEFAULT)
+    {
+        timeoutMs = READ_ONCE(*pParam);
+    }
+    return (timeoutMs == QTIDEV_TIMEOUT_DEFAULT) ? defaultMs : timeoutMs;
+}
+
+static unsigned int QTIDevTxTimeout(sQTIDevUSB *pDev)
+{
+    return QTIDevEffTimeout(&pDev->mTxTimeoutMs, &txTimeout, QTIDEV_TX_TIMEOUT);
+}
+
+static unsigned int QTIDevRxTimeout(sQTIDevUSB *pDev)
+{
+    return QTIDevEffTimeout(&pDev->mRxTimeoutMs, &rxTimeout, QTIDEV_RX_TIMEOUT);
+}
+
 static int UserspaceQTIDevOpen(struct inode *inode, struct file *file)
 {
     sQTIDevUSB *dev;
@@ -728,6 +756,10 @@ static int UserspaceQTIDevOpen(struct inode *inode, struct file *file)
     kref_init(&dev->mRefCount);
     /* increment our usage count for the device */
     kref_get(&dev->mRefCount);
+
+    /* every session starts with the driver default timeouts */
+    WRITE_ONCE(dev->mTxTimeoutMs, QTIDEV_TIMEOUT_DEFAULT);
+    WRITE_ONCE(dev->mRxTimeoutMs, QTIDEV_TIMEOUT_DEFAULT);
 
     /* save our object in the file's private structure */
     file->private_data = dev;
@@ -1363,7 +1395,7 @@ static int ReadSyncBlk(sQTIDevUSB *pDev,
 
     /* Wait for notification */
     QC_LOG_DBG(pDev,"Now, Wait for notification\n");
-    result = qti_wait_event(rxEvt, QTIDEV_RX_TIMEOUT); // 2s timeout
+    result = qti_wait_event(rxEvt, QTIDevRxTimeout(pDev)); // QTIDEV_TIMEOUT_INFINITE == QTI_WAIT_FOREVER
 
     spin_lock_irqsave(&pDev->mBulkMemList.mReadMemLock, iflags);
     switch (result)
@@ -1522,7 +1554,7 @@ static void DeinitializeTxBuffers(sQTIDevUSB *pDev)
     // get a free slot
     for (i = 0; i < QTIDEV_TX_BUF_POOL_SZ; i++)
     {
-        time = usb_wait_anchor_empty_timeout(&(pDev->mTxBufferPool[i].mTxAnchor), QTIDEV_TX_TIMEOUT);
+        time = usb_wait_anchor_empty_timeout(&(pDev->mTxBufferPool[i].mTxAnchor), QTIDEV_TX_DRAIN_TIMEOUT);
         if (!time)
         {
             QC_LOG_DBG(pDev,"timeout on URB anchor[%d], kill URBs\n", i);
@@ -1598,6 +1630,45 @@ int PrepareTxUrbBuffer(sQTIDevUSB *pDev, size_t dataLen, void *pSem)
     return i;
 }  // PrepareTxUrbBuffer
 
+/*
+ * Wait for the write URB (data + ZLP) to complete, same pattern as usb_start_wait_urb().
+ * Returns > 0 when done, 0 on timeout, < 0 on a fatal signal.
+ * The wait is killable: TASK_KILLABLE tasks are skipped by the hung-task detector, so a long or
+ * infinite timeout causes no warning, and SIGKILL still ends the wait.
+ * usb_anchor_empty() may turn true before the completion callback returns; callers must
+ * down() the write semaphore (upped at the end of the callback) before touching the URB.
+ */
+static long QTIDevWaitTxDone(struct usb_anchor *anchor, unsigned int timeoutMs)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0))
+    long expire = (timeoutMs == QTIDEV_TIMEOUT_INFINITE) ? MAX_SCHEDULE_TIMEOUT : (long)msecs_to_jiffies(timeoutMs);
+
+    return wait_event_killable_timeout(anchor->wait, usb_anchor_empty(anchor), expire);
+#else
+    // no wait_event_killable_timeout(): uninterruptible wait, capped like usb_bulk_msg()
+    if (timeoutMs > QTIDEV_TX_TIMEOUT)
+    {
+        timeoutMs = QTIDEV_TX_TIMEOUT;
+    }
+    return usb_wait_anchor_empty_timeout(anchor, timeoutMs);
+#endif
+}
+
+static int QTIDevTxStatusToErrno(int status)
+{
+    switch (status)
+    {
+        case -ENOENT:       // killed, e.g. by flush/close
+        case -ECONNRESET:   // unlinked
+            return -EIO;
+        case -ESHUTDOWN:    // device gone
+        case -ENODEV:
+            return -ENODEV;
+        default:            // -EPIPE, -EPROTO, ...
+            return status;
+    }
+}
+
 static ssize_t UserspaceQTIDevWrite(struct file *file, const char *user_buffer,
         size_t dataLen, loff_t *ppos)
 {
@@ -1607,7 +1678,8 @@ static ssize_t UserspaceQTIDevWrite(struct file *file, const char *user_buffer,
     char *buf = NULL;
     struct semaphore writeSem;
     struct usb_anchor *txAnchor;
-    int txEmpty;
+    long waitResult;
+    unsigned int timeoutMs;
     int iterator = QTIDEV_RETRY;
     int txIdx = -1;
     u32 bytesSent; 
@@ -1708,18 +1780,55 @@ static ssize_t UserspaceQTIDevWrite(struct file *file, const char *user_buffer,
     mutex_unlock(&pDev->mIoMutex);
 
     // IMPORTANT: assume only one URB on anshor for synchronous IO
-    txEmpty = usb_wait_anchor_empty_timeout(txAnchor, QTIDEV_TX_TIMEOUT); /** return 0 on timeout */
-    bytesSent = urb->actual_length;
-    if (txEmpty == 0)
+    // The URB completes only after the device ACKs the ZLP; a target may hold it off for long (e.g. SPINOR flash)
+    timeoutMs = QTIDevTxTimeout(pDev);
+    waitResult = QTIDevWaitTxDone(txAnchor, timeoutMs);
+    if (waitResult <= 0)
     {
-        // timeout, cancel what's on the anchor
-        QC_LOG_WARN(pDev, "QTI TX timeout: planned size %lu TxCount %ld\n", dataLen, pDev->mStats.TxCount);
+        // timeout or fatal signal, cancel what's on the anchor
         usb_kill_anchored_urbs(txAnchor);
     }
 
-    down(&writeSem); // make it non-interruptible
+    down(&writeSem); // non-interruptible: writeSem is on our stack, wait for the callback to release it
 
     pDev->mTxBufferPool[txIdx].mpTxSem = NULL;
+    bytesSent = urb->actual_length;
+
+    // -ENOENT: our kill cancelled it; any other status: it completed before the kill
+    if ((waitResult == 0) && (urb->status == -ENOENT))
+    {
+        unsigned int maxPacket = usb_endpoint_maxp(&urb->ep->desc);
+
+        if (bytesSent < dataLen)
+        {
+            // device stopped accepting data part-way (NAK/NRDY)
+            QC_LOG_WARN(pDev, "QTI TX timeout after %u ms: data incomplete, sent %u/%zu bytes, TxCount %ld\n",
+                timeoutMs, bytesSent, dataLen, pDev->mStats.TxCount);
+        }
+        else if ((maxPacket != 0) && ((dataLen % maxPacket) == 0))
+        {
+            // all data ACKed, URB_ZERO_PACKET ZLP still pending
+            QC_LOG_WARN(pDev, "QTI TX timeout after %u ms: all %zu bytes sent, ZLP not acknowledged, TxCount %ld\n",
+                timeoutMs, dataLen, pDev->mStats.TxCount);
+        }
+        else
+        {
+            // short last packet should have ended the transfer, not expected
+            QC_LOG_WARN(pDev, "QTI TX timeout after %u ms: all %zu bytes sent but transfer not completed, TxCount %ld\n",
+                timeoutMs, dataLen, pDev->mStats.TxCount);
+        }
+        return -ETIMEDOUT;
+    }
+    if ((waitResult < 0) && (urb->status == -ENOENT))
+    {
+        QC_LOG_WARN(pDev, "QTI TX killed: sent %u/%zu bytes\n", bytesSent, dataLen);
+        return -EINTR;
+    }
+    if (urb->status != 0)
+    {
+        QC_LOG_ERR(pDev, "QTI TX failed, status %d: sent %u/%zu bytes\n", urb->status, bytesSent, dataLen);
+        return QTIDevTxStatusToErrno(urb->status);
+    }
     return bytesSent;
 
 error:
@@ -1733,6 +1842,33 @@ error:
 static loff_t UserspaceQTIDevllseek(struct file *file, loff_t offset, int whence)
 {
     return file->f_pos;
+}
+
+static int QTIDevTimeoutsIOCTL(sQTIDevUSB *pDev, unsigned int cmd, void __user *argp)
+{
+    struct qtidev_timeouts timeouts;
+
+    if (cmd == IOCTL_QTIDEV_SET_TIMEOUTS)
+    {
+        if (copy_from_user(&timeouts, argp, sizeof(timeouts)))
+        {
+            return -EFAULT;
+        }
+        WRITE_ONCE(pDev->mTxTimeoutMs, timeouts.tx_ms);
+        WRITE_ONCE(pDev->mRxTimeoutMs, timeouts.rx_ms);
+        QC_LOG_INFO(pDev, "timeouts set by %s (tgid %u): tx %u ms, rx %u ms\n",
+            current->comm, task_tgid_nr(current), timeouts.tx_ms, timeouts.rx_ms);
+        return 0;
+    }
+
+    memset(&timeouts, 0, sizeof(timeouts));
+    timeouts.tx_ms = QTIDevTxTimeout(pDev);
+    timeouts.rx_ms = QTIDevRxTimeout(pDev);
+    if (copy_to_user(argp, &timeouts, sizeof(timeouts)))
+    {
+        return -EFAULT;
+    }
+    return 0;
 }
 
 static int UserspaceQTIDevIOCTL(
@@ -1755,6 +1891,11 @@ static int UserspaceQTIDevIOCTL(
         return -ENXIO;
     }
     QC_LOG_DBG(pDev, "PID = %u, Pname = %s, tgid= %u\n",task_pid_nr(current),current->comm, task_tgid_nr(current));
+
+    if ((cmd == IOCTL_QTIDEV_SET_TIMEOUTS) || (cmd == IOCTL_QTIDEV_GET_TIMEOUTS))
+    {
+        return QTIDevTimeoutsIOCTL(pDev, cmd, (void __user *)arg);
+    }
 
     if (copy_from_user(&userValue, (void *)arg, sizeof(unsigned long)))
     {
@@ -1828,6 +1969,22 @@ static long UnlockedUserspaceQTIDevIOCTL(
 {
    return UserspaceQTIDevIOCTL( NULL, pFilp, cmd, arg );
 }
+
+#ifdef CONFIG_COMPAT
+// 32-bit apps on a 64-bit kernel; struct qtidev_timeouts has the same layout on both
+static long CompatUserspaceQTIDevIOCTL(
+   struct file *     pFilp,
+   unsigned int      cmd,
+   unsigned long     arg )
+{
+   // legacy cmds copy an unsigned long from userspace, not 32-bit safe
+   if ((cmd != IOCTL_QTIDEV_SET_TIMEOUTS) && (cmd != IOCTL_QTIDEV_GET_TIMEOUTS))
+   {
+      return -ENOIOCTLCMD;
+   }
+   return UserspaceQTIDevIOCTL( NULL, pFilp, cmd, (unsigned long)compat_ptr(arg) );
+}
+#endif
 
 static unsigned int UserspaceQTIDevPoll(
         struct file *                  pFilp,
@@ -2621,6 +2778,9 @@ static const struct file_operations UserSpaceQdssFops = {
    .ioctl   =   UserspaceQTIDevIOCTL,
 #else
    .unlocked_ioctl = UnlockedUserspaceQTIDevIOCTL,
+#ifdef CONFIG_COMPAT
+   .compat_ioctl = CompatUserspaceQTIDevIOCTL,
+#endif
 #endif
     .open   =   UserspaceQTIDevOpen,
     .release=   UserspaceQTIDevRelease,
@@ -3605,7 +3765,7 @@ static int QTIDevUSBProbe(struct usb_interface *interface,
     device = interface_to_usbdev(interface);
     alt = interface->cur_altsetting;
 #ifdef QCUSB_TEST_ONLY
-    if (device->descriptor.idVendor == QTIDEV_QTIOM_VID &&
+    if (device->descriptor.idVendor == QTIDEV_QCOM_VID &&
             device->descriptor.idProduct == QTIDEV_LPC_PID &&
             alt->desc.bInterfaceNumber == QTIDEV_LPC_IFACE_NUM &&
             alt->desc.bAlternateSetting == 0)
@@ -4138,6 +4298,12 @@ MODULE_PARM_DESC(UrbRxSize, "URB Rx Size)");
 
 module_param( UrbTxSize, int, S_IRUGO | S_IWUSR );
 MODULE_PARM_DESC(UrbTxSize, "URB Tx Size)");
+
+module_param( txTimeout, uint, S_IRUGO | S_IWUSR );
+MODULE_PARM_DESC(txTimeout, "Default write timeout in ms incl. ZLP, 0 = 60000, 4294967295 = infinite (per-device override: IOCTL_QTIDEV_SET_TIMEOUTS)");
+
+module_param( rxTimeout, uint, S_IRUGO | S_IWUSR );
+MODULE_PARM_DESC(rxTimeout, "Default read timeout in ms, 0 = 2000, 4294967295 = infinite (per-device override: IOCTL_QTIDEV_SET_TIMEOUTS)");
 
 module_param(gQdssInfFilePath, charp, S_IRUGO | S_IWUSR );
 MODULE_PARM_DESC(gQdssInfFilePath, "Inf File location (Need complete path)");
