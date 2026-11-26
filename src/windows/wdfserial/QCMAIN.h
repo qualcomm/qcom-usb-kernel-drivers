@@ -282,6 +282,7 @@ typedef struct _REQUEST_CONTEXT
     WDFREQUEST Self;
     PDEVICE_CONTEXT pDevContext;
     PREAD_BUFFER_PARAM ReadBufferParam;
+    size_t IntervalReadBytesCopied;
 } REQUEST_CONTEXT, *PREQUEST_CONTEXT;
 
 #pragma pack(push, 1)

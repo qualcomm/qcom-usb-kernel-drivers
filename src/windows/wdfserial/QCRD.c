@@ -623,6 +623,94 @@ void QCRD_ReadRequestHandlerThread
                                                pDevContext->Timeouts.ReadIntervalTimeout > 0 &&
                                                pDevContext->Timeouts.ReadIntervalTimeout != MAXULONG);
 
+                    // Continue the oldest interval read before serving ReadQueue.
+                    if (useReadInterval &&
+                        !QCUTIL_IsIoQueueEmpty(pDevContext->TimeoutReadQueue) &&
+                        QCUTIL_RingBufferBytesUsed(rxBuffer) > 0)
+                    {
+                        status = WdfIoQueueRetrieveNextRequest(pDevContext->TimeoutReadQueue, &pendingTimeoutRequest);
+                        if (NT_SUCCESS(status) && pendingTimeoutRequest != NULL)
+                        {
+                            PREQUEST_CONTEXT intervalContext = QCReqGetContext(pendingTimeoutRequest);
+                            PUCHAR intervalBuffer = NULL;
+                            size_t bytesCopied = 0;
+
+                            WDF_REQUEST_PARAMETERS_INIT(&requestParam);
+                            WdfRequestGetParameters(pendingTimeoutRequest, &requestParam);
+                            status = WdfRequestRetrieveOutputBuffer
+                            (
+                                pendingTimeoutRequest,
+                                requestParam.Parameters.Read.Length,
+                                &intervalBuffer,
+                                NULL
+                            );
+                            if (NT_SUCCESS(status))
+                            {
+                                status = QCUTIL_RingBufferRead
+                                (
+                                    rxBuffer,
+                                    intervalBuffer + intervalContext->IntervalReadBytesCopied,
+                                    requestParam.Parameters.Read.Length - intervalContext->IntervalReadBytesCopied,
+                                    &bytesCopied
+                                );
+                                if (NT_SUCCESS(status))
+                                {
+                                    intervalContext->IntervalReadBytesCopied += bytesCopied;
+                                    pDevContext->AmountInInQueue = QCUTIL_RingBufferBytesUsed(rxBuffer);
+
+                                    if (intervalContext->IntervalReadBytesCopied == requestParam.Parameters.Read.Length)
+                                    {
+                                        KeCancelTimer(&pDevContext->ReadTimer);
+                                        KeClearEvent(&pDevContext->ReadRequestTimeoutEvent);
+                                        WdfRequestCompleteWithInformation
+                                        (
+                                            pendingTimeoutRequest,
+                                            STATUS_SUCCESS,
+                                            intervalContext->IntervalReadBytesCopied
+                                        );
+                                    }
+                                    else
+                                    {
+                                        status = WdfRequestForwardToIoQueue
+                                        (
+                                            pendingTimeoutRequest,
+                                            pDevContext->TimeoutReadQueue
+                                        );
+                                        if (!NT_SUCCESS(status))
+                                        {
+                                            KeCancelTimer(&pDevContext->ReadTimer);
+                                            KeClearEvent(&pDevContext->ReadRequestTimeoutEvent);
+                                            WdfRequestCompleteWithInformation
+                                            (
+                                                pendingTimeoutRequest,
+                                                status,
+                                                intervalContext->IntervalReadBytesCopied
+                                            );
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    KeCancelTimer(&pDevContext->ReadTimer);
+                                    KeClearEvent(&pDevContext->ReadRequestTimeoutEvent);
+                                    WdfRequestCompleteWithInformation
+                                    (
+                                        pendingTimeoutRequest,
+                                        status,
+                                        intervalContext->IntervalReadBytesCopied
+                                    );
+                                }
+                            }
+                            else
+                            {
+                                KeCancelTimer(&pDevContext->ReadTimer);
+                                KeClearEvent(&pDevContext->ReadRequestTimeoutEvent);
+                                WdfRequestComplete(pendingTimeoutRequest, status);
+                            }
+                            pendingTimeoutRequest = NULL;
+                        }
+                    }
+
                     if (useReadInterval && QCUTIL_RingBufferBytesUsed(rxBuffer) == 0)
                     {
                         // If a new request is sitting in ReadQueue, move it to
@@ -633,6 +721,7 @@ void QCRD_ReadRequestHandlerThread
                             status = WdfIoQueueRetrieveNextRequest(pDevContext->ReadQueue, &pendingTimeoutRequest);
                             if (NT_SUCCESS(status) && pendingTimeoutRequest != NULL)
                             {
+                                QCReqGetContext(pendingTimeoutRequest)->IntervalReadBytesCopied = 0;
                                 status = WdfRequestForwardToIoQueue(pendingTimeoutRequest, pDevContext->TimeoutReadQueue);
                                 if (!NT_SUCCESS(status))
                                 {
@@ -1092,13 +1181,24 @@ void QCRD_ReadRequestHandlerThread
                 // QUD-1837: When ReadIntervalTimeout fires, deliver whatever data
                 // is available in the ring buffer as a partial read with STATUS_SUCCESS,
                 // rather than completing with STATUS_TIMEOUT and 0 bytes.
-                if (pDevContext->ReadTimeout.bUseReadInterval &&
-                    QCUTIL_RingBufferBytesUsed(rxBuffer) > 0)
+                if (pDevContext->ReadTimeout.bUseReadInterval)
                 {
                     WDFREQUEST timeoutRequest = NULL;
                     status = WdfIoQueueRetrieveNextRequest(pDevContext->TimeoutReadQueue, &timeoutRequest);
                     if (NT_SUCCESS(status) && timeoutRequest != NULL)
                     {
+                        PREQUEST_CONTEXT intervalContext = QCReqGetContext(timeoutRequest);
+                        if (intervalContext->IntervalReadBytesCopied > 0)
+                        {
+                            WdfRequestCompleteWithInformation
+                            (
+                                timeoutRequest,
+                                STATUS_SUCCESS,
+                                intervalContext->IntervalReadBytesCopied
+                            );
+                            break;
+                        }
+
                         WDF_REQUEST_PARAMETERS riRequestParam;
                         WDF_REQUEST_PARAMETERS_INIT(&riRequestParam);
                         WdfRequestGetParameters(timeoutRequest, &riRequestParam);
