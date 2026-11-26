@@ -39,6 +39,21 @@ NTSTATUS QDBRD_PipeDrainStop(PDEVICE_CONTEXT pDevContext);
 
 EVT_WDF_REQUEST_COMPLETION_ROUTINE QDBRD_PipeDrainCompletion;
 
+// QDSS continuous reader on TraceIN: configured in PrepareHW, started/stopped by QdssUpdateReader
+NTSTATUS QDBRD_QdssConfigReader(PDEVICE_CONTEXT pDevContext);
+
+// Starts/stops the QDSS reader: runs only while a TRACE handle is open AND the device is in D0
+NTSTATUS QDBRD_QdssUpdateReader(PDEVICE_CONTEXT pDevContext, LONG OpenDelta);
+
+EVT_WDF_USB_READER_COMPLETION_ROUTINE QDBRD_QdssReadComplete;
+
+EVT_WDF_USB_READERS_FAILED QDBRD_QdssReadersFailed;
+
+// QDSS poll timer: finishes ring delivery the bounded service loop left
+EVT_WDF_TIMER QDBRD_QdssPollTimer;
+
+VOID QDBRD_QdssStopPolling(PDEVICE_CONTEXT pDevContext);
+
 VOID QDBRD_ProcessDrainedDPLBlock(PDEVICE_CONTEXT pDevContext, PVOID Buffer, ULONG Length);
 
 PVOID QDBRD_RetrievePacket(PVOID *DataPtr, PULONG DataLength, PULONG PacketLength);

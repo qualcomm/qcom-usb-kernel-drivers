@@ -12,6 +12,11 @@ GENERAL DESCRIPTION
 #include "QDBMAIN.h"
 #include "QDBRD.h"
 
+// Forward declarations for QDSS ring helpers
+VOID QdssServicePendingReads(PDEVICE_CONTEXT pDevContext);
+static VOID QdssRingWriteLocked(PDEVICE_CONTEXT pDevContext, PVOID Src, ULONG Len);
+static VOID QdssSchedulePoll(PDEVICE_CONTEXT pDevContext);
+
 #ifdef EVENT_TRACING
 #include "QDBRD.tmh"
 #endif
@@ -128,6 +133,382 @@ VOID QDBRD_ReturnEmulation(WDFQUEUE Queue, WDFREQUEST Request, size_t Length)
 
 #endif // QDB_DATA_EMULATION
 
+// Re-arm the QDSS poll timer after QDB_QDSS_POLL_INTERVAL_MS.
+static VOID QdssSchedulePoll(PDEVICE_CONTEXT pDevContext)
+{
+    KIRQL level;
+
+    if (pDevContext->QdssPollTimer == NULL)
+    {
+        return;
+    }
+
+    // Check+start under RxLock: cleanup sets DeviceRemoval under it before WdfTimerStop,
+    // so the timer can never be restarted after it has been stopped.
+    KeAcquireSpinLock(&pDevContext->RxLock, &level);
+    if (pDevContext->DeviceRemoval == FALSE)
+    {
+        WdfTimerStart(pDevContext->QdssPollTimer,
+                      WDF_REL_TIMEOUT_IN_MS(QDB_QDSS_POLL_INTERVAL_MS));
+    }
+    KeReleaseSpinLock(&pDevContext->RxLock, level);
+}
+
+// Stop the QDSS poll timer. Must run at PASSIVE_LEVEL (Wait=TRUE).
+VOID QDBRD_QdssStopPolling(PDEVICE_CONTEXT pDevContext)
+{
+    if (pDevContext->QdssPollTimer != NULL)
+    {
+        WdfTimerStop(pDevContext->QdssPollTimer, TRUE);
+        QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_ERROR,
+            ("<%s> QDSS poll timer stopped\n", pDevContext->PortName));
+    }
+}
+
+
+// QDSS: KMDF keeps IO_REQ_NUM_RX reads of 128 KB posted on TraceIN. The pipe target is
+// started and stopped only by QDBRD_QdssUpdateReader (TRACE handle open AND device in D0).
+// Ordering ASSUMPTION (not a documented KMDF guarantee): completions for one bulk IN
+// endpoint are delivered in submission order, so blocks enter the ring in stream order.
+NTSTATUS QDBRD_QdssConfigReader(PDEVICE_CONTEXT pDevContext)
+{
+    WDF_USB_CONTINUOUS_READER_CONFIG readerConfig;
+    NTSTATUS                         ntStatus;
+
+    pDevContext->QdssReaderPipe = NULL;
+
+    WDF_USB_CONTINUOUS_READER_CONFIG_INIT(&readerConfig, QDBRD_QdssReadComplete,
+                                          pDevContext, QDB_MAX_IO_SIZE_QDSS_RX);
+    readerConfig.NumPendingReads = IO_REQ_NUM_RX;
+    readerConfig.EvtUsbTargetPipeReadersFailed = QDBRD_QdssReadersFailed;
+
+    ntStatus = WdfUsbTargetPipeConfigContinuousReader(pDevContext->TraceIN, &readerConfig);
+    if (NT_SUCCESS(ntStatus))
+    {
+        pDevContext->QdssReaderPipe = pDevContext->TraceIN;
+    }
+
+    QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_DETAIL,
+        ("<%s> QDBRD_QdssConfigReader: %u x %uB readers ST 0x%x\n", pDevContext->PortName,
+        IO_REQ_NUM_RX, QDB_MAX_IO_SIZE_QDSS_RX, ntStatus));
+
+    return ntStatus;
+}
+
+// Empty the ring so a new TRACE session never receives data from before it opened.
+static VOID QdssRingFlush(PDEVICE_CONTEXT pDevContext)
+{
+    KIRQL level;
+
+    KeAcquireSpinLock(&pDevContext->RxLock, &level);
+    // Reserved bytes are still being copied to a reader: leave the ring alone then
+    if (pDevContext->QdssRingReserved == 0)
+    {
+        pDevContext->QdssRingHead = 0;
+        pDevContext->QdssRingTail = 0;
+        pDevContext->QdssRingUsed = 0;
+    }
+    KeReleaseSpinLock(&pDevContext->RxLock, level);
+}
+
+// PASSIVE_LEVEL. Single place that starts/stops the QDSS reader. It runs only while a
+// TRACE handle is open AND the device is in D0. OpenDelta: +1 on open, -1 on close, 0 for
+// power changes. The ring is flushed on the first open and after the last close.
+NTSTATUS QDBRD_QdssUpdateReader(PDEVICE_CONTEXT pDevContext, LONG OpenDelta)
+{
+    NTSTATUS    ntStatus = STATUS_SUCCESS;
+    LONG        prevCount;
+    BOOLEAN     want;
+    WDFIOTARGET target = NULL;
+
+    if ((pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS) || (pDevContext->QdssReaderLock == NULL))
+    {
+        return STATUS_SUCCESS;
+    }
+
+    WdfWaitLockAcquire(pDevContext->QdssReaderLock, NULL);
+
+    prevCount = pDevContext->QdssTraceOpenCount;
+    pDevContext->QdssTraceOpenCount += OpenDelta;
+    if (pDevContext->QdssTraceOpenCount < 0)
+    {
+        pDevContext->QdssTraceOpenCount = 0;
+    }
+
+    want = (pDevContext->QdssTraceOpenCount > 0) && (pDevContext->QdssInD0 == TRUE) &&
+           (pDevContext->QdssReaderPipe != NULL) && (pDevContext->DeviceRemoval == FALSE);
+
+    if (pDevContext->QdssReaderPipe != NULL)
+    {
+        target = WdfUsbTargetPipeGetIoTarget(pDevContext->QdssReaderPipe);
+    }
+
+    // Stop first: waits for every outstanding read, so nothing writes the ring afterwards
+    if ((want == FALSE) && (pDevContext->QdssReaderRunning == TRUE) && (target != NULL))
+    {
+        WdfIoTargetStop(target, WdfIoTargetCancelSentIo);
+        pDevContext->QdssReaderRunning = FALSE;
+    }
+
+    // Session boundary (first open or last close): discard old data while the reader is stopped
+    if (((prevCount == 0) && (pDevContext->QdssTraceOpenCount > 0)) ||
+        ((prevCount > 0) && (pDevContext->QdssTraceOpenCount == 0)))
+    {
+        QdssRingFlush(pDevContext);
+    }
+
+    if ((want == TRUE) && (pDevContext->QdssReaderRunning == FALSE))
+    {
+        // A fresh start also clears the failure run, so a reader that gave up restarts here
+        InterlockedExchange((volatile LONG *)&pDevContext->Stats.IoFailureCount, 0);
+        ntStatus = WdfIoTargetStart(target);
+        if (NT_SUCCESS(ntStatus))
+        {
+            pDevContext->QdssReaderRunning = TRUE;
+        }
+    }
+
+    QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_DETAIL,
+        ("<%s> QDBRD_QdssUpdateReader: open %d D0 %d running %d ST 0x%x\n", pDevContext->PortName,
+        pDevContext->QdssTraceOpenCount, pDevContext->QdssInD0, pDevContext->QdssReaderRunning, ntStatus));
+
+    WdfWaitLockRelease(pDevContext->QdssReaderLock);
+
+    return ntStatus;
+}
+
+// Continuous-reader completion (<= DISPATCH_LEVEL): commit the block to the ring, then deliver.
+VOID QDBRD_QdssReadComplete
+(
+    WDFUSBPIPE Pipe,
+    WDFMEMORY  Buffer,
+    size_t     NumBytesTransferred,
+    WDFCONTEXT Context
+)
+{
+    PDEVICE_CONTEXT pDevContext = (PDEVICE_CONTEXT)Context;
+    KIRQL           ringLevel;
+
+    UNREFERENCED_PARAMETER(Pipe);
+
+    // A successful read ends the failure run, as in the original drain completion
+    InterlockedExchange((volatile LONG *)&pDevContext->Stats.IoFailureCount, 0);
+
+    if (NumBytesTransferred == 0)
+    {
+        return;
+    }
+
+    // 32-bit on purpose: legacy IOCTL ABI field (wraps at 4 GB, as before)
+    InterlockedExchangeAdd((volatile LONG *)&pDevContext->Stats.BytesDrained, (LONG)NumBytesTransferred);
+
+    KeAcquireSpinLock(&pDevContext->RxLock, &ringLevel);
+    QdssRingWriteLocked(pDevContext, WdfMemoryGetBuffer(Buffer, NULL), (ULONG)NumBytesTransferred);
+    KeReleaseSpinLock(&pDevContext->RxLock, ringLevel);
+
+    QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_TRACE,
+        ("<%s> QDBRD_QdssReadComplete: %uB (ring %uB)\n", pDevContext->PortName,
+        (ULONG)NumBytesTransferred, pDevContext->QdssRingUsed));
+
+    QdssServicePendingReads(pDevContext);
+}
+
+// Continuous-reader failure (PASSIVE_LEVEL). TRUE: KMDF resets the pipe and restarts the
+// readers. FALSE: reading stays stopped until the reader is restarted, i.e. the last TRACE
+// handle closes and a new one opens, or the device leaves and re-enters D0.
+BOOLEAN QDBRD_QdssReadersFailed
+(
+    WDFUSBPIPE  Pipe,
+    NTSTATUS    Status,
+    USBD_STATUS UsbdStatus
+)
+{
+    PDEVICE_CONTEXT pDevContext;
+    ULONG           failures;
+
+    UNREFERENCED_PARAMETER(UsbdStatus);
+
+    pDevContext = QdbDeviceGetContext(WdfIoTargetGetDevice(WdfUsbTargetPipeGetIoTarget(Pipe)));
+
+    if ((Status == STATUS_NO_SUCH_DEVICE) ||
+        (Status == STATUS_DEVICE_NOT_CONNECTED) ||
+        (Status == STATUS_DELETE_PENDING) ||
+        (pDevContext->DeviceRemoval == TRUE))
+    {
+        QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_ERROR,
+            ("<%s> QDBRD_QdssReadersFailed: device gone ST 0x%x, stop reading\n",
+            pDevContext->PortName, Status));
+        return FALSE;
+    }
+
+    // Same budget as the original drain: give up after IoFailureThreshold consecutive failures
+    failures = (ULONG)InterlockedIncrement((volatile LONG *)&pDevContext->Stats.IoFailureCount);
+    if (failures > pDevContext->IoFailureThreshold)
+    {
+        QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_ERROR,
+            ("<%s> QDBRD_QdssReadersFailed: ST 0x%x USBD 0x%x failed %u times (> %u), stop reading\n",
+            pDevContext->PortName, Status, UsbdStatus, failures, pDevContext->IoFailureThreshold));
+        return FALSE;
+    }
+
+    QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_ERROR,
+        ("<%s> QDBRD_QdssReadersFailed: ST 0x%x USBD 0x%x (%u/%u), reset and restart\n",
+        pDevContext->PortName, Status, UsbdStatus, failures, pDevContext->IoFailureThreshold));
+    return TRUE;
+}
+
+// Timer callback (PASSIVE_LEVEL): finish delivering ring data the bounded service loop left.
+VOID QDBRD_QdssPollTimer(WDFTIMER Timer)
+{
+    PDEVICE_CONTEXT pDevContext = QdbDeviceGetContext(WdfTimerGetParentObject(Timer));
+
+    QdssServicePendingReads(pDevContext);
+}
+
+// Append Len bytes to the QDSS ring; caller holds RxLock. Overflow drops the whole block.
+static VOID QdssRingWriteLocked(PDEVICE_CONTEXT pDevContext, PVOID Src, ULONG Len)
+{
+    ULONG firstSeg;
+
+    if ((pDevContext->QdssRingBuf == NULL) || (Len == 0))
+    {
+        return;
+    }
+
+    // Reserved bytes are mid-copy by an unlocked consumer: not free space.
+    if (pDevContext->QdssRingUsed + pDevContext->QdssRingReserved + Len >
+        pDevContext->QdssRingBufSize)
+    {
+        // Under RxLock here, so plain arithmetic is safe
+        pDevContext->Stats.BytesDropped += Len;
+        pDevContext->Stats.NumRingOverruns++;
+        QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_ERROR,
+            ("<%s> QdssRingWriteLocked: ring full, dropped %uB (total %I64uB / %u overruns)\n",
+            pDevContext->PortName, Len,
+            pDevContext->Stats.BytesDropped, pDevContext->Stats.NumRingOverruns));
+        return;
+    }
+
+    firstSeg = min(Len, pDevContext->QdssRingBufSize - pDevContext->QdssRingHead);
+    RtlCopyMemory(pDevContext->QdssRingBuf + pDevContext->QdssRingHead, Src, firstSeg);
+    if (Len > firstSeg)
+    {
+        RtlCopyMemory(pDevContext->QdssRingBuf, (PUCHAR)Src + firstSeg, Len - firstSeg);
+    }
+    pDevContext->QdssRingHead = (pDevContext->QdssRingHead + Len) % pDevContext->QdssRingBufSize;
+    pDevContext->QdssRingUsed += Len;
+}
+
+// Drain ring -> parked QDSS TRACE reads. Bounded so we cannot spin at DISPATCH_LEVEL.
+VOID QdssServicePendingReads(PDEVICE_CONTEXT pDevContext)
+{
+    ULONG guard = (IO_REQ_NUM_RX + 1) * 2;
+
+    // One deliverer at a time: concurrent dequeue+reserve would reorder the stream
+    if (InterlockedCompareExchange(&pDevContext->QdssDeliverBusy, 1, 0) != 0)
+    {
+        return;
+    }
+
+    while (guard-- > 0)
+    {
+        WDFREQUEST parkedReq = NULL;
+        PVOID      appBuf    = NULL;
+        size_t     appLen    = 0;
+        ULONG      copyLen;
+        ULONG      firstSeg;
+        ULONG      tail;
+        KIRQL      ringLevel;
+        BOOLEAN    hasData;
+
+        KeAcquireSpinLock(&pDevContext->RxLock, &ringLevel);
+        hasData = (pDevContext->QdssRingBuf != NULL && pDevContext->QdssRingUsed > 0);
+        KeReleaseSpinLock(&pDevContext->RxLock, ringLevel);
+
+        if (!hasData)
+        {
+            break;
+        }
+
+        if (!NT_SUCCESS(WdfIoQueueRetrieveNextRequest(pDevContext->QdssRxPendingQueue, &parkedReq)))
+        {
+            break;
+        }
+
+        // min=1 accepts any app buffer size
+        if (!NT_SUCCESS(WdfRequestRetrieveOutputBuffer(parkedReq, 1, &appBuf, &appLen)) ||
+            appBuf == NULL || appLen == 0)
+        {
+            // appLen==0 copies nothing and would re-loop forever, so fail it
+            WdfRequestCompleteWithInformation(parkedReq, STATUS_INVALID_PARAMETER, 0);
+            continue;
+        }
+
+        KeAcquireSpinLock(&pDevContext->RxLock, &ringLevel);
+
+        // Re-check under lock: ring may have emptied. Completing 0B looks like EOF, so requeue.
+        if ((pDevContext->QdssRingBuf == NULL) || (pDevContext->QdssRingUsed == 0))
+        {
+            NTSTATUS requeue;
+
+            KeReleaseSpinLock(&pDevContext->RxLock, ringLevel);
+
+            // A dropped request wedges queue teardown (WDF_VIOLATION), so complete it
+            requeue = WdfRequestRequeue(parkedReq);
+            if (!NT_SUCCESS(requeue))
+            {
+                WdfRequestCompleteWithInformation(parkedReq, requeue, 0);
+            }
+            break;
+        }
+
+        // Reserve under the lock, copy outside it: no 128 KB memcpy at DISPATCH_LEVEL
+        // while holding RxLock. QdssRingReserved keeps the producer off these bytes.
+        copyLen  = (ULONG)min(pDevContext->QdssRingUsed, (ULONG)appLen);
+        tail     = pDevContext->QdssRingTail;
+        firstSeg = min(copyLen, pDevContext->QdssRingBufSize - tail);
+        pDevContext->QdssRingTail      = (tail + copyLen) % pDevContext->QdssRingBufSize;
+        pDevContext->QdssRingUsed     -= copyLen;
+        pDevContext->QdssRingReserved += copyLen;
+        KeReleaseSpinLock(&pDevContext->RxLock, ringLevel);
+
+        RtlCopyMemory(appBuf, pDevContext->QdssRingBuf + tail, firstSeg);
+        if (copyLen > firstSeg)
+        {
+            RtlCopyMemory((PUCHAR)appBuf + firstSeg, pDevContext->QdssRingBuf, copyLen - firstSeg);
+        }
+
+        // copy done -- release the range back to the producer
+        KeAcquireSpinLock(&pDevContext->RxLock, &ringLevel);
+        pDevContext->QdssRingReserved -= copyLen;
+        KeReleaseSpinLock(&pDevContext->RxLock, ringLevel);
+
+        WdfRequestCompleteWithInformation(parkedReq, STATUS_SUCCESS, copyLen);
+    }
+
+    InterlockedExchange(&pDevContext->QdssDeliverBusy, 0);
+
+    // Work left (guard expired or a caller was turned away): finish from the timer
+    {
+        KIRQL   ringLevel;
+        BOOLEAN hasData;
+        ULONG   parked = 0;
+
+        KeAcquireSpinLock(&pDevContext->RxLock, &ringLevel);
+        hasData = ((pDevContext->QdssRingBuf != NULL) && (pDevContext->QdssRingUsed > 0));
+        KeReleaseSpinLock(&pDevContext->RxLock, ringLevel);
+
+        if (hasData)
+        {
+            WdfIoQueueGetState(pDevContext->QdssRxPendingQueue, &parked, NULL);
+            if (parked > 0)
+            {
+                QdssSchedulePoll(pDevContext);
+            }
+        }
+    }
+}
+
 /****************************************************************************
  *
  * function: QDBRD_IoRead
@@ -162,10 +543,13 @@ VOID QDBRD_IoRead
         ("<%s> -->QDBRD_IoRead: 0x%p (%dB)\n", pDevContext->PortName, Request, Length)
     );
 
-    // Stop draining
-    QDBRD_PipeDrainStop(pDevContext);
-
     fileContext = QdbFileGetContext(WdfRequestGetFileObject(Request));
+
+    // DPL only: QDSS owns its drain, and a DEBUG read must not clear PipeDrain
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
+    {
+        QDBRD_PipeDrainStop(pDevContext);
+    }
 
     if ((fileContext->Type == QDB_FILE_TYPE_TRACE) || (fileContext->Type == QDB_FILE_TYPE_DPL))
     {
@@ -214,6 +598,101 @@ VOID QDBRD_IoRead
             ("<%s> QDBRD_IoRead: req length 0\n", pDevContext->PortName)
         );
         WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, 0);
+        return;
+    }
+
+    // QDSS TRACE path: serve inline when the ring has data (parking every read
+    // costs a round trip that throttles the app); park only when it is empty.
+    // Stream order is guaranteed only with ONE outstanding read per TRACE handle:
+    // RxQueue dispatches in parallel, so overlapped reads may complete out of issue order.
+    if ((pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS) &&
+        (fileContext->Type == QDB_FILE_TYPE_TRACE))
+    {
+        KIRQL    ringLevel;
+        NTSTATUS fwdStatus;
+        NTSTATUS getBuf;
+        PVOID    appBuf   = NULL;
+        size_t   appLen   = 0;
+        ULONG    parked   = 0;
+        ULONG    copyLen  = 0;
+        ULONG    firstSeg = 0;
+        ULONG    tail     = 0;
+
+        getBuf = WdfRequestRetrieveOutputBuffer(Request, 1, &appBuf, &appLen);
+        if (!NT_SUCCESS(getBuf) || (appBuf == NULL))
+        {
+            WdfRequestCompleteWithInformation(Request,
+                NT_SUCCESS(getBuf) ? STATUS_INVALID_PARAMETER : getBuf, 0);
+            return;
+        }
+
+        // Inline serve is a deliverer too: own QdssDeliverBusy or park, so FIFO holds
+        if (InterlockedCompareExchange(&pDevContext->QdssDeliverBusy, 1, 0) == 0)
+        {
+            // Parked reads are older: serving this one first would reorder the stream
+            WdfIoQueueGetState(pDevContext->QdssRxPendingQueue, &parked, NULL);
+
+            // Reserve under the lock, copy outside it (see QdssServicePendingReads)
+            KeAcquireSpinLock(&pDevContext->RxLock, &ringLevel);
+            if ((parked == 0) && (pDevContext->QdssRingBuf != NULL) && (pDevContext->QdssRingUsed > 0))
+            {
+                copyLen  = (ULONG)min(pDevContext->QdssRingUsed, (ULONG)appLen);
+                tail     = pDevContext->QdssRingTail;
+                firstSeg = min(copyLen, pDevContext->QdssRingBufSize - tail);
+                pDevContext->QdssRingTail      = (tail + copyLen) % pDevContext->QdssRingBufSize;
+                pDevContext->QdssRingUsed     -= copyLen;
+                pDevContext->QdssRingReserved += copyLen;
+            }
+            KeReleaseSpinLock(&pDevContext->RxLock, ringLevel);
+
+            if (copyLen > 0)
+            {
+                RtlCopyMemory(appBuf, pDevContext->QdssRingBuf + tail, firstSeg);
+                if (copyLen > firstSeg)
+                {
+                    RtlCopyMemory((PUCHAR)appBuf + firstSeg, pDevContext->QdssRingBuf, copyLen - firstSeg);
+                }
+
+                // copy done -- release the range back to the producer
+                KeAcquireSpinLock(&pDevContext->RxLock, &ringLevel);
+                pDevContext->QdssRingReserved -= copyLen;
+                KeReleaseSpinLock(&pDevContext->RxLock, ringLevel);
+            }
+
+            InterlockedExchange(&pDevContext->QdssDeliverBusy, 0);
+
+            if (copyLen > 0)
+            {
+                QDB_DbgPrint
+                (
+                    QDB_DBG_MASK_READ,
+                    QDB_DBG_LEVEL_ERROR,
+                    ("<%s> QDSSDIAG IoRead: served %uB from ring (ring now %uB)\n",
+                    pDevContext->PortName, copyLen, pDevContext->QdssRingUsed)
+                );
+                // A deliverer turned away while we held Busy has no retry: drain for it
+                QdssServicePendingReads(pDevContext);
+                WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, copyLen);
+                return;
+            }
+        }
+
+        // Ring empty, older reads parked, or deliverer busy: park behind them
+        fwdStatus = WdfRequestForwardToIoQueue(Request, pDevContext->QdssRxPendingQueue);
+        if (!NT_SUCCESS(fwdStatus))
+        {
+            QDB_DbgPrint
+            (
+                QDB_DBG_MASK_READ,
+                QDB_DBG_LEVEL_ERROR,
+                ("<%s> QDBRD_IoRead: WdfRequestForwardToIoQueue failed ST 0x%x\n",
+                pDevContext->PortName, fwdStatus)
+            );
+            WdfRequestCompleteWithInformation(Request, fwdStatus, 0);
+            return;
+        }
+
+        QdssServicePendingReads(pDevContext);
         return;
     }
 
@@ -476,7 +955,7 @@ NTSTATUS QDBRD_AllocateRequestsRx(PDEVICE_CONTEXT pDevContext)
         ("<%s> -->QDBRD_AllocateRequestsRx: size %dB\n", pDevContext->PortName, QDB_MAX_IO_SIZE_RX)
     );
 
-    KeInitializeSpinLock(&pDevContext->RxLock);
+    // RxLock is initialized in QDBPNP_EvtDriverDeviceAdd (before any cleanup can take it)
 
     if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
     {
@@ -681,6 +1160,18 @@ NTSTATUS QDBRD_PipeDrainStart(PDEVICE_CONTEXT pDevContext)
     return STATUS_SUCCESS;
 }  // QDBRD_PipeDrainStart
 
+// Undo SendIOBlock's gate accounting and slot claim when no completion will run.
+static VOID QDBRD_SendRewind(PDEVICE_CONTEXT pDevContext, INT Index)
+{
+    KIRQL level;
+
+    KeAcquireSpinLock(&pDevContext->RxLock, &level);
+    InterlockedDecrement(&(pDevContext->Stats.DrainingRx));
+    KeReleaseSpinLock(&pDevContext->RxLock, level);
+
+    InterlockedExchange((volatile LONG *)&pDevContext->RxRequest[Index].IsPending, 0);
+}
+
 /****************************************************************************
  *
  * function: QDBRD_SendIOBlock
@@ -696,9 +1187,9 @@ NTSTATUS QDBRD_PipeDrainStart(PDEVICE_CONTEXT pDevContext)
  ****************************************************************************/
 VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
 {
-    NTSTATUS   ntStatus;
-    BOOLEAN    bResult;
-    WDFUSBPIPE pipeIN = pDevContext->TraceIN;
+    NTSTATUS                 ntStatus;
+    BOOLEAN                  bResult;
+    WDFUSBPIPE               pipeIN = pDevContext->TraceIN;
 
     if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_DPL)
     {
@@ -720,7 +1211,10 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
         pDevContext->MyIoTarget, pDevContext->Stats.IoFailureCount)
     );
 
-    if (pDevContext->RxRequest[Index].IsPending != 0)
+    // Claim the slot atomically: PipeDrainStart and the completion DPC can target the
+    // same slot, and a double submit of one WDFREQUEST bugchecks.
+    if (InterlockedCompareExchange((volatile LONG *)&pDevContext->RxRequest[Index].IsPending,
+                                   1, 0) != 0)
     {
         QDB_DbgPrint
         (
@@ -729,6 +1223,27 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
             ("<%s> <--QDBRD_SendIOBlock[%d]: still pending\n", pDevContext->PortName, Index)
         );
         return;
+    }
+
+    // Gate + count under RxLock: cleanup clears PipeDrain under it and then waits for
+    // DrainingRx==0, so no URB can be sent after that wait has completed.
+    {
+        KIRQL   gateLevel;
+        BOOLEAN allowed;
+
+        KeAcquireSpinLock(&pDevContext->RxLock, &gateLevel);
+        allowed = (pDevContext->PipeDrain == TRUE) && (pDevContext->DeviceRemoval == FALSE);
+        if (allowed)
+        {
+            InterlockedIncrement(&(pDevContext->Stats.DrainingRx));
+        }
+        KeReleaseSpinLock(&pDevContext->RxLock, gateLevel);
+
+        if (!allowed)
+        {
+            InterlockedExchange((volatile LONG *)&pDevContext->RxRequest[Index].IsPending, 0);
+            return;
+        }
     }
 
     ntStatus = WdfIoTargetFormatRequestForRead
@@ -746,6 +1261,7 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
             QDB_DBG_LEVEL_ERROR,
             ("<%s> <--QDBRD_SendIOBlock: failed to format RX req[%d]\n", pDevContext->PortName, Index)
         );
+        QDBRD_SendRewind(pDevContext, Index);
         return;
     }
 
@@ -757,6 +1273,7 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
             QDB_DBG_LEVEL_ERROR,
             ("<%s> <--QDBRD_SendIOBlock: no EP available\n", pDevContext->PortName)
         );
+        QDBRD_SendRewind(pDevContext, Index);
         return;
     }
 
@@ -775,6 +1292,7 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
             QDB_DBG_LEVEL_ERROR,
             ("<%s> <--QDBRD_SendIOBlock: failed to format URB (0x%x)\n", pDevContext->PortName, ntStatus)
         );
+        QDBRD_SendRewind(pDevContext, Index);
         return;
     }
 
@@ -785,8 +1303,7 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
         &(pDevContext->RxRequest[Index])
     );
 
-    pDevContext->RxRequest[Index].IsPending = 1;
-    InterlockedIncrement(&(pDevContext->Stats.DrainingRx));
+    // DrainingRx was already counted at the gate above
     bResult = WdfRequestSend
     (
         pDevContext->RxRequest[Index].IoRequest,
@@ -803,8 +1320,16 @@ VOID QDBRD_SendIOBlock(PDEVICE_CONTEXT pDevContext, INT Index)
             ("<%s> QDBRD_SendIOBlock: WdfRequestSend failed [%d] (0x%x)\n", pDevContext->PortName, Index, ntStatus)
         );
 
+        // Send left the request completed; re-formatting it on the next re-arm
+        // without a reuse bugchecks WDF_VIOLATION, so reuse it here.
+        {
+            WDF_REQUEST_REUSE_PARAMS failParams;
+            WDF_REQUEST_REUSE_PARAMS_INIT(&failParams, WDF_REQUEST_REUSE_NO_FLAGS, STATUS_SUCCESS);
+            WdfRequestReuse(pDevContext->RxRequest[Index].IoRequest, &failParams);
+        }
+
         // In this case, completion routine will not be called, so need to rewind
-        InterlockedDecrement(&(pDevContext->Stats.DrainingRx));
+        QDBRD_SendRewind(pDevContext, Index);
     }
 
     QDB_DbgPrint
@@ -915,21 +1440,26 @@ VOID QDBRD_PipeDrainCompletion
     );
     if (!NT_SUCCESS(ntStatus))
     {
-
+        // Original DPL policy: retry CANCELLED/UNSUCCESSFUL up to IoFailureThreshold,
+        // stop this slot on any other error.
         if ((ntStatus != STATUS_CANCELLED) && (ntStatus != STATUS_UNSUCCESSFUL))
         {
             sendAgain = FALSE;
         }
-        else if (++pDevContext->Stats.IoFailureCount > pDevContext->IoFailureThreshold)
+        else if ((ULONG)InterlockedIncrement((volatile LONG *)&pDevContext->Stats.IoFailureCount) >
+                 pDevContext->IoFailureThreshold)
         {
             sendAgain = FALSE;
         }
     }
     else
     {
-        pDevContext->Stats.IoFailureCount = 0;
+        InterlockedExchange((volatile LONG *)&pDevContext->Stats.IoFailureCount, 0);
         readLength = (ULONG)usbInfo->Parameters.PipeRead.Length;
-        pDevContext->Stats.BytesDrained += readLength;
+
+        // Interlocked: up to NumOfRxReqs completions run concurrently on other CPUs
+        // 32-bit on purpose: legacy IOCTL ABI field (wraps at 4 GB, as before)
+        InterlockedExchangeAdd((volatile LONG *)&pDevContext->Stats.BytesDrained, (LONG)readLength);
         QDB_DbgPrint
         (
             QDB_DBG_MASK_READ,
@@ -942,21 +1472,32 @@ VOID QDBRD_PipeDrainCompletion
     WDF_REQUEST_REUSE_PARAMS_INIT(&reqPrams, WDF_REQUEST_REUSE_NO_FLAGS, STATUS_SUCCESS);
     WdfRequestReuse(ioReq->IoRequest, &reqPrams);
 
-    if ((pDevContext->PipeDrain == FALSE) || (pDevContext->DeviceRemoval == TRUE))
+    // Read PipeDrain under the lock: an unsynchronised read can miss a stop and
+    // re-arm after teardown began.
     {
-        QDB_DbgPrint
-        (
-            QDB_DBG_MASK_READ,
-            QDB_DBG_LEVEL_ERROR,
-            ("<%s> QDBRD_PipeDrainCompletion: stopping draining [%d]\n", pDevContext->PortName, ioReq->Index)
-        );
-        sendAgain = FALSE;
+        KIRQL   drainLevel;
+        BOOLEAN draining;
+
+        KeAcquireSpinLock(&pDevContext->RxLock, &drainLevel);
+        draining = pDevContext->PipeDrain;
+        KeReleaseSpinLock(&pDevContext->RxLock, drainLevel);
+
+        if ((draining == FALSE) || (pDevContext->DeviceRemoval == TRUE))
+        {
+            QDB_DbgPrint
+            (
+                QDB_DBG_MASK_READ,
+                QDB_DBG_LEVEL_ERROR,
+                ("<%s> QDBRD_PipeDrainCompletion: stopping draining [%d]\n", pDevContext->PortName, ioReq->Index)
+            );
+            sendAgain = FALSE;
+        }
     }
 
-    pDevContext->RxRequest[ioReq->Index].IsPending = 0;
+    // Release the slot atomically: PipeDrainStart can claim it concurrently
+    InterlockedExchange((volatile LONG *)&pDevContext->RxRequest[ioReq->Index].IsPending, 0);
     if (sendAgain == TRUE)
     {
-        // re-send request
         QDBRD_SendIOBlock(pDevContext, ioReq->Index);
     }
 

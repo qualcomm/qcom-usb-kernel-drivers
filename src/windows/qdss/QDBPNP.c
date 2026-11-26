@@ -66,11 +66,13 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
     WDF_FILEOBJECT_CONFIG        fileSettings;
     WDF_OBJECT_ATTRIBUTES        fileAttrib;
     WDF_IO_QUEUE_CONFIG          queueSettings;
+    WDF_OBJECT_ATTRIBUTES        queueAttrib;
     WDF_OBJECT_ATTRIBUTES        reqAttrib;
     WDF_DEVICE_PNP_CAPABILITIES  pnpCapabilities;
     WDF_PNPPOWER_EVENT_CALLBACKS pnpPowerEventCB;
 
     UNREFERENCED_PARAMETER(Driver);
+    UNREFERENCED_PARAMETER(queueAttrib);   // used only when the RX-queue executionLevel fix below is enabled
 
     QDB_DbgPrintG
     (
@@ -83,6 +85,9 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
     // 1. PnP, power, and power policy callback functions
     WDF_PNPPOWER_EVENT_CALLBACKS_INIT(&pnpPowerEventCB);
     pnpPowerEventCB.EvtDevicePrepareHardware = QDBPNP_EvtDevicePrepareHW;
+    pnpPowerEventCB.EvtDeviceD0Entry = QDBPNP_EvtDeviceD0Entry;
+    pnpPowerEventCB.EvtDeviceD0Exit  = QDBPNP_EvtDeviceD0Exit;
+    pnpPowerEventCB.EvtDeviceSelfManagedIoCleanup = QDBPNP_EvtDeviceSelfManagedIoCleanup;
     WdfDeviceInitSetPnpPowerEventCallbacks(DeviceInit, &pnpPowerEventCB);
 
     // 2. File event callback functions
@@ -129,6 +134,24 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
     pDevContext = QdbDeviceGetContext(wdfDevice);
     sprintf(pDevContext->PortName, "%s%04X", QDB_DBG_NAME_PREFIX, DevInstanceNumber);
     pDevContext->MaxXfrSize = QDB_USB_TRANSFER_SIZE_MAX;
+
+    // Init here, not in AllocateRequestsRx: cleanup can take RxLock even if
+    // PrepareHW bails early, and a live lock must never be re-initialized.
+    KeInitializeSpinLock(&pDevContext->RxLock);
+
+    // Serializes QDSS reader start/stop between file open/close and D0Entry/D0Exit
+    {
+        WDF_OBJECT_ATTRIBUTES lockAttrib;
+
+        WDF_OBJECT_ATTRIBUTES_INIT(&lockAttrib);
+        lockAttrib.ParentObject = wdfDevice;
+        ntStatus = WdfWaitLockCreate(&lockAttrib, &pDevContext->QdssReaderLock);
+        if (!NT_SUCCESS(ntStatus))
+        {
+            QDB_DbgPrintG(0, 0, ("WdfWaitLockCreate QDSS reader lock failed ST 0x%X\n", ntStatus));
+            return ntStatus;
+        }
+    }
 
     // TODO: for debug purpose
     pDevContext->DebugMask = 0x0;
@@ -245,6 +268,18 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
         return ntStatus;
     }
 
+
+    // Manual non-power-managed queue: parks QDSS TRACE reads until the ring has data.
+    // Created unconditionally -- FunctionType is only known later, in PrepareHW.
+    WDF_IO_QUEUE_CONFIG_INIT(&queueSettings, WdfIoQueueDispatchManual);
+    queueSettings.PowerManaged = WdfFalse; // keep parked reads alive during selective suspend
+    ntStatus = WdfIoQueueCreate(wdfDevice, &queueSettings,
+        WDF_NO_OBJECT_ATTRIBUTES, &pDevContext->QdssRxPendingQueue);
+    if (!NT_SUCCESS(ntStatus))
+    {
+        QDB_DbgPrintG(0, 0, ("WdfIoQueueCreate QDSS pending queue failed ST 0x%X\n", ntStatus));
+        return ntStatus;
+    }
 
     // 8. Symbolic link to friendly name
     pDevContext->PhysicalDeviceObject = WdfDeviceWdmGetPhysicalDevice(wdfDevice);
@@ -411,8 +446,18 @@ VOID QDBPNP_EvtDeviceCleanupCallback(WDFOBJECT Object)
         ("<%s> -->QDBPNP_EvtDeviceCleanupCallback: 0x%p\n", pDevContext->PortName, wdfDevice)
     );
 
-    pDevContext->DeviceRemoval = TRUE;
-    pDevContext->PipeDrain = FALSE;
+    // Set both under RxLock: PipeDrainCompletion reads PipeDrain under the same lock,
+    // so an unsynchronised write here can be missed and a URB re-armed after teardown.
+    {
+        KIRQL stopLevel;
+        KeAcquireSpinLock(&pDevContext->RxLock, &stopLevel);
+        pDevContext->DeviceRemoval = TRUE;
+        pDevContext->PipeDrain = FALSE;
+        KeReleaseSpinLock(&pDevContext->RxLock, stopLevel);
+    }
+
+    // Timer stop and queue purges are done in EvtDeviceSelfManagedIoCleanup: KMDF has
+    // already cleaned up the child timer and queues by the time this callback runs.
 
     if (pDevContext->SymbolicLink.Buffer != NULL)
     {
@@ -431,6 +476,15 @@ VOID QDBPNP_EvtDeviceCleanupCallback(WDFOBJECT Object)
 
     QDBPNP_WaitForDrainToStop(pDevContext);
     QDBRD_FreeIoBuffer(pDevContext);
+
+    // QDSS-only: free the ring; all URBs have completed by this point
+    if (pDevContext->QdssRingBuf != NULL)
+    {
+        ExFreePoolWithTag(pDevContext->QdssRingBuf, QDB_TAG_RD);
+        pDevContext->QdssRingBuf = NULL;
+        pDevContext->QdssRingUsed = 0;
+        pDevContext->QdssRingReserved = 0;
+    }
 
     QDB_DbgPrint
     (
@@ -524,6 +578,8 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
 {
     NTSTATUS                    ntStatus, nts;
     PDEVICE_CONTEXT             pDevContext;
+    WDF_TIMER_CONFIG            timerConfig;
+    WDF_OBJECT_ATTRIBUTES       timerAttrib;
 
     UNREFERENCED_PARAMETER(ResourceList);
     UNREFERENCED_PARAMETER(ResourceListTranslated);
@@ -559,6 +615,8 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
     pDevContext->Stats.BytesDrained = 0;
     pDevContext->Stats.PacketsDrained = 0;
     pDevContext->Stats.IoFailureCount = 0;
+    pDevContext->Stats.BytesDropped = 0;
+    pDevContext->Stats.NumRingOverruns = 0;
 
     // Device descriptor
     ntStatus = QDBPNP_EnumerateDevice(Device);
@@ -573,15 +631,99 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
         return ntStatus;
     }
 
-    nts = QDBPNP_EnableSelectiveSuspend(Device);
-
     QDBMAIN_GetRegistrySettings(Device);
+
+    // Selective suspend idles the device after 200 ms, which fights the
+    // continuously-posted QDSS reads, so skip it for QDSS.
+    if (pDevContext->FunctionType != QDB_FUNCTION_TYPE_QDSS)
+    {
+        nts = QDBPNP_EnableSelectiveSuspend(Device);
+        QDB_DbgPrint(0, QDB_DBG_LEVEL_INFO,
+            ("<%s> QDBPNP_EvtDevicePrepareHW: FunctionType=%d (DPL), selective suspend enabled ST 0x%x\n",
+            pDevContext->PortName, pDevContext->FunctionType, nts));
+    }
+    else
+    {
+        nts = STATUS_SUCCESS;
+        QDB_DbgPrint(0, QDB_DBG_LEVEL_INFO,
+            ("<%s> QDBPNP_EvtDevicePrepareHW: FunctionType=%d (QDSS), selective suspend SKIPPED\n",
+            pDevContext->PortName, pDevContext->FunctionType));
+    }
+
     QDBPNP_SetStamp(pDevContext->PhysicalDeviceObject, 0, 1);
 
-    // Start to drain IN pipe for DPL
-    QDBRD_AllocateRequestsRx(pDevContext);
-    QDBRD_PipeDrainStart(pDevContext);
+    // QDSS-only: ring buffer decouples URB completions from app read timing
+    if (pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS)
+    {
+        if (pDevContext->QdssRingBuf == NULL)
+        {
+            pDevContext->QdssRingBuf = (PUCHAR)ExAllocatePoolZero(NonPagedPoolNx, QDB_QDSS_RING_BUF_SIZE, QDB_TAG_RD);
+            if (pDevContext->QdssRingBuf == NULL)
+            {
+                QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_ERROR,
+                    ("<%s> QDBPNP_EvtDevicePrepareHW: failed to allocate QDSS ring buffer\n", pDevContext->PortName));
+                return STATUS_INSUFFICIENT_RESOURCES;
+            }
+        }
+        pDevContext->QdssRingBufSize = QDB_QDSS_RING_BUF_SIZE;
+        pDevContext->QdssRingHead = 0;
+        pDevContext->QdssRingTail = 0;
+        pDevContext->QdssRingUsed = 0;
+        pDevContext->QdssRingReserved = 0;
+        pDevContext->QdssDeliverBusy = 0;
 
+        // Passive-level timer: finishes ring delivery the bounded service loop left
+        if (pDevContext->QdssPollTimer == NULL)
+        {
+            WDF_TIMER_CONFIG_INIT(&timerConfig, QDBRD_QdssPollTimer);
+            timerConfig.AutomaticSerialization = FALSE;
+
+            WDF_OBJECT_ATTRIBUTES_INIT(&timerAttrib);
+            timerAttrib.ParentObject   = Device;
+            timerAttrib.ExecutionLevel = WdfExecutionLevelPassive;
+
+            ntStatus = WdfTimerCreate(&timerConfig, &timerAttrib, &pDevContext->QdssPollTimer);
+            if (!NT_SUCCESS(ntStatus))
+            {
+                QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_ERROR,
+                    ("<%s> QDBPNP_EvtDevicePrepareHW: WdfTimerCreate failed ST 0x%x\n",
+                    pDevContext->PortName, ntStatus));
+                return ntStatus;
+            }
+        }
+
+        // KMDF continuous reader on TraceIN; runs only while a TRACE handle is open and in D0.
+        // Configure once per pipe: re-configuring a configured pipe fails.
+        if ((pDevContext->TraceIN == NULL) ||
+            (pDevContext->QdssReaderPipe != pDevContext->TraceIN))
+        {
+            if (pDevContext->TraceIN == NULL)
+            {
+                return STATUS_INVALID_DEVICE_STATE;
+            }
+            ntStatus = QDBRD_QdssConfigReader(pDevContext);
+            if (!NT_SUCCESS(ntStatus))
+            {
+                QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_ERROR,
+                    ("<%s> QDBPNP_EvtDevicePrepareHW: continuous reader config failed ST 0x%x\n",
+                    pDevContext->PortName, ntStatus));
+                return ntStatus;
+            }
+        }
+    }
+    else
+    {
+        // DPL: original drain pool. Must be checked: with 0 requests the drain never starts.
+        ntStatus = QDBRD_AllocateRequestsRx(pDevContext);
+        if (!NT_SUCCESS(ntStatus))
+        {
+            QDB_DbgPrint(QDB_DBG_MASK_READ, QDB_DBG_LEVEL_ERROR,
+                ("<%s> QDBPNP_EvtDevicePrepareHW: AllocateRequestsRx failed ST 0x%x\n",
+                pDevContext->PortName, ntStatus));
+            return ntStatus;
+        }
+        QDBRD_PipeDrainStart(pDevContext);
+    }
     QDB_DbgPrint
     (
         0, 0,
@@ -590,6 +732,76 @@ NTSTATUS QDBPNP_EvtDevicePrepareHW
 
     return ntStatus;
 }  // QDBPNP_EvtDevicePrepareHW
+
+// Self-managed I/O cleanup (PASSIVE_LEVEL): runs on every removal, before any object cleanup,
+// so the child timer and queues are still live. Stops all ring users before the ring is freed.
+VOID QDBPNP_EvtDeviceSelfManagedIoCleanup(WDFDEVICE Device)
+{
+    PDEVICE_CONTEXT pDevContext = QdbDeviceGetContext(Device);
+    KIRQL           stopLevel;
+
+    // Same lock as SendIOBlock/QdssSchedulePoll: nothing re-arms or restarts after this
+    KeAcquireSpinLock(&pDevContext->RxLock, &stopLevel);
+    pDevContext->DeviceRemoval = TRUE;
+    pDevContext->PipeDrain = FALSE;
+    KeReleaseSpinLock(&pDevContext->RxLock, stopLevel);
+
+    // stop the QDSS poll timer before tearing anything down
+    QDBRD_QdssStopPolling(pDevContext);
+
+    // Purge RxQueue: an EvtIoRead may be mid-copy out of the ring freed in cleanup
+    if (pDevContext->RxQueue != NULL)
+    {
+        WdfIoQueuePurgeSynchronously(pDevContext->RxQueue);
+    }
+
+    // Complete parked QDSS reads: non-power-managed, so WDF will not drain it for us
+    if (pDevContext->QdssRxPendingQueue != NULL)
+    {
+        WdfIoQueuePurgeSynchronously(pDevContext->QdssRxPendingQueue);
+    }
+}  // QDBPNP_EvtDeviceSelfManagedIoCleanup
+
+// D0Entry (PASSIVE_LEVEL): device is powered. The QDSS reader starts only if a TRACE handle
+// is open; otherwise it starts on the first open (QDBRD_QdssUpdateReader).
+NTSTATUS QDBPNP_EvtDeviceD0Entry(WDFDEVICE Device, WDF_POWER_DEVICE_STATE PreviousState)
+{
+    PDEVICE_CONTEXT pDevContext = QdbDeviceGetContext(Device);
+    NTSTATUS        ntStatus = STATUS_SUCCESS;
+
+    UNREFERENCED_PARAMETER(PreviousState);
+
+    if ((pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS) && (pDevContext->QdssReaderLock != NULL))
+    {
+        WdfWaitLockAcquire(pDevContext->QdssReaderLock, NULL);
+        pDevContext->QdssInD0 = TRUE;
+        WdfWaitLockRelease(pDevContext->QdssReaderLock);
+
+        ntStatus = QDBRD_QdssUpdateReader(pDevContext, 0);
+    }
+
+    return ntStatus;
+}  // QDBPNP_EvtDeviceD0Entry
+
+// D0Exit (PASSIVE_LEVEL): stop the reader and wait for its completions, so nothing writes the
+// ring after this returns. Runs before EvtDeviceCleanupCallback on removal.
+NTSTATUS QDBPNP_EvtDeviceD0Exit(WDFDEVICE Device, WDF_POWER_DEVICE_STATE TargetState)
+{
+    PDEVICE_CONTEXT pDevContext = QdbDeviceGetContext(Device);
+
+    UNREFERENCED_PARAMETER(TargetState);
+
+    if ((pDevContext->FunctionType == QDB_FUNCTION_TYPE_QDSS) && (pDevContext->QdssReaderLock != NULL))
+    {
+        WdfWaitLockAcquire(pDevContext->QdssReaderLock, NULL);
+        pDevContext->QdssInD0 = FALSE;
+        WdfWaitLockRelease(pDevContext->QdssReaderLock);
+
+        QDBRD_QdssUpdateReader(pDevContext, 0);
+    }
+
+    return STATUS_SUCCESS;
+}  // QDBPNP_EvtDeviceD0Exit
 
 /****************************************************************************
  *
