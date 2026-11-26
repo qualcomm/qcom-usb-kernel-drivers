@@ -56,8 +56,9 @@
 #endif
 
 #define BULK_URB_LIST            4
-#define QTIDEV_TX_TIMEOUT        2000   // in milliseconds
-#define QTIDEV_RX_TIMEOUT        2000  // in milliseconds
+#define QTIDEV_TX_TIMEOUT        60000  // in milliseconds, default write timeout incl. ZLP (can modify txTimeout via IOCTL and module param)
+#define QTIDEV_TX_DRAIN_TIMEOUT  2000   // in milliseconds, wait for pending TX URBs on flush/disconnect
+#define QTIDEV_RX_TIMEOUT        2000  // in milliseconds, default read timeout (module param rxTimeout)
 #define QTIDEV_BULK_BUF_LEN      1024*1024*3 // 4000000//1024*1024*3
 #define QTIDEV_RETRY             3
 #define QTIDEV_SLEEP_TIMER       2 // in milliseconds
@@ -96,7 +97,27 @@
 #define IOCTL_QTIDEV_SESSION_TOTAL    0x1005
 #endif
 
-#define QTIDEV_QTIOM_VID      0x05C6
+/*
+ * Per-device I/O timeouts in ms, userspace ABI (QDS keeps a copy of this block).
+ *   tx_ms - wait for a write() to complete, including the trailing ZLP; killable (only a fatal signal ends it early)
+ *   rx_ms - wait for data in a blocking read()
+ * QTIDEV_TIMEOUT_DEFAULT uses the module param txTimeout/rxTimeout, QTIDEV_TIMEOUT_INFINITE waits until
+ * the transfer completes, the device is removed or the process is killed.
+ * SET applies both values, GET returns the effective values. Overrides are cleared on every open().
+ */
+struct qtidev_timeouts {
+    __u32 tx_ms;
+    __u32 rx_ms;
+};
+
+#define QTIDEV_TIMEOUT_DEFAULT        0U
+#define QTIDEV_TIMEOUT_INFINITE       0xFFFFFFFFU
+
+#define QTIDEV_IOC_MAGIC              'Q'
+#define IOCTL_QTIDEV_SET_TIMEOUTS     _IOW(QTIDEV_IOC_MAGIC, 0x10, struct qtidev_timeouts)
+#define IOCTL_QTIDEV_GET_TIMEOUTS     _IOR(QTIDEV_IOC_MAGIC, 0x11, struct qtidev_timeouts)
+
+#define QTIDEV_QCOM_VID      0x05C6
 #ifdef QCUSB_TEST_ONLY
 #define QTIDEV_LPC_PID       0x9680
 #define QTIDEV_LPC_IFACE_NUM 0
@@ -288,6 +309,8 @@ typedef struct sQTIDevUSB {
     dev_t               mDevNum;        /* Device number */
     sDevinfInfo         mDevInfo;       /* Device info */
     unsigned int        mTimeout;       /* read timeout */
+    unsigned int        mTxTimeoutMs;   /* write timeout set by ioctl, 0 = module param txTimeout */
+    unsigned int        mRxTimeoutMs;   /* read timeout set by ioctl, 0 = module param rxTimeout */
     __u8		        disconnected;
 #ifdef QCUSB_TEST_ONLY
     __u8                mLpcRead;

@@ -30,6 +30,8 @@
 #define qti_kfree(mem_ptr) kfree(mem_ptr)
 #endif
 
+#define QTI_WAIT_FOREVER 0xFFFFFFFFUL // timeout_ms value for no timeout, same as QTIDEV_TIMEOUT_INFINITE
+
 typedef struct _qti_event
 {
     spinlock_t evt_lock;
