@@ -36,9 +36,8 @@
 #define QTIDEV_INF_CLASS_MODEM_STR   "Modem" /**< For Dun entry    */
 #define QTIDEV_INF_CLASS_PORTS_STR   "Ports" /**< For Ports entry  */
 #define QTIDEV_INF_CLASS_USB_STR     "USB"   /**< For QDSS entry   */
-            
-typedef enum
-{
+
+typedef enum {
    QC_LOG_LVL_DATA = 10, /** All type of log messages*/
    QC_LOG_LVL_DBG = 20,
    QC_LOG_LVL_INFO = 30,
@@ -53,61 +52,61 @@ typedef enum
  */
 
 #define QC_LOG(KERN_LVL, DEV_CONTEXT, format, lvl, ver_num, args...)  { \
-            if(DEV_CONTEXT && (DEV_CONTEXT->debug == 1 || DEV_CONTEXT->debug == 0xFF)&& (DEV_CONTEXT->logLevel<=lvl)) {\
-                printk( KERN_LVL "%s: %s:%d %s "format,DEV_CONTEXT->mdeviceName,__FUNCTION__, __LINE__,ver_num, ##args) ;\
-            } \
-            else if(DEV_CONTEXT == NULL){\
-                printk( KERN_ERR "%s:%d %s "format,__FUNCTION__, __LINE__,ver_num, ##args) ; }\
-            }  
+	    if (DEV_CONTEXT && (DEV_CONTEXT->debug == 1 || DEV_CONTEXT->debug == 0xFF) && (DEV_CONTEXT->logLevel <= lvl)) {\
+		printk(KERN_LVL "%s: %s:%d %s "format, DEV_CONTEXT->mdeviceName, __func__, __LINE__, ver_num, ##args) ;\
+	    } \
+	    else if (DEV_CONTEXT == NULL) {\
+		printk(KERN_ERR "%s:%d %s "format, __func__, __LINE__, ver_num, ##args) ; } \
+	    }
 
 #define QC_GLOBAL(format, args...)    { \
-        if(debug_g == 1) \
-            printk( KERN_INFO "%s:%d "format,__FUNCTION__, __LINE__, ##args) ;\
+	if (debug_g == 1) \
+	    printk(KERN_INFO "%s:%d "format, __func__, __LINE__, ##args) ;\
     }
 
-#define QC_LOG_GLOBAL(format,args...)    QC_GLOBAL(format, ## args)
+#define QC_LOG_GLOBAL(format, args...)    QC_GLOBAL(format, ## args)
 
 #define QC_AGGR(format, args...)    { \
-        if(debug_aggr == 1) \
-            printk( KERN_ALERT " "format, ##args) ;\
+	if (debug_aggr == 1) \
+	    printk(KERN_ALERT " "format, ##args) ;\
     }
 
-#define QC_LOG_AGGR(format,args...)    QC_AGGR(format, ## args)
+#define QC_LOG_AGGR(format, args...)    QC_AGGR(format, ## args)
 /**
  * To log data messages
  */
-#define QC_LOG_DATA(DEV_CONTEXT,format,args...)     QC_LOG(KERN_NOTICE, DEV_CONTEXT,format,QC_LOG_LVL_DATA, "", ## args)
+#define QC_LOG_DATA(DEV_CONTEXT, format, args...)     QC_LOG(KERN_NOTICE, DEV_CONTEXT, format, QC_LOG_LVL_DATA, "", ## args)
 
 /**
  * To log debug messages
  */
-#define QC_LOG_DBG(DEV_CONTEXT,format, args...)     QC_LOG(KERN_DEBUG,DEV_CONTEXT,format, QC_LOG_LVL_DBG, "", ## args)
+#define QC_LOG_DBG(DEV_CONTEXT, format, args...)     QC_LOG(KERN_DEBUG, DEV_CONTEXT, format, QC_LOG_LVL_DBG, "", ## args)
 
 /**
  * To log info messages
  */
-#define QC_LOG_INFO(DEV_CONTEXT,format,args...)    QC_LOG(KERN_INFO, DEV_CONTEXT,format,QC_LOG_LVL_INFO, "", ## args)
+#define QC_LOG_INFO(DEV_CONTEXT, format, args...)    QC_LOG(KERN_INFO, DEV_CONTEXT, format, QC_LOG_LVL_INFO, "", ## args)
 
 
 /**
  * To log warning messages
  */
-#define QC_LOG_WARN(DEV_CONTEXT,format,args...)    QC_LOG(KERN_WARNING,DEV_CONTEXT,format,QC_LOG_LVL_WARN, "", ## args)
+#define QC_LOG_WARN(DEV_CONTEXT, format, args...)    QC_LOG(KERN_WARNING, DEV_CONTEXT, format, QC_LOG_LVL_WARN, "", ## args)
 
 /**
  * To log error messages
  */
-#define QC_LOG_ERR(DEV_CONTEXT,format,args...)     QC_LOG(KERN_ERR,DEV_CONTEXT,format,QC_LOG_LVL_ERR, DRIVER_VERSION, ## args)
+#define QC_LOG_ERR(DEV_CONTEXT, format, args...)     QC_LOG(KERN_ERR, DEV_CONTEXT, format, QC_LOG_LVL_ERR, DRIVER_VERSION, ## args)
 
 /**
  * To log exception messages
  */
-#define QC_LOG_EXCEPTION(DEV_CONTEXT,format,args...)     QC_LOG(KERN_ALERT,DEV_CONTEXT,format,QC_LOG_LVL_EXCEPTION, "",## args)
+#define QC_LOG_EXCEPTION(DEV_CONTEXT, format, args...)     QC_LOG(KERN_ALERT, DEV_CONTEXT, format, QC_LOG_LVL_EXCEPTION, "", ## args)
 
 /**
  * To log fatal error messages
  */
-#define QC_LOG_FATAL(DEV_CONTEXT,format,args...)     QC_LOG(KERN_EMERG, DEV_CONTEXT,format,QC_LOG_LVL_FATAL, "", ## args)
+#define QC_LOG_FATAL(DEV_CONTEXT, format, args...)     QC_LOG(KERN_EMERG, DEV_CONTEXT, format, QC_LOG_LVL_FATAL, "", ## args)
 
 
 /**
@@ -157,7 +156,7 @@ typedef struct _fileInfo {
     unsigned int        mLength;    /**< Number of devices can occupy */
     unsigned int        mNumResp;   /**< Number of devices present */
     struct _devInfo     mDevInfo[0];
-}fileInfo_t;
+} fileInfo_t;
 
 /**
  * @brief To extract the device info from the stored data
@@ -170,7 +169,7 @@ typedef struct _fileInfo {
  *
  * @returns devInfo on Success / NULL on Failure
  */
-void* QTIDevInfGetDevInfo(struct usb_interface *pIface, fileInfo_t *pFileInfo);
+void *QTIDevInfGetDevInfo(struct usb_interface *pIface, fileInfo_t *pFileInfo);
 
 /**
  * @brief To verify whether the INF/config file is modified
