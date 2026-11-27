@@ -147,8 +147,6 @@ NTSTATUS QDBPNP_EvtDriverDeviceAdd
         WdfIoQueueDispatchParallel
     );
     queueSettings.EvtIoDeviceControl = QDBDSP_IoDeviceControl;
-    queueSettings.EvtIoStop = QDBDSP_IoStop;
-    queueSettings.EvtIoResume = QDBDSP_IoResume;
 
     ntStatus = WdfIoQueueCreate
     (
