@@ -534,27 +534,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.state.outputs.tag }}
-          VERSION: ${{ steps.state.outputs.version }}
           RUN_ID: ${{ github.event.workflow_run.id }}
           REPO: ${{ github.repository }}
         run: |
           {
+            echo "## What's Changed"
             cat /tmp/release_notes_body.md
-            echo ""
-            echo "### Installation"
-            echo '```bash'
-            echo "sudo dpkg -i qud_${VERSION}_all.deb"
-            echo '```'
-            echo ""
-            echo "### Uninstall"
-            echo '```bash'
-            echo "sudo dpkg -r qud"
-            echo '```'
-            echo ""
-            echo "### SHA-256"
-            echo '```'
-            cat /tmp/assets/SHA256SUMS
-            echo '```'
             echo ""
             echo "Built from run: https://github.com/${REPO}/actions/runs/${RUN_ID}"
           } > /tmp/release_notes.md
